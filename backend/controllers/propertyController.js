@@ -82,3 +82,19 @@ export const deleteProperty = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get a single property by ID
+// @route   GET /api/properties/:id
+export const getPropertyById = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id).populate('sellerId', 'name email');
+    
+    if (property) {
+      res.json(property);
+    } else {
+      res.status(404).json({ message: 'Property not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Invalid Property ID or Server Error' });
+  }
+};

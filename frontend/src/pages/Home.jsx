@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -34,8 +36,11 @@ const Home = () => {
             <p><strong>Price:</strong> ${property.price.toLocaleString()}</p>
             <p><strong>Location:</strong> {property.location.city}</p>
             <p>{property.bedrooms} Beds | {property.bathrooms} Baths | {property.area} sqft</p>
-            <button style={{ marginTop: '10px', padding: '8px 12px', cursor: 'pointer' }}>
-              View Details
+            <button 
+                onClick={() => navigate(`/property/${property._id}`)}
+                style={{ marginTop: '10px', padding: '8px 12px', cursor: 'pointer', backgroundColor: '#3498db', color: '#fff', border: 'none', borderRadius: '4px' }}
+                >
+                View Details
             </button>
           </div>
         ))}

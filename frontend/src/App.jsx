@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import PropertyDetails from './pages/PropertyDetails';
 
 // Nav component to handle the logout logic and links
 const Navigation = () => {
@@ -49,6 +50,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/property/:id" element={<PropertyDetails />} />
           </Routes>
         </main>
       </div>

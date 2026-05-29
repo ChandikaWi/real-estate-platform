@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProperties, createProperty, deleteProperty } from '../controllers/propertyController.js';
+import { getProperties, createProperty, deleteProperty, getPropertyById } from '../controllers/propertyController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -9,6 +9,7 @@ router.route('/')
   .post(protect, authorize('seller', 'admin'), createProperty);
 
 router.route('/:id')
+  .get(getPropertyById)
   .delete(protect, authorize('seller', 'admin'), deleteProperty);
 
 export default router;
