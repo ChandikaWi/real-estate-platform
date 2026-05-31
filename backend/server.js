@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js'; 
 import propertyRoutes from './routes/propertyRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -20,7 +21,9 @@ app.use(morgan('dev'));
 // Auth API
 app.use('/api/auth', authRoutes);
 // Property API
-app.use('/api/properties', propertyRoutes); 
+app.use('/api/properties', propertyRoutes);
+// Message API
+app.use('/api/messages', messageRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running and database is connected...');

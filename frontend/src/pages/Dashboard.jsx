@@ -5,6 +5,8 @@ import api from '../api/axiosConfig';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
 
   // Form State mapping to Property Schema
   const [formData, setFormData] = useState({
@@ -26,6 +28,22 @@ const Dashboard = () => {
       setUserInfo(storedUser);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    if (userInfo && userInfo.role === 'seller') {
+      const fetchMessages = async () => {
+        try {
+          const { data } = await api.get('/messages');
+          setMessages(data);
+          setLoadingMessages(false);
+        } catch (error) {
+          console.error("Failed to fetch messages");
+          setLoadingMessages(false);
+        }
+      };
+      fetchMessages();
+    }
+  }, [userInfo]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -115,6 +133,31 @@ const Dashboard = () => {
           List Property
         </button>
       </form>
+
+      {/* Messages Section */}
+      <div style={{ marginTop: '40px' }}>
+        <h3>Your Inquiries</h3>
+        {loadingMessages ? (
+          <p>Loading messages...</p>
+        ) : messages.length === 0 ? (
+          <p>No messages yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {messages.map((msg) => (
+              <div key={msg._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#7f8c8d' }}>
+                  <strong>From:</strong> {msg.senderId?.name} ({msg.senderId?.email})<br/>
+                  <strong>Regarding:</strong> {msg.propertyId?.title}<br/>
+                  <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
+                </p>
+                <p style={{ margin: 0, padding: '10px', backgroundColor: '#f4f4f9', borderRadius: '4px' }}>
+                  {msg.message}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

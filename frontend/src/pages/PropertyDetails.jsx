@@ -8,6 +8,11 @@ const PropertyDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Messaging State
+  const [messageText, setMessageText] = useState('');
+  const [messageStatus, setMessageStatus] = useState('');
+  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
   useEffect(() => {
     const fetchPropertyDetails = async () => {
       try {
@@ -19,13 +24,31 @@ const PropertyDetails = () => {
         setLoading(false);
       }
     };
-
     fetchPropertyDetails();
   }, [id]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    setMessageStatus('');
+    try {
+      await api.post('/messages', {
+        receiverId: property.sellerId._id,
+        propertyId: property._id,
+        message: messageText
+      });
+      setMessageStatus('Message sent successfully!');
+      setMessageText('');
+    } catch (err) {
+      setMessageStatus('Failed to send: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   if (loading) return <h2>Loading property details...</h2>;
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
   if (!property) return <h2>Property not found.</h2>;
+
+  // Check if the logged-in user is the owner of this property
+  const isOwner = userInfo && userInfo._id === property.sellerId._id;
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
@@ -40,7 +63,6 @@ const PropertyDetails = () => {
         </div>
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
-          {/* Left Column- Description & Details */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
@@ -53,8 +75,7 @@ const PropertyDetails = () => {
               <li><strong>Bedrooms:</strong> {property.bedrooms}</li>
               <li><strong>Bathrooms:</strong> {property.bathrooms}</li>
             </ul>
-
-            {/* Valuation Metrics (Future ML Data) */}
+            
             {property.valuationMetrics && (
               <>
                 <h3>Valuation Data</h3>
@@ -68,18 +89,31 @@ const PropertyDetails = () => {
             )}
           </div>
 
-          {/* Right Column- Seller Info & Actions */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
-            <h3>Contact Seller</h3>
+            <h3>Seller Information</h3>
             <p><strong>Name:</strong> {property.sellerId?.name}</p>
-            <p><strong>Email:</strong> {property.sellerId?.email}</p>
             
-            <button style={{ width: '100%', padding: '12px', backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginTop: '15px', fontWeight: 'bold' }}>
-              Send Inquiry
-            </button>
-            <button style={{ width: '100%', padding: '12px', backgroundColor: '#fff', color: '#2c3e50', border: '1px solid #2c3e50', borderRadius: '5px', cursor: 'pointer', marginTop: '10px', fontWeight: 'bold' }}>
-              Save to Favorites
-            </button>
+            {!userInfo ? (
+              <p style={{ color: '#e74c3c', marginTop: '15px' }}>Please <Link to="/login">login</Link> to contact the seller.</p>
+            ) : isOwner ? (
+              <p style={{ color: '#27ae60', marginTop: '15px', fontWeight: 'bold' }}>This is your listing.</p>
+            ) : (
+              <form onSubmit={handleSendMessage} style={{ marginTop: '15px' }}>
+                <h4>Send an Inquiry</h4>
+                <textarea 
+                  rows="4" 
+                  value={messageText} 
+                  onChange={(e) => setMessageText(e.target.value)} 
+                  placeholder="I am interested in this property..." 
+                  required 
+                  style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }} 
+                />
+                <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Send Message
+                </button>
+                {messageStatus && <p style={{ marginTop: '10px', color: messageStatus.includes('successfully') ? 'green' : 'red' }}>{messageStatus}</p>}
+              </form>
+            )}
           </div>
         </div>
       </div>
