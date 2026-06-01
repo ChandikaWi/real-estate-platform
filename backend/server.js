@@ -7,6 +7,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js'; 
 import propertyRoutes from './routes/propertyRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -24,6 +25,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 // Message API
 app.use('/api/messages', messageRoutes);
+// Admin API
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running and database is connected...');

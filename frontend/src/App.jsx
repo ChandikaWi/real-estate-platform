@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import PropertyDetails from './pages/PropertyDetails';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Nav component to handle the logout logic and links
 const Navigation = () => {
@@ -26,6 +27,7 @@ const Navigation = () => {
           <>
             <span style={{ fontWeight: 'bold' }}>Hello, {userInfo.name}</span>
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
+            {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
             <button onClick={handleLogout} style={{ cursor: 'pointer' }}>Logout</button>
           </>
         ) : (
@@ -51,6 +53,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
       </div>
