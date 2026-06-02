@@ -7,7 +7,8 @@ const PropertyDetails = () => {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [favStatus, setFavStatus] = useState('');
+  
   // Messaging State
   const [messageText, setMessageText] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
@@ -43,6 +44,19 @@ const PropertyDetails = () => {
     }
   };
 
+  const handleSaveFavorite = async () => {
+    if (!userInfo) {
+      setFavStatus('Please login to save favorites.');
+      return;
+    }
+    try {
+      await api.post('/favorites', { propertyId: property._id });
+      setFavStatus('Saved to favorites!');
+    } catch (err) {
+      setFavStatus(err.response?.data?.message || 'Failed to save');
+    }
+  };
+
   if (loading) return <h2>Loading property details...</h2>;
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
   if (!property) return <h2>Property not found.</h2>;
@@ -63,6 +77,7 @@ const PropertyDetails = () => {
         </div>
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+          {/* Left Column */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
@@ -89,6 +104,7 @@ const PropertyDetails = () => {
             )}
           </div>
 
+          {/* Right Column */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
             <p><strong>Name:</strong> {property.sellerId?.name}</p>
@@ -114,6 +130,20 @@ const PropertyDetails = () => {
                 {messageStatus && <p style={{ marginTop: '10px', color: messageStatus.includes('successfully') ? 'green' : 'red' }}>{messageStatus}</p>}
               </form>
             )}
+
+            {/* Save to Favorites Button - Hidden if the user owns the property */}
+            {!isOwner && (
+              <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
+                <button 
+                  onClick={handleSaveFavorite} 
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#fff', color: '#2c3e50', border: '1px solid #2c3e50', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Save to Favorites
+                </button>
+                {favStatus && <p style={{ marginTop: '10px', textAlign: 'center', color: favStatus.includes('Saved') ? 'green' : 'red' }}>{favStatus}</p>}
+              </div>
+            )}
+            
           </div>
         </div>
       </div>
