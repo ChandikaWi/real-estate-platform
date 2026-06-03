@@ -73,6 +73,19 @@ const PropertyDetails = () => {
       <div style={{ backgroundColor: '#f9f9f9', padding: '30px', borderRadius: '8px', border: '1px solid #ddd' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '15px' }}>
           <h1 style={{ margin: 0 }}>{property.title}</h1>
+            {/* Image Gallery */}
+            {property.images && property.images.length > 0 && (
+            <div style={{ marginTop: '20px', display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+                {property.images.map((imgUrl, index) => (
+                <img 
+                    key={index} 
+                    src={imgUrl} 
+                    alt={`Property ${index + 1}`} 
+                    style={{ height: '300px', width: 'auto', objectFit: 'cover', borderRadius: '8px' }} 
+                />
+                ))}
+            </div>
+            )}
           <h2 style={{ margin: 0, color: '#2c3e50' }}>${property.price.toLocaleString()}</h2>
         </div>
 

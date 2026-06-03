@@ -5,55 +5,74 @@ import api from '../api/axiosConfig';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [loadingMessages, setLoadingMessages] = useState(true);
 
-  // Form State mapping to Property Schema
   const [formData, setFormData] = useState({
     title: '', description: '', price: '',
     city: '', address: '', type: 'house',
     bedrooms: '', bathrooms: '', area: '',
-    // Predictive Engine Variables
     yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
-
+  
+  // State for images
+  const [images, setImages] = useState([]); 
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Protect the route- Only allow sellers
+  // Messages State
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
+
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('userInfo'));
     if (!storedUser || storedUser.role !== 'seller') {
       navigate('/login');
     } else {
       setUserInfo(storedUser);
+      fetchInquiries();
     }
   }, [navigate]);
 
-  useEffect(() => {
-    if (userInfo && userInfo.role === 'seller') {
-      const fetchMessages = async () => {
-        try {
-          const { data } = await api.get('/messages');
-          setMessages(data);
-          setLoadingMessages(false);
-        } catch (error) {
-          console.error("Failed to fetch messages");
-          setLoadingMessages(false);
-        }
-      };
-      fetchMessages();
+  const fetchInquiries = async () => {
+    try {
+      const { data } = await api.get('/messages');
+      setMessages(data);
+      setLoadingMessages(false);
+    } catch (error) {
+      console.error("Failed to fetch messages");
+      setLoadingMessages(false);
     }
-  }, [userInfo]);
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleImageChange = (e) => {
+    setImages(e.target.files);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
+    setUploading(true);
+
     try {
-      // Format data to match backend schema expectations
+      let uploadedImageUrls = [];
+
+      // Upload Images to Cloudinary
+      if (images.length > 0) {
+        const imageFormData = new FormData();
+        for (let i = 0; i < images.length; i++) {
+          imageFormData.append('images', images[i]);
+        }
+
+        // Override headers for FormData
+        const uploadConfig = { headers: { 'Content-Type': 'multipart/form-data' } };
+        const uploadRes = await api.post('/upload', imageFormData, uploadConfig);
+        uploadedImageUrls = uploadRes.data;
+      }
+
+      // Submit Property Data
       const payload = {
         title: formData.title,
         description: formData.description,
@@ -63,6 +82,7 @@ const Dashboard = () => {
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area),
+        images: uploadedImageUrls,
         valuationMetrics: {
           yearBuilt: Number(formData.yearBuilt),
           distanceToTransport: Number(formData.distanceToTransport),
@@ -80,12 +100,15 @@ const Dashboard = () => {
         bedrooms: '', bathrooms: '', area: '',
         yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
       });
+      setImages([]);
+      setUploading(false);
     } catch (err) {
       setMessage('Error listing property: ' + (err.response?.data?.message || err.message));
+      setUploading(false);
     }
   };
 
-  if (!userInfo) return null; // Prevent flicker while redirecting
+  if (!userInfo) return null;
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -96,21 +119,14 @@ const Dashboard = () => {
 
       <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px' }}>
         
-        {/* Basic Info */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <h4>Basic Information</h4>
-        </div>
+        <div style={{ gridColumn: '1 / -1' }}><h4>Basic Information</h4></div>
         <input type="text" name="title" placeholder="Property Title" value={formData.title} onChange={handleChange} required style={{ padding: '8px' }} />
         <input type="number" name="price" placeholder="Price ($)" value={formData.price} onChange={handleChange} required style={{ padding: '8px' }} />
         <textarea name="description" placeholder="Description" value={formData.description} onChange={handleChange} required style={{ padding: '8px', gridColumn: '1 / -1', minHeight: '80px' }} />
 
-        {/* Location & Type */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <h4>Location & Details</h4>
-        </div>
+        <div style={{ gridColumn: '1 / -1' }}><h4>Location & Details</h4></div>
         <input type="text" name="city" placeholder="City" value={formData.city} onChange={handleChange} required style={{ padding: '8px' }} />
         <input type="text" name="address" placeholder="Street Address" value={formData.address} onChange={handleChange} required style={{ padding: '8px' }} />
-        
         <select name="type" value={formData.type} onChange={handleChange} style={{ padding: '8px' }}>
           <option value="house">House</option>
           <option value="apartment">Apartment</option>
@@ -120,28 +136,27 @@ const Dashboard = () => {
         <input type="number" name="bedrooms" placeholder="Bedrooms" value={formData.bedrooms} onChange={handleChange} required style={{ padding: '8px' }} />
         <input type="number" name="bathrooms" placeholder="Bathrooms" value={formData.bathrooms} onChange={handleChange} required style={{ padding: '8px' }} />
 
-        {/* Predictive Metrics */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <h4>Valuation Metrics (For Predictive Engine)</h4>
-        </div>
+        <div style={{ gridColumn: '1 / -1' }}><h4>Valuation Metrics</h4></div>
         <input type="number" name="yearBuilt" placeholder="Year Built" value={formData.yearBuilt} onChange={handleChange} style={{ padding: '8px' }} />
         <input type="number" step="0.1" name="distanceToTransport" placeholder="Distance to Transport (km)" value={formData.distanceToTransport} onChange={handleChange} style={{ padding: '8px' }} />
         <input type="number" name="parkingSpaces" placeholder="Parking Spaces" value={formData.parkingSpaces} onChange={handleChange} style={{ padding: '8px' }} />
         <input type="number" name="conditionScore" placeholder="Condition Score (1-10)" value={formData.conditionScore} onChange={handleChange} style={{ padding: '8px' }} />
 
-        <button type="submit" style={{ gridColumn: '1 / -1', padding: '12px', backgroundColor: '#2c3e50', color: 'white', border: 'none', cursor: 'pointer', marginTop: '10px' }}>
-          List Property
+        <div style={{ gridColumn: '1 / -1' }}>
+          <h4>Property Images</h4>
+          <input type="file" multiple accept="image/*" onChange={handleImageChange} style={{ padding: '8px', width: '100%' }} />
+          <small style={{ color: '#7f8c8d' }}>You can upload up to 5 images.</small>
+        </div>
+
+        <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '12px', backgroundColor: uploading ? '#95a5a6' : '#2c3e50', color: 'white', border: 'none', cursor: uploading ? 'not-allowed' : 'pointer', marginTop: '10px' }}>
+          {uploading ? 'Uploading & Listing...' : 'List Property'}
         </button>
       </form>
 
       {/* Messages Section */}
       <div style={{ marginTop: '40px' }}>
         <h3>Your Inquiries</h3>
-        {loadingMessages ? (
-          <p>Loading messages...</p>
-        ) : messages.length === 0 ? (
-          <p>No messages yet.</p>
-        ) : (
+        {loadingMessages ? <p>Loading messages...</p> : messages.length === 0 ? <p>No messages yet.</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {messages.map((msg) => (
               <div key={msg._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
@@ -150,9 +165,7 @@ const Dashboard = () => {
                   <strong>Regarding:</strong> {msg.propertyId?.title}<br/>
                   <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
                 </p>
-                <p style={{ margin: 0, padding: '10px', backgroundColor: '#f4f4f9', borderRadius: '4px' }}>
-                  {msg.message}
-                </p>
+                <p style={{ margin: 0, padding: '10px', backgroundColor: '#f4f4f9', borderRadius: '4px' }}>{msg.message}</p>
               </div>
             ))}
           </div>

@@ -110,7 +110,18 @@ const Home = () => {
         <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
           {properties.map((property) => (
             <div key={property._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
-              <h3 style={{ marginTop: 0 }}>{property.title}</h3>
+              {property.images && property.images.length > 0 ? (
+                <img 
+                    src={property.images[0]} 
+                    alt={property.title} 
+                    style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '15px' }} 
+                />
+                ) : (
+                <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '4px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
+                    No Image Available
+                </div>
+                )}
+                <h3 style={{ marginTop: 0 }}>{property.title}</h3>
               <p style={{ fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold' }}>
                 ${property.price.toLocaleString()}
               </p>
