@@ -98,3 +98,38 @@ export const getPropertyById = async (req, res) => {
     res.status(500).json({ message: 'Invalid Property ID or Server Error' });
   }
 };
+
+// @desc    Update a property
+// @route   PUT /api/properties/:id
+export const updateProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    // Verify ownership or admin status
+    if (property.sellerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this property' });
+    }
+
+    // Update the document
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true } // Returns the newly updated document
+    );
+    res.json(updatedProperty);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get logged in seller's properties
+// @route   GET /api/properties/seller/me
+export const getSellerProperties = async (req, res) => {
+  try {
+    const properties = await Property.find({ sellerId: req.user._id }).sort({ createdAt: -1 });
+    res.json(properties);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

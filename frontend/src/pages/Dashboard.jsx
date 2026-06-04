@@ -5,6 +5,7 @@ import api from '../api/axiosConfig';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
+  const [myProperties, setMyProperties] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '', description: '', price: '',
@@ -29,8 +30,30 @@ const Dashboard = () => {
     } else {
       setUserInfo(storedUser);
       fetchInquiries();
+      fetchMyProperties(); 
     }
   }, [navigate]);
+
+  const fetchMyProperties = async () => {
+    try {
+      const { data } = await api.get('/properties/seller/me');
+      setMyProperties(data);
+    } catch (error) {
+      console.error("Failed to fetch properties");
+    }
+  };
+
+  const handleDeleteProperty = async (id) => {
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      try {
+        await api.delete(`/properties/${id}`);
+        // Remove the deleted property from the UI without reloading
+        setMyProperties(myProperties.filter((prop) => prop._id !== id));
+      } catch (err) {
+        alert('Failed to delete property');
+      }
+    }
+  };
 
   const fetchInquiries = async () => {
     try {
@@ -152,6 +175,37 @@ const Dashboard = () => {
           {uploading ? 'Uploading & Listing...' : 'List Property'}
         </button>
       </form>
+
+      {/* Active Listings Section */}
+      <div style={{ marginTop: '40px' }}>
+        <h3>Your Active Listings</h3>
+        {myProperties.length === 0 ? (
+          <p>You have no active properties.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
+            {myProperties.map((prop) => (
+              <div key={prop._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
+                {prop.images && prop.images.length > 0 ? (
+                  <img src={prop.images[0]} alt="thumbnail" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '150px', backgroundColor: '#eee', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>
+                )}
+                <h4 style={{ margin: '10px 0 5px 0' }}>{prop.title}</h4>
+                <p style={{ margin: '0 0 15px 0', color: '#2ecc71', fontWeight: 'bold' }}>${prop.price.toLocaleString()}</p>
+                
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '8px', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteProperty(prop._id)} style={{ flex: 1, padding: '8px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Messages Section */}
       <div style={{ marginTop: '40px' }}>

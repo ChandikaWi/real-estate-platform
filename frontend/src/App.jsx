@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import PropertyDetails from './pages/PropertyDetails';
 import AdminDashboard from './pages/AdminDashboard';
 import Favorites from './pages/Favorites';
+import EditProperty from './pages/EditProperty';
 
 // Nav component to handle the logout logic and links
 const Navigation = () => {
@@ -57,6 +58,7 @@ function App() {
             <Route path="/property/:id" element={<PropertyDetails />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/favorites" element={<Favorites />} />
+            <Route path="/edit-property/:id" element={<EditProperty />} />
           </Routes>
         </main>
       </div>
