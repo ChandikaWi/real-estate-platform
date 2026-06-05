@@ -77,7 +77,7 @@ const PropertyDetails = () => {
     }
   };
 
-  const handleSaveFavorite = async () => { /* Favorite Logic */
+  const handleSaveFavorite = async () => { 
     if (!userInfo) {
       setFavStatus('Please login to save favorites.');
       return;
@@ -117,9 +117,31 @@ const PropertyDetails = () => {
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           
+          {/* Left Column - Full Details */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
+            
+            <h3>Property Details</h3>
+            <ul style={{ listStyle: 'none', padding: 0, lineHeight: '2' }}>
+              <li><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{property.type}</span></li>
+              <li><strong>Location:</strong> {property.location.address}, {property.location.city}</li>
+              <li><strong>Size:</strong> {property.area} sqft</li>
+              <li><strong>Bedrooms:</strong> {property.bedrooms}</li>
+              <li><strong>Bathrooms:</strong> {property.bathrooms}</li>
+            </ul>
+            
+            {property.valuationMetrics && (
+              <>
+                <h3>Valuation Data</h3>
+                <ul style={{ listStyle: 'none', padding: 0, lineHeight: '2', backgroundColor: '#e8f4f8', padding: '15px', borderRadius: '5px' }}>
+                  <li><strong>Year Built:</strong> {property.valuationMetrics.yearBuilt || 'N/A'}</li>
+                  <li><strong>Distance to Transport:</strong> {property.valuationMetrics.distanceToTransport ? `${property.valuationMetrics.distanceToTransport} km` : 'N/A'}</li>
+                  <li><strong>Parking Spaces:</strong> {property.valuationMetrics.parkingSpaces || 'N/A'}</li>
+                  <li><strong>Condition Score:</strong> {property.valuationMetrics.conditionScore ? `${property.valuationMetrics.conditionScore}/10` : 'N/A'}</li>
+                </ul>
+              </>
+            )}
           </div>
 
           {/* Right Column - Seller Info & LIVE CHAT */}
