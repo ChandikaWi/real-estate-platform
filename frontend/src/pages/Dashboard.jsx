@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import socket from '../api/socket';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
   const [myProperties, setMyProperties] = useState([]);
-
+  const [replyText, setReplyText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null); // Tracks which message users are replying to
+  
   const [formData, setFormData] = useState({
     title: '', description: '', price: '',
     city: '', address: '', type: 'house',
@@ -33,6 +36,22 @@ const Dashboard = () => {
       fetchMyProperties(); 
     }
   }, [navigate]);
+
+  useEffect(() => {
+  if (userInfo && userInfo.role === 'seller') {
+    socket.connect();
+    socket.emit('setup', userInfo);
+
+    socket.on('receive_message', (newMessage) => {
+      // Instantly pop the new incoming message at the top of the seller's inbox
+      setMessages((prevMessages) => [newMessage, ...prevMessages]);
+    });
+  }
+  return () => {
+    socket.off('receive_message');
+    socket.disconnect();
+  };
+}, [userInfo]);
 
   const fetchMyProperties = async () => {
     try {
@@ -73,6 +92,23 @@ const Dashboard = () => {
   const handleImageChange = (e) => {
     setImages(e.target.files);
   };
+
+  const handleReply = async (e, receiverId, propertyId) => {
+  e.preventDefault();
+  try {
+    const { data } = await api.post('/messages', {
+      receiverId,
+      propertyId,
+      message: replyText
+    });
+    // Add reply to the top of the dashboard feed
+    setMessages((prev) => [data, ...prev]);
+    setReplyText('');
+    setReplyingTo(null);
+  } catch (err) {
+    alert("Failed to send reply");
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -208,23 +244,45 @@ const Dashboard = () => {
       </div>
 
       {/* Messages Section */}
-      <div style={{ marginTop: '40px' }}>
-        <h3>Your Inquiries</h3>
+        <div style={{ marginTop: '40px' }}>
+        <h3>Your Inquiries (Live)</h3>
         {loadingMessages ? <p>Loading messages...</p> : messages.length === 0 ? <p>No messages yet.</p> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {messages.map((msg) => (
-              <div key={msg._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
-                <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#7f8c8d' }}>
-                  <strong>From:</strong> {msg.senderId?.name} ({msg.senderId?.email})<br/>
-                  <strong>Regarding:</strong> {msg.propertyId?.title}<br/>
-                  <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
+                <div key={msg._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' }}>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#7f8c8d' }}>
+                    <strong>{msg.senderId._id === userInfo._id ? 'You replied to:' : 'From:'}</strong> {msg.senderId?.name} <br/>
+                    <strong>Regarding:</strong> {msg.propertyId?.title}<br/>
+                    <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
+                    </p>
+                    {/* Show reply button only for incoming messages */}
+                    {msg.senderId._id !== userInfo._id && (
+                    <button onClick={() => setReplyingTo(msg._id)} style={{ height: '30px', padding: '0 15px', backgroundColor: '#3498db', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        Reply
+                    </button>
+                    )}
+                </div>
+
+                <p style={{ margin: 0, padding: '10px', backgroundColor: msg.senderId._id === userInfo._id ? '#e8f4f8' : '#f4f4f9', borderRadius: '4px' }}>
+                    {msg.message}
                 </p>
-                <p style={{ margin: 0, padding: '10px', backgroundColor: '#f4f4f9', borderRadius: '4px' }}>{msg.message}</p>
-              </div>
+
+                {/* Inline Reply Form */}
+                {replyingTo === msg._id && (
+                    <form onSubmit={(e) => handleReply(e, msg.senderId._id, msg.propertyId._id)} style={{ display: 'flex', marginTop: '10px', gap: '10px' }}>
+                    <input type="text" autoFocus value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..." required style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#2ecc71', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Send</button>
+                    <button type="button" onClick={() => setReplyingTo(null)} style={{ padding: '8px 15px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                    </form>
+                )}
+
+                </div>
             ))}
-          </div>
+            </div>
         )}
-      </div>
+        </div>
     </div>
   );
 };

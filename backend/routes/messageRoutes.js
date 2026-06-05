@@ -1,12 +1,15 @@
 import express from 'express';
-import { sendMessage, getMessages } from '../controllers/messageController.js';
+import { sendMessage, getMessages, getPropertyMessages } from '../controllers/messageController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Both routes require the user to be logged in
 router.route('/')
   .post(protect, sendMessage)
   .get(protect, getMessages);
+
+// Route for chat histories
+router.route('/:propertyId')
+  .get(protect, getPropertyMessages);
 
 export default router;
