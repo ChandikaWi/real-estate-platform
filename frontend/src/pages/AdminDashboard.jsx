@@ -71,7 +71,10 @@ const AdminDashboard = () => {
       // Update Modal if open
       setSelectedUser(data);
     } catch (error) {
-      alert('Failed to update status');
+      // Show the error message from the backend
+      const errorMsg = error.response?.data?.message || error.message;
+      alert(`Failed to update status: ${errorMsg}`);
+      console.error("Full error details:", error);
     }
   };
 
