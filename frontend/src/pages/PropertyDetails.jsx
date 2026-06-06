@@ -142,7 +142,16 @@ const PropertyDetails = () => {
 
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
-            <p><strong>Name:</strong> {property.sellerId?.name}</p>
+            <p style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <strong>Name:</strong> {property.sellerId?.name}
+              
+              {/* Verified Badge */}
+              {property.sellerId?.isVerified && (
+                <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                  ✓ Verified Seller
+                </span>
+              )}
+            </p>
             
             {!userInfo ? (
               <p style={{ color: '#e74c3c', marginTop: '15px' }}>Please <Link to="/login">login</Link> to contact the seller.</p>

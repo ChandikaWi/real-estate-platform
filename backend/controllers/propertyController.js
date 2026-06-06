@@ -37,7 +37,7 @@ export const getProperties = async (req, res) => {
       .sort(sortOption)
       .skip(skip)
       .limit(Number(limit))
-      .populate('sellerId', 'name email');
+      .populate('sellerId', 'name email isVerified');
 
     const total = await Property.countDocuments(query);
 
@@ -87,7 +87,7 @@ export const deleteProperty = async (req, res) => {
 // @route   GET /api/properties/:id
 export const getPropertyById = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id).populate('sellerId', 'name email');
+    const property = await Property.findById(req.params.id).populate('sellerId', 'name email isVerified');
     
     if (property) {
       res.json(property);

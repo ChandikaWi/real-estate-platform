@@ -1,6 +1,7 @@
 import express from 'express';
 import { getUsers, deleteUser, getAdminProperties, deleteAdminProperty } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
+import { getUsers, deleteUser, getAdminProperties, deleteAdminProperty, updateUserStatus } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -19,4 +20,7 @@ router.route('/properties')
 router.route('/properties/:id')
   .delete(deleteAdminProperty);
 
+router.route('/users/:id/status')
+  .put(updateUserStatus);
+  
 export default router;

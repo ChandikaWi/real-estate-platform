@@ -9,7 +9,10 @@ const userSchema = new mongoose.Schema({
     type: String, 
     enum: ['buyer', 'seller', 'admin'], 
     default: 'buyer' 
-  }
+  },
+  // Admin moderation flags
+  isVerified: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Hash password before saving

@@ -50,3 +50,24 @@ export const deleteAdminProperty = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Toggle user status (Ban/Unban, Verify/Unverify)
+// @route   PUT /api/admin/users/:id/status
+export const updateUserStatus = async (req, res) => {
+  try {
+    const { action } = req.body; // Expects 'ban', 'unban', 'verify', or 'unverify'
+    const user = await User.findById(req.params.id);
+    
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (action === 'ban') user.isBanned = true;
+    if (action === 'unban') user.isBanned = false;
+    if (action === 'verify') user.isVerified = true;
+    if (action === 'unverify') user.isVerified = false;
+
+    const updatedUser = await user.save();
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

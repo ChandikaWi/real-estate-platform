@@ -28,7 +28,13 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
+    
     if (user && (await user.matchPassword(password))) {
+      // Block login if the user is banned
+      if (user.isBanned) {
+        return res.status(403).json({ message: 'Your account has been restricted by the administrator.' });
+      }
+
       res.json({
         _id: user._id,
         name: user.name,
