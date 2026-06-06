@@ -8,7 +8,6 @@ import AdminDashboard from './pages/AdminDashboard';
 import Favorites from './pages/Favorites';
 import EditProperty from './pages/EditProperty';
 
-// Nav component to handle the logout logic and links
 const Navigation = () => {
   const navigate = useNavigate();
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
@@ -28,10 +27,14 @@ const Navigation = () => {
         {userInfo ? (
           <>
             <span style={{ fontWeight: 'bold' }}>Hello, {userInfo.name}</span>
-            <Link to="/favorites">My Favorites</Link>
+            
+            {/* Favorites link - restricted to Buyers */}
+            {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
+            
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
             {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
-            <button onClick={handleLogout} style={{ cursor: 'pointer' }}>Logout</button>
+            
+            <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '5px 10px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px' }}>Logout</button>
           </>
         ) : (
           <>

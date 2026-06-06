@@ -35,14 +35,12 @@ const PropertyDetails = () => {
     fetchPropertyAndChats();
   }, [id, userInfo?._id]);
 
-  // Socket Connection and Listeners
   useEffect(() => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);
 
       socket.on('receive_message', (newMessage) => {
-        // Only append if the message belongs to this specific property chat
         if (newMessage.propertyId._id === id || newMessage.propertyId === id) {
           setChatHistory((prev) => [...prev, newMessage]);
         }
@@ -54,7 +52,6 @@ const PropertyDetails = () => {
     };
   }, [userInfo, id]);
 
-  // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
@@ -69,7 +66,6 @@ const PropertyDetails = () => {
         propertyId: property._id,
         message: messageText
       });
-      // Add our own message to the UI instantly
       setChatHistory((prev) => [...prev, data]);
       setMessageText('');
     } catch (err) {
@@ -94,7 +90,9 @@ const PropertyDetails = () => {
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
   if (!property) return <h2>Property not found.</h2>;
 
+  // Role Checks
   const isOwner = userInfo && userInfo._id === property.sellerId._id;
+  const isAdmin = userInfo && userInfo.role === 'admin';
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
@@ -106,7 +104,6 @@ const PropertyDetails = () => {
           <h2 style={{ margin: 0, color: '#2c3e50' }}>${property.price.toLocaleString()}</h2>
         </div>
 
-        {/* Image Gallery */}
         {property.images && property.images.length > 0 && (
           <div style={{ marginTop: '20px', display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
             {property.images.map((imgUrl, index) => (
@@ -117,7 +114,6 @@ const PropertyDetails = () => {
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           
-          {/* Left Column - Full Details */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
@@ -144,7 +140,6 @@ const PropertyDetails = () => {
             )}
           </div>
 
-          {/* Right Column - Seller Info & LIVE CHAT */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
             <p><strong>Name:</strong> {property.sellerId?.name}</p>
@@ -153,13 +148,14 @@ const PropertyDetails = () => {
               <p style={{ color: '#e74c3c', marginTop: '15px' }}>Please <Link to="/login">login</Link> to contact the seller.</p>
             ) : isOwner ? (
               <p style={{ color: '#27ae60', marginTop: '15px', fontWeight: 'bold' }}>This is your listing.</p>
+            ) : isAdmin ? (
+              <p style={{ color: '#f39c12', marginTop: '15px', fontWeight: 'bold' }}>Admin View</p>
             ) : (
               <div style={{ marginTop: '15px', border: '1px solid #ddd', borderRadius: '5px', overflow: 'hidden' }}>
                 <div style={{ backgroundColor: '#2c3e50', color: '#fff', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>
                   Live Chat with Seller
                 </div>
                 
-                {/* Chat History Window */}
                 <div style={{ height: '250px', overflowY: 'auto', padding: '10px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {chatHistory.length === 0 ? (
                     <p style={{ textAlign: 'center', color: '#aaa', fontSize: '0.9rem', marginTop: 'auto', marginBottom: 'auto' }}>No messages yet. Say hello!</p>
@@ -176,7 +172,6 @@ const PropertyDetails = () => {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Message Input */}
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', borderTop: '1px solid #ddd' }}>
                   <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." required style={{ flex: 1, padding: '10px', border: 'none', outline: 'none' }} />
                   <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#2ecc71', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Send</button>
@@ -184,8 +179,8 @@ const PropertyDetails = () => {
               </div>
             )}
 
-            {/* Favorites Button */}
-            {!isOwner && (
+            {/* Favorites Button is hidden if the user is the Owner OR an Admin */}
+            {!isOwner && !isAdmin && (
               <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
                 <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '12px', backgroundColor: '#fff', color: '#2c3e50', border: '1px solid #2c3e50', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
                   Save to Favorites
