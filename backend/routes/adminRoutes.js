@@ -1,7 +1,12 @@
 import express from 'express';
-import { getUsers, deleteUser, getAdminProperties, deleteAdminProperty } from '../controllers/adminController.js';
+import { 
+  getUsers, 
+  deleteUser, 
+  getAdminProperties, 
+  deleteAdminProperty, 
+  updateUserStatus 
+} from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
-import { getUsers, deleteUser, getAdminProperties, deleteAdminProperty, updateUserStatus } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -14,13 +19,14 @@ router.route('/users')
 router.route('/users/:id')
   .delete(deleteUser);
 
+// Status Route (Ban/Verify)
+router.route('/users/:id/status')
+  .put(updateUserStatus);
+
 router.route('/properties')
   .get(getAdminProperties);
 
 router.route('/properties/:id')
   .delete(deleteAdminProperty);
 
-router.route('/users/:id/status')
-  .put(updateUserStatus);
-  
 export default router;
