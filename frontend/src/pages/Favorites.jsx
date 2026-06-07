@@ -15,7 +15,10 @@ const Favorites = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
-    if (!userInfo) { navigate('/login'); return; }
+    if (!userInfo) { 
+      navigate('/login'); 
+      return; 
+    }
     
     // Auto-fill the card name with the user's registered name
     setCardData(prev => ({ ...prev, name: userInfo.name }));
@@ -30,7 +33,8 @@ const Favorites = () => {
       }
     };
     fetchFavorites();
-  }, [navigate, userInfo]);
+    
+  }, [navigate, userInfo?._id, userInfo?.name]);
 
   const handleRemove = async (favoriteId) => {
     try {
