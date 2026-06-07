@@ -8,8 +8,11 @@ const Dashboard = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [myProperties, setMyProperties] = useState([]);
   const [replyText, setReplyText] = useState('');
-  const [replyingTo, setReplyingTo] = useState(null); // Tracks which message users are replying to
+  const [replyingTo, setReplyingTo] = useState(null); 
   
+  // State for sales tracking
+  const [sales, setSales] = useState([]);
+
   const [formData, setFormData] = useState({
     title: '', description: '', price: '',
     city: '', address: '', type: 'house',
@@ -17,12 +20,10 @@ const Dashboard = () => {
     yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
   
-  // State for images
   const [images, setImages] = useState([]); 
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Messages State
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
 
@@ -34,24 +35,40 @@ const Dashboard = () => {
       setUserInfo(storedUser);
       fetchInquiries();
       fetchMyProperties(); 
+      fetchSales(); // Fetch the orders when dashboard loads
     }
   }, [navigate]);
 
   useEffect(() => {
-  if (userInfo && userInfo.role === 'seller') {
-    socket.connect();
-    socket.emit('setup', userInfo);
+    if (userInfo && userInfo.role === 'seller') {
+      socket.connect();
+      socket.emit('setup', userInfo);
 
-    socket.on('receive_message', (newMessage) => {
-      // Instantly pop the new incoming message at the top of the seller's inbox
-      setMessages((prevMessages) => [newMessage, ...prevMessages]);
-    });
-  }
-  return () => {
-    socket.off('receive_message');
-    socket.disconnect();
+      socket.on('receive_message', (newMessage) => {
+        setMessages((prevMessages) => [newMessage, ...prevMessages]);
+      });
+    }
+    return () => {
+      socket.off('receive_message');
+      socket.disconnect();
+    };
+  }, [userInfo]);
+
+  const handleReply = async (e, receiverId, propertyId) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post('/messages', {
+        receiverId,
+        propertyId,
+        message: replyText
+      });
+      setMessages((prev) => [data, ...prev]);
+      setReplyText('');
+      setReplyingTo(null);
+    } catch (err) {
+      alert("Failed to send reply");
+    }
   };
-}, [userInfo]);
 
   const fetchMyProperties = async () => {
     try {
@@ -62,11 +79,20 @@ const Dashboard = () => {
     }
   };
 
+  // Fetch sales orders for the seller
+  const fetchSales = async () => {
+    try {
+      const { data } = await api.get('/orders/seller');
+      setSales(data);
+    } catch (error) {
+      console.error("Failed to fetch sales");
+    }
+  };
+
   const handleDeleteProperty = async (id) => {
     if (window.confirm('Are you sure you want to delete this listing?')) {
       try {
         await api.delete(`/properties/${id}`);
-        // Remove the deleted property from the UI without reloading
         setMyProperties(myProperties.filter((prop) => prop._id !== id));
       } catch (err) {
         alert('Failed to delete property');
@@ -93,23 +119,6 @@ const Dashboard = () => {
     setImages(e.target.files);
   };
 
-  const handleReply = async (e, receiverId, propertyId) => {
-  e.preventDefault();
-  try {
-    const { data } = await api.post('/messages', {
-      receiverId,
-      propertyId,
-      message: replyText
-    });
-    // Add reply to the top of the dashboard feed
-    setMessages((prev) => [data, ...prev]);
-    setReplyText('');
-    setReplyingTo(null);
-  } catch (err) {
-    alert("Failed to send reply");
-  }
-};
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -118,20 +127,17 @@ const Dashboard = () => {
     try {
       let uploadedImageUrls = [];
 
-      // Upload Images to Cloudinary
       if (images.length > 0) {
         const imageFormData = new FormData();
         for (let i = 0; i < images.length; i++) {
           imageFormData.append('images', images[i]);
         }
 
-        // Override headers for FormData
         const uploadConfig = { headers: { 'Content-Type': 'multipart/form-data' } };
         const uploadRes = await api.post('/upload', imageFormData, uploadConfig);
         uploadedImageUrls = uploadRes.data;
       }
 
-      // Submit Property Data
       const payload = {
         title: formData.title,
         description: formData.description,
@@ -141,7 +147,7 @@ const Dashboard = () => {
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area),
-        images: uploadedImageUrls,
+        images: uploadedImageUrls, 
         valuationMetrics: {
           yearBuilt: Number(formData.yearBuilt),
           distanceToTransport: Number(formData.distanceToTransport),
@@ -153,7 +159,6 @@ const Dashboard = () => {
       await api.post('/properties', payload);
       setMessage('Property successfully listed!');
       
-      // Reset form
       setFormData({
         title: '', description: '', price: '', city: '', address: '', type: 'house',
         bedrooms: '', bathrooms: '', area: '',
@@ -250,7 +255,7 @@ const Dashboard = () => {
       </div>
 
       {/* Messages Section */}
-        <div style={{ marginTop: '40px' }}>
+      <div style={{ marginTop: '40px' }}>
         <h3>Your Inquiries (Live)</h3>
         {loadingMessages ? <p>Loading messages...</p> : messages.length === 0 ? <p>No messages yet.</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -263,7 +268,6 @@ const Dashboard = () => {
                     <strong>Regarding:</strong> {msg.propertyId?.title}<br/>
                     <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
                     </p>
-                    {/* Show reply button only for incoming messages */}
                     {msg.senderId._id !== userInfo._id && (
                     <button onClick={() => setReplyingTo(msg._id)} style={{ height: '30px', padding: '0 15px', backgroundColor: '#3498db', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                         Reply
@@ -275,7 +279,6 @@ const Dashboard = () => {
                     {msg.message}
                 </p>
 
-                {/* Inline Reply Form */}
                 {replyingTo === msg._id && (
                     <form onSubmit={(e) => handleReply(e, msg.senderId._id, msg.propertyId._id)} style={{ display: 'flex', marginTop: '10px', gap: '10px' }}>
                     <input type="text" autoFocus value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..." required style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
@@ -288,7 +291,34 @@ const Dashboard = () => {
             ))}
             </div>
         )}
-        </div>
+      </div>
+
+      {/* Seller Sales Section */}
+      <div style={{ marginTop: '40px' }}>
+        <h3>Your Sales (Orders Received)</h3>
+        {sales.length === 0 ? <p>No sales yet.</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f4f4f9', borderBottom: '2px solid #ddd' }}>
+                <th style={{ padding: '10px' }}>Property</th>
+                <th style={{ padding: '10px' }}>Buyer Name</th>
+                <th style={{ padding: '10px' }}>Amount</th>
+                <th style={{ padding: '10px' }}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map(sale => (
+                <tr key={sale._id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px' }}>{sale.propertyId?.title || 'Unknown Property'}</td>
+                  <td style={{ padding: '10px' }}>{sale.buyerId?.name || 'Unknown Buyer'}</td>
+                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#2ecc71' }}>${sale.amount.toLocaleString()}</td>
+                  <td style={{ padding: '10px' }}>{new Date(sale.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };

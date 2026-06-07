@@ -7,6 +7,7 @@ import PropertyDetails from './pages/PropertyDetails';
 import AdminDashboard from './pages/AdminDashboard';
 import Favorites from './pages/Favorites';
 import EditProperty from './pages/EditProperty';
+import MyPurchases from './pages/MyPurchases';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ const Navigation = () => {
             
             {/* Favorites link - restricted to Buyers */}
             {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
-            
+            {userInfo.role === 'buyer' && <Link to="/purchases">My Purchases</Link>}
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
             {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
             
@@ -62,6 +63,7 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/edit-property/:id" element={<EditProperty />} />
+            <Route path="/purchases" element={<MyPurchases />} />
           </Routes>
         </main>
       </div>
