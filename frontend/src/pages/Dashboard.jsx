@@ -220,16 +220,22 @@ const Dashboard = () => {
         ) : (
           <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
             {myProperties.map((prop) => (
-              <div key={prop._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
-                {prop.images && prop.images.length > 0 ? (
-                  <img src={prop.images[0]} alt="thumbnail" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '150px', backgroundColor: '#eee', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>
-                )}
-                <h4 style={{ margin: '10px 0 5px 0' }}>{prop.title}</h4>
-                <p style={{ margin: '0 0 15px 0', color: '#2ecc71', fontWeight: 'bold' }}>${prop.price.toLocaleString()}</p>
+              <div key={prop._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' }}>
                 
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div 
+                  onClick={() => navigate(`/property/${prop._id}`)} 
+                  style={{ cursor: 'pointer', flex: 1 }}
+                >
+                  {prop.images && prop.images.length > 0 ? (
+                    <img src={prop.images[0]} alt="thumbnail" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '150px', backgroundColor: '#eee', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>
+                  )}
+                  <h4 style={{ margin: '10px 0 5px 0' }}>{prop.title}</h4>
+                  <p style={{ margin: '0 0 15px 0', color: '#2ecc71', fontWeight: 'bold' }}>${prop.price.toLocaleString()}</p>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                   <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '8px', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                     Edit
                   </button>

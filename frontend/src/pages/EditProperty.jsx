@@ -9,7 +9,7 @@ const EditProperty = () => {
   const [message, setMessage] = useState('');
 
   const [formData, setFormData] = useState({
-    title: '', description: '', price: '', city: '', address: '', type: 'house',
+    title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
     bedrooms: '', bathrooms: '', area: '',
     yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
@@ -27,6 +27,7 @@ const EditProperty = () => {
           title: data.title,
           description: data.description,
           price: data.price,
+          previousPrice: data.previousPrice || '',
           city: data.location.city,
           address: data.location.address,
           type: data.type,
@@ -81,6 +82,7 @@ const EditProperty = () => {
         title: formData.title,
         description: formData.description,
         price: Number(formData.price),
+        previousPrice: formData.previousPrice ? Number(formData.previousPrice) : null,
         location: { city: formData.city, address: formData.address },
         type: formData.type,
         bedrooms: Number(formData.bedrooms),
@@ -114,6 +116,15 @@ const EditProperty = () => {
       <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px' }}>
         <input type="text" name="title" value={formData.title} onChange={handleChange} required style={{ padding: '8px', gridColumn: '1 / -1' }} />
         <input type="number" name="price" value={formData.price} onChange={handleChange} required style={{ padding: '8px' }} />
+        <input type="text" name="title" value={formData.title} onChange={handleChange} required style={{ padding: '8px', gridColumn: '1 / -1' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Current Price ($)</label>
+          <input type="number" name="price" value={formData.price} onChange={handleChange} required style={{ padding: '8px' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#7f8c8d' }}>Previous Price (Optional)</label>
+          <input type="number" name="previousPrice" value={formData.previousPrice} onChange={handleChange} placeholder="Leave blank for no discount" style={{ padding: '8px' }} />
+        </div>
         <textarea name="description" value={formData.description} onChange={handleChange} required style={{ padding: '8px', gridColumn: '1 / -1', minHeight: '80px' }} />
         <input type="text" name="city" value={formData.city} onChange={handleChange} required style={{ padding: '8px' }} />
         <input type="text" name="address" value={formData.address} onChange={handleChange} required style={{ padding: '8px' }} />

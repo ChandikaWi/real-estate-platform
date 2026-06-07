@@ -133,7 +133,30 @@ const Home = () => {
                 )}
 
                 <h3 style={{ marginTop: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{property.title}</h3>
-                <p style={{ fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold' }}>${property.price.toLocaleString()}</p>
+                {/* Dynamic Price Display */}
+                {property.previousPrice && property.previousPrice !== property.price ? (
+                  <div style={{ marginBottom: '15px' }}>
+                    <p style={{ margin: '0 0 5px 0', fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold' }}>
+                      ${property.price.toLocaleString()}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+                      <span style={{ textDecoration: 'line-through', color: '#95a5a6' }}>
+                        ${property.previousPrice.toLocaleString()}
+                      </span>
+                      <span style={{ 
+                        backgroundColor: property.price < property.previousPrice ? '#e8f8f5' : '#fdedec', 
+                        color: property.price < property.previousPrice ? '#27ae60' : '#c0392b', 
+                        padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' 
+                      }}>
+                        {property.price < property.previousPrice ? '↓' : '↑'} {Math.round(Math.abs(((property.price - property.previousPrice) / property.previousPrice) * 100))}%
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold', marginBottom: '15px' }}>
+                    ${property.price.toLocaleString()}
+                  </p>
+                )}
                 <p><strong>Location:</strong> {property.location.city}</p>
                 <p style={{ textTransform: 'capitalize' }}><strong>Type:</strong> {property.type}</p>
                 <p>{property.bedrooms} Beds | {property.bathrooms} Baths | {property.area} sqft</p>

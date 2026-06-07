@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 const propertySchema = new mongoose.Schema({
   title: { type: String, required: true }, 
   description: { type: String, required: true }, 
-  price: { type: Number, required: true }, 
+  price: { type: Number, required: true },
+  previousPrice: { type: Number, default: null }, 
   location: { 
     city: { type: String, required: true },
     address: { type: String, required: true }
@@ -15,13 +16,12 @@ const propertySchema = new mongoose.Schema({
   images: [{ type: String }], 
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, 
   
-  // Future: Data payload for XGBoost/Random Forest model
+  // Data payload for XGBoost/Random Forest model
   valuationMetrics: {
     yearBuilt: { type: Number },
     distanceToTransport: { type: Number },
     parkingSpaces: { type: Number },
     conditionScore: { type: Number },
-    // Expandable
   }
 }, { timestamps: true });
 
