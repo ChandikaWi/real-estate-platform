@@ -11,6 +11,7 @@ const Favorites = () => {
   const [checkoutItem, setCheckoutItem] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [cardData, setCardData] = useState({ name: '', number: '', exp: '', cvc: '' });
+  const [saveCard, setSaveCard] = useState(false); // 👈 New state for the checkbox
 
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
@@ -20,8 +21,14 @@ const Favorites = () => {
       return; 
     }
     
-    // Auto-fill the card name with the user's registered name
-    setCardData(prev => ({ ...prev, name: userInfo.name }));
+    // Load saved card data if it exists, otherwise use user's name
+    const savedCard = localStorage.getItem(`mockBilling_${userInfo._id}`);
+    if (savedCard) {
+      setCardData(JSON.parse(savedCard));
+      setSaveCard(true);
+    } else {
+      setCardData(prev => ({ ...prev, name: userInfo.name }));
+    }
 
     const fetchFavorites = async () => {
       try {
@@ -33,7 +40,6 @@ const Favorites = () => {
       }
     };
     fetchFavorites();
-    
   }, [navigate, userInfo?._id, userInfo?.name]);
 
   const handleRemove = async (favoriteId) => {
@@ -56,6 +62,13 @@ const Favorites = () => {
         cardNumber: cardData.number
       });
       
+      // Save card details to local storage if checkbox is checked
+      if (saveCard) {
+        localStorage.setItem(`mockBilling_${userInfo._id}`, JSON.stringify(cardData));
+      } else {
+        localStorage.removeItem(`mockBilling_${userInfo._id}`);
+      }
+
       // Auto-remove from favorites after buying
       const favItem = favorites.find(f => f.propertyId._id === checkoutItem._id);
       if (favItem) await handleRemove(favItem._id);
@@ -63,7 +76,7 @@ const Favorites = () => {
       setProcessing(false);
       setCheckoutItem(null);
       alert('Payment Successful! Check your email for the receipt.');
-      navigate('/purchases'); // Redirect to manage page
+      navigate('/purchases');
     } catch (err) {
       alert('Payment failed');
       setProcessing(false);
@@ -109,10 +122,6 @@ const Favorites = () => {
             
             <form onSubmit={handleCheckoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Email Address</label>
-                <input type="email" value={userInfo.email} readOnly style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#f9f9f9', boxSizing: 'border-box' }} />
-              </div>
-              <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Cardholder Name</label>
                 <input type="text" value={cardData.name} onChange={e => setCardData({...cardData, name: e.target.value})} required style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} />
               </div>
@@ -123,12 +132,18 @@ const Favorites = () => {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Exp Date</label>
-                  <input type="text" placeholder="MM/YY" required style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="MM/YY" value={cardData.exp} onChange={e => setCardData({...cardData, exp: e.target.value})} required style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>CVC</label>
-                  <input type="text" placeholder="123" required maxLength="3" style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="123" value={cardData.cvc} onChange={e => setCardData({...cardData, cvc: e.target.value})} required maxLength="3" style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }} />
                 </div>
+              </div>
+
+              {/* Checkbox to remember card */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
+                <input type="checkbox" id="saveCard" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} style={{ cursor: 'pointer' }} />
+                <label htmlFor="saveCard" style={{ fontSize: '0.85rem', color: '#555', cursor: 'pointer' }}>Securely save this card for future purchases</label>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>

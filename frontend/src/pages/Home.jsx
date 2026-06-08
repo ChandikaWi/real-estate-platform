@@ -20,6 +20,8 @@ const Home = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [zoomedImage, setZoomedImage] = useState(null);
+
   const fetchProperties = async (currentPage = 1) => {
     setLoading(true);
     try {
@@ -125,7 +127,12 @@ const Home = () => {
                 
                 {/* Thumbnail Display */}
                 {property.images && property.images.length > 0 ? (
-                  <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '15px' }} />
+                  <img 
+                    src={property.images[0]} 
+                    alt={property.title} 
+                    onClick={() => setZoomedImage(property.images[0])} 
+                    style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '15px', cursor: 'zoom-in' }} 
+                  />
                 ) : (
                   <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '4px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
                     No Image
@@ -193,6 +200,22 @@ const Home = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Full-Screen Image Modal */}
+      {zoomedImage && (
+        <div 
+          onClick={() => setZoomedImage(null)} 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, cursor: 'zoom-out' }}
+        >
+          <img src={zoomedImage} alt="Zoomed" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }} />
+          <button 
+            onClick={() => setZoomedImage(null)} 
+            style={{ position: 'absolute', top: '20px', right: '30px', background: 'transparent', color: 'white', border: 'none', fontSize: '2rem', cursor: 'pointer' }}
+          >
+            &times;
+          </button>
+        </div>
       )}
     </div>
   );
