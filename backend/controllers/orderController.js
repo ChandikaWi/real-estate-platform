@@ -77,3 +77,57 @@ export const getSellerOrders = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Update order status (Cancel or Complete)
+// @route   PUT /api/orders/:id/status
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const { action } = req.body; // Expects 'cancel' or 'complete'
+    const order = await Order.findById(req.params.id);
+    
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (action === 'cancel') {
+      // Ensure only the buyer can cancel
+      if (order.buyerId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to cancel this order' });
+      }
+
+      // Check if it's within the 3-day window
+      const orderDate = new Date(order.createdAt);
+      const currentDate = new Date();
+      const diffTime = Math.abs(currentDate - orderDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 3) {
+        return res.status(400).json({ message: 'Cancellation window (3 days) has expired' });
+      }
+      if (order.status === 'Completed') {
+        return res.status(400).json({ message: 'Cannot cancel a completed order' });
+      }
+
+      order.status = 'Cancelled';
+    } 
+    else if (action === 'complete') {
+      // Ensure only the seller can complete
+      if (order.sellerId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to complete this order' });
+      }
+      if (order.status === 'Cancelled') {
+        return res.status(400).json({ message: 'Cannot complete a cancelled order' });
+      }
+
+      order.status = 'Completed';
+    }
+
+    const updatedOrder = await order.save();
+    
+    // Return the populated order so the UI updates smoothly
+    const populatedOrder = await Order.findById(updatedOrder._id)
+      .populate('propertyId buyerId');
+      
+    res.json(populatedOrder);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

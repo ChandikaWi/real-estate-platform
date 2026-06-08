@@ -5,7 +5,11 @@ const orderSchema = new mongoose.Schema({
   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   amount: { type: Number, required: true },
-  status: { type: String, default: 'Completed' }
+  status: { 
+    type: String, 
+    enum: ['Pending', 'Completed', 'Cancelled'], 
+    default: 'Pending' 
+  }
 }, { timestamps: true });
 
 export default mongoose.model('Order', orderSchema);

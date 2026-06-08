@@ -119,6 +119,18 @@ const Dashboard = () => {
     setImages(e.target.files);
   };
 
+  const handleCompleteOrder = async (orderId) => {
+    if (window.confirm('Mark this order as completed?')) {
+      try {
+        const { data } = await api.put(`/orders/${orderId}/status`, { action: 'complete' });
+        // Update the specific order in the UI array
+        setSales(sales.map(sale => sale._id === orderId ? data : sale));
+      } catch (error) {
+        alert(error.response?.data?.message || 'Failed to update order');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -304,17 +316,42 @@ const Dashboard = () => {
                 <th style={{ padding: '10px' }}>Buyer Name</th>
                 <th style={{ padding: '10px' }}>Amount</th>
                 <th style={{ padding: '10px' }}>Date</th>
+                <th style={{ padding: '10px' }}>Status</th>
+                <th style={{ padding: '10px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {sales.map(sale => (
-                <tr key={sale._id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{sale.propertyId?.title || 'Unknown Property'}</td>
-                  <td style={{ padding: '10px' }}>{sale.buyerId?.name || 'Unknown Buyer'}</td>
-                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#2ecc71' }}>${sale.amount.toLocaleString()}</td>
-                  <td style={{ padding: '10px' }}>{new Date(sale.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {sales.map(sale => {
+                const isPending = sale.status === 'Pending';
+                const isCancelled = sale.status === 'Cancelled';
+                return (
+                  <tr key={sale._id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '10px' }}>{sale.propertyId?.title || 'Unknown Property'}</td>
+                    <td style={{ padding: '10px' }}>{sale.buyerId?.name || 'Unknown Buyer'}</td>
+                    <td style={{ padding: '10px', fontWeight: 'bold', color: '#2ecc71' }}>${sale.amount.toLocaleString()}</td>
+                    <td style={{ padding: '10px' }}>{new Date(sale.createdAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '10px' }}>
+                      <span style={{ 
+                        backgroundColor: isPending ? '#fef9e7' : isCancelled ? '#fdedec' : '#e8f8f5', 
+                        color: isPending ? '#f39c12' : isCancelled ? '#c0392b' : '#27ae60', 
+                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
+                      }}>
+                        {sale.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px' }}>
+                      {isPending && (
+                        <button 
+                          onClick={() => handleCompleteOrder(sale._id)}
+                          style={{ padding: '6px 12px', backgroundColor: '#2ecc71', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
+                        >
+                          Mark Completed
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
