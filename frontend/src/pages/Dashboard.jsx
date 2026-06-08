@@ -316,8 +316,7 @@ const Dashboard = () => {
                 <th style={{ padding: '10px' }}>Buyer Name</th>
                 <th style={{ padding: '10px' }}>Amount</th>
                 <th style={{ padding: '10px' }}>Date</th>
-                <th style={{ padding: '10px' }}>Status</th>
-                <th style={{ padding: '10px' }}>Action</th>
+                <th style={{ padding: '10px' }}>Status</th> 
               </tr>
             </thead>
             <tbody>
@@ -331,23 +330,27 @@ const Dashboard = () => {
                     <td style={{ padding: '10px', fontWeight: 'bold', color: '#2ecc71' }}>${sale.amount.toLocaleString()}</td>
                     <td style={{ padding: '10px' }}>{new Date(sale.createdAt).toLocaleDateString()}</td>
                     <td style={{ padding: '10px' }}>
-                      <span style={{ 
-                        backgroundColor: isPending ? '#fef9e7' : isCancelled ? '#fdedec' : '#e8f8f5', 
-                        color: isPending ? '#f39c12' : isCancelled ? '#c0392b' : '#27ae60', 
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
-                      }}>
-                        {sale.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px' }}>
-                      {isPending && (
-                        <button 
-                          onClick={() => handleCompleteOrder(sale._id)}
-                          style={{ padding: '6px 12px', backgroundColor: '#2ecc71', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
-                        >
-                          Mark Completed
-                        </button>
-                      )}
+                      
+                      {/* Status Badge and Complete Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ 
+                          backgroundColor: isPending ? '#fef9e7' : isCancelled ? '#fdedec' : '#e8f8f5', 
+                          color: isPending ? '#f39c12' : isCancelled ? '#c0392b' : '#27ae60', 
+                          padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
+                        }}>
+                          {sale.status}
+                        </span>
+                        
+                        {isPending && (
+                          <button 
+                            onClick={() => handleCompleteOrder(sale._id)}
+                            style={{ padding: '4px 8px', backgroundColor: '#2ecc71', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                          >
+                            Mark Completed
+                          </button>
+                        )}
+                      </div>
+
                     </td>
                   </tr>
                 )

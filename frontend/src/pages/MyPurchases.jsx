@@ -63,8 +63,7 @@ const MyPurchases = () => {
               <th style={{ padding: '12px' }}>Property</th>
               <th style={{ padding: '12px' }}>Amount Paid</th>
               <th style={{ padding: '12px' }}>Date</th>
-              <th style={{ padding: '12px' }}>Status</th>
-              <th style={{ padding: '12px' }}>Action</th>
+              <th style={{ padding: '12px' }}>Status</th> 
             </tr>
           </thead>
           <tbody>
@@ -77,19 +76,23 @@ const MyPurchases = () => {
                   <td style={{ padding: '12px', fontWeight: 'bold', color: '#2ecc71' }}>${order.amount.toLocaleString()}</td>
                   <td style={{ padding: '12px' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
                   <td style={{ padding: '12px' }}>
-                    <span style={{ backgroundColor: colors.bg, color: colors.text, padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {order.status === 'Pending' && isWithinThreeDays(order.createdAt) && (
-                      <button 
-                        onClick={() => handleCancelOrder(order._id)}
-                        style={{ padding: '6px 12px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
-                      >
-                        Cancel Order
-                      </button>
-                    )}
+                    
+                    {/* Status Badge and Cancel Button */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ backgroundColor: colors.bg, color: colors.text, padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                        {order.status}
+                      </span>
+                      
+                      {order.status === 'Pending' && isWithinThreeDays(order.createdAt) && (
+                        <button 
+                          onClick={() => handleCancelOrder(order._id)}
+                          style={{ padding: '4px 8px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
+                        >
+                          Cancel Order
+                        </button>
+                      )}
+                    </div>
+
                   </td>
                 </tr>
               )
