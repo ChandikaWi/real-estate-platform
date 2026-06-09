@@ -87,7 +87,7 @@ export const deleteProperty = async (req, res) => {
 // @route   GET /api/properties/:id
 export const getPropertyById = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id).populate('sellerId', 'name email isVerified');
+    const property = await Property.findById(req.params.id).populate('sellerId', 'name email isVerified phoneNumber profilePhoto');
     
     if (property) {
       res.json(property);

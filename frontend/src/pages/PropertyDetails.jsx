@@ -140,10 +140,12 @@ const PropertyDetails = () => {
             )}
           </div>
 
+          {/* Right Column - Seller Info & LIVE CHAT */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+              {/* Seller Avatar */}
               {property.sellerId?.profilePhoto ? (
                 <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }} />
               ) : (
@@ -151,6 +153,8 @@ const PropertyDetails = () => {
                   {property.sellerId?.name?.charAt(0).toUpperCase()}
                 </div>
               )}
+              
+              {/* Seller Name & Phone */}
               <div>
                 <p style={{ margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   {property.sellerId?.name}
@@ -158,6 +162,7 @@ const PropertyDetails = () => {
                     <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem' }}>✓ Verified</span>
                   )}
                 </p>
+                {/* Phone Number Display */}
                 {property.sellerId?.phoneNumber && (
                   <p style={{ margin: '5px 0 0 0', color: '#7f8c8d', fontSize: '0.9rem' }}>📞 {property.sellerId.phoneNumber}</p>
                 )}
