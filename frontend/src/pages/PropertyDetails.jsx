@@ -142,16 +142,27 @@ const PropertyDetails = () => {
 
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
-            <p style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <strong>Name:</strong> {property.sellerId?.name}
-              
-              {/* Verified Badge */}
-              {property.sellerId?.isVerified && (
-                <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                  ✓ Verified Seller
-                </span>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+              {property.sellerId?.profilePhoto ? (
+                <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#bdc3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.5rem' }}>
+                  {property.sellerId?.name?.charAt(0).toUpperCase()}
+                </div>
               )}
-            </p>
+              <div>
+                <p style={{ margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {property.sellerId?.name}
+                  {property.sellerId?.isVerified && (
+                    <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem' }}>✓ Verified</span>
+                  )}
+                </p>
+                {property.sellerId?.phoneNumber && (
+                  <p style={{ margin: '5px 0 0 0', color: '#7f8c8d', fontSize: '0.9rem' }}>📞 {property.sellerId.phoneNumber}</p>
+                )}
+              </div>
+            </div>
             
             {!userInfo ? (
               <p style={{ color: '#e74c3c', marginTop: '15px' }}>Please <Link to="/login">login</Link> to contact the seller.</p>

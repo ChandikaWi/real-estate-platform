@@ -37,7 +37,7 @@ export const getProperties = async (req, res) => {
       .sort(sortOption)
       .skip(skip)
       .limit(Number(limit))
-      .populate('sellerId', 'name email isVerified');
+      .populate('sellerId', 'name email isVerified phoneNumber profilePhoto');
 
     const total = await Property.countDocuments(query);
 

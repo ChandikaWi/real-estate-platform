@@ -9,6 +9,7 @@ import Favorites from './pages/Favorites';
 import EditProperty from './pages/EditProperty';
 import MyPurchases from './pages/MyPurchases';
 import Compare from './pages/Compare';
+import Profile from './pages/Profile';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -28,12 +29,20 @@ const Navigation = () => {
         <Link to="/">Home</Link>
         {userInfo ? (
           <>
-            <span style={{ fontWeight: 'bold' }}>Hello, {userInfo.name}</span>
+            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#2c3e50', fontWeight: 'bold', marginRight: '15px' }}>
+              {userInfo.profilePhoto ? (
+                <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#3498db', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {userInfo.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              {userInfo.name}
+            </Link>
             
-            {/* Favorites link - restricted to Buyers */}
-            {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
             {userInfo.role === 'buyer' && <Link to="/purchases">My Purchases</Link>}
             {userInfo.role === 'buyer' && <Link to="/compare">Compare</Link>}
+            {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
             {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
             
@@ -67,6 +76,7 @@ function App() {
             <Route path="/edit-property/:id" element={<EditProperty />} />
             <Route path="/purchases" element={<MyPurchases />} />
             <Route path="/compare" element={<Compare />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
       </div>

@@ -29,7 +29,7 @@ const router = express.Router();
 // @desc    Upload multiple images
 // @route   POST /api/upload
 // @access  Private (Seller/Admin)
-router.post('/', protect, authorize('seller', 'admin'), upload.array('images', 5), (req, res) => {
+router.post('/', protect, upload.array('images', 5), (req, res) => {
   try {
     // req.files contains the uploaded file objects provided by multer
     const imageUrls = req.files.map((file) => file.path);

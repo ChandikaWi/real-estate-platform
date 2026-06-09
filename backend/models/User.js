@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
     default: 'buyer' 
   },
   isVerified: { type: Boolean, default: false },
-  isBanned: { type: Boolean, default: false }
+  isBanned: { type: Boolean, default: false },
+  profilePhoto: { type: String, default: '' },
+  phoneNumber: { type: String, default: '' }
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {
