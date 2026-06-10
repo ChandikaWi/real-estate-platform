@@ -1,4 +1,6 @@
 import Property from '../models/Property.js';
+import Order from '../models/Order.js';
+import Message from '../models/Message.js';
 
 // @desc    Get all properties (with search, filter, pagination)
 // @route   GET /api/properties
@@ -83,19 +85,24 @@ export const deleteProperty = async (req, res) => {
   }
 };
 
-// @desc    Get a single property by ID
+// @desc    Fetch single property
 // @route   GET /api/properties/:id
 export const getPropertyById = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id).populate('sellerId', 'name email isVerified phoneNumber profilePhoto');
-    
+    // Increment the views by 1 every time this route is hit
+    const property = await Property.findByIdAndUpdate(
+      req.params.id, 
+      { $inc: { views: 1 } }, 
+      { new: true }
+    ).populate('sellerId', 'name email isVerified phoneNumber profilePhoto');
+
     if (property) {
       res.json(property);
     } else {
       res.status(404).json({ message: 'Property not found' });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Invalid Property ID or Server Error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -129,6 +136,55 @@ export const getSellerProperties = async (req, res) => {
   try {
     const properties = await Property.find({ sellerId: req.user._id }).sort({ createdAt: -1 });
     res.json(properties);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get seller analytics and performance metrics
+// @route   GET /api/properties/seller/analytics
+export const getSellerAnalytics = async (req, res) => {
+  try {
+    // Fetch all data related to this seller
+    const properties = await Property.find({ sellerId: req.user._id });
+    const orders = await Order.find({ sellerId: req.user._id });
+    const messages = await Message.find({ receiverId: req.user._id });
+
+    // Calculate Summary Totals
+    const totalViews = properties.reduce((sum, prop) => sum + prop.views, 0);
+    const totalInquiries = messages.length;
+    const totalSalesRevenue = orders
+      .filter(o => o.status === 'Completed')
+      .reduce((sum, o) => sum + o.amount, 0);
+
+    // Calculate Individual Listing Performance
+    const listingPerformance = properties.map(prop => {
+      const propOrders = orders.filter(o => o.propertyId.toString() === prop._id.toString());
+      const propMessages = messages.filter(m => m.propertyId.toString() === prop._id.toString());
+      const revenue = propOrders
+        .filter(o => o.status === 'Completed')
+        .reduce((sum, o) => sum + o.amount, 0);
+
+      return {
+        _id: prop._id,
+        title: prop.title,
+        views: prop.views,
+        inquiries: propMessages.length,
+        orders: propOrders.length,
+        revenue: revenue,
+        status: propOrders.some(o => o.status === 'Completed') ? 'Sold' : 'Active'
+      };
+    });
+
+    res.json({
+      summary: {
+        activeListings: properties.length,
+        totalViews,
+        totalInquiries,
+        totalSalesRevenue
+      },
+      listings: listingPerformance
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

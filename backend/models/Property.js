@@ -4,7 +4,8 @@ const propertySchema = new mongoose.Schema({
   title: { type: String, required: true }, 
   description: { type: String, required: true }, 
   price: { type: Number, required: true },
-  previousPrice: { type: Number, default: null }, 
+  previousPrice: { type: Number, default: null },
+  views: { type: Number, default: 0 }, 
   location: { 
     city: { type: String, required: true },
     address: { type: String, required: true }

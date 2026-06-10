@@ -10,6 +10,7 @@ import EditProperty from './pages/EditProperty';
 import MyPurchases from './pages/MyPurchases';
 import Compare from './pages/Compare';
 import Profile from './pages/Profile';
+import SellerAnalytics from './pages/SellerAnalytics';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Navigation = () => {
             {userInfo.role === 'buyer' && <Link to="/compare">Compare</Link>}
             {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
+            {userInfo.role === 'seller' && <Link to="/analytics">Analytics</Link>}
             {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
             
             <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '5px 10px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px' }}>Logout</button>
@@ -77,6 +79,7 @@ function App() {
             <Route path="/purchases" element={<MyPurchases />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/analytics" element={<SellerAnalytics />} />
           </Routes>
         </main>
       </div>
