@@ -145,30 +145,31 @@ export const getSellerProperties = async (req, res) => {
 // @route   GET /api/properties/seller/analytics
 export const getSellerAnalytics = async (req, res) => {
   try {
-    // Fetch all data related to this seller
     const properties = await Property.find({ sellerId: req.user._id });
     const orders = await Order.find({ sellerId: req.user._id });
     const messages = await Message.find({ receiverId: req.user._id });
 
-    // Calculate Summary Totals
-    const totalViews = properties.reduce((sum, prop) => sum + prop.views, 0);
+    // Calculate Summary Totals 
+    const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
     const totalSalesRevenue = orders
       .filter(o => o.status === 'Completed')
-      .reduce((sum, o) => sum + o.amount, 0);
+      .reduce((sum, o) => sum + (o.amount || 0), 0);
 
     // Calculate Individual Listing Performance
     const listingPerformance = properties.map(prop => {
-      const propOrders = orders.filter(o => o.propertyId.toString() === prop._id.toString());
-      const propMessages = messages.filter(m => m.propertyId.toString() === prop._id.toString());
+      // Safely filter orders/messages using optional chaining 
+      const propOrders = orders.filter(o => o.propertyId?.toString() === prop._id.toString());
+      const propMessages = messages.filter(m => m.propertyId?.toString() === prop._id.toString());
+      
       const revenue = propOrders
         .filter(o => o.status === 'Completed')
-        .reduce((sum, o) => sum + o.amount, 0);
+        .reduce((sum, o) => sum + (o.amount || 0), 0);
 
       return {
         _id: prop._id,
         title: prop.title,
-        views: prop.views,
+        views: prop.views || 0,
         inquiries: propMessages.length,
         orders: propOrders.length,
         revenue: revenue,
@@ -186,6 +187,7 @@ export const getSellerAnalytics = async (req, res) => {
       listings: listingPerformance
     });
   } catch (error) {
+    console.error("Analytics Error:", error); // Logs exact reason to terminal if it fails 
     res.status(500).json({ message: error.message });
   }
 };
