@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import socket from '../api/socket';
 
 const PropertyDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,6 +22,11 @@ const PropertyDetails = () => {
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [reviewError, setReviewError] = useState('');
 
+  // Seller Profile Modal State
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [sellerListings, setSellerListings] = useState([]);
+  const [loadingSellerListings, setLoadingSellerListings] = useState(false);
+
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
@@ -29,13 +35,11 @@ const PropertyDetails = () => {
         const { data: propData } = await api.get(`/properties/${id}`);
         setProperty(propData);
         
-        // Fetch reviews for this seller
         if (propData.sellerId) {
           const { data: reviewData } = await api.get(`/reviews/seller/${propData.sellerId._id}`);
           setReviews(reviewData);
         }
 
-        // Fetch chats
         if (userInfo) {
           const { data: chatData } = await api.get(`/messages/${id}`);
           setChatHistory(chatData);
@@ -87,22 +91,19 @@ const PropertyDetails = () => {
     } catch (err) { setFavStatus(err.response?.data?.message || 'Failed to save'); }
   };
 
-  // REVIEW HANDLERS
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     setReviewError('');
     try {
       if (editingReviewId) {
-        // Update existing review
         const { data } = await api.put(`/reviews/${editingReviewId}`, reviewFormData);
         setReviews(reviews.map(r => r._id === editingReviewId ? data : r));
         setEditingReviewId(null);
       } else {
-        // Create new review
         const { data } = await api.post('/reviews', { sellerId: property.sellerId._id, ...reviewFormData });
         setReviews([data, ...reviews]);
       }
-      setReviewFormData({ rating: 5, comment: '' }); // Reset form
+      setReviewFormData({ rating: 5, comment: '' });
     } catch (err) {
       setReviewError(err.response?.data?.message || 'Failed to submit review');
     }
@@ -122,7 +123,26 @@ const PropertyDetails = () => {
     setReviewFormData({ rating: review.rating, comment: review.comment });
   };
 
-  // UI HELPERS
+  // Seller Profile Handler
+  const handleOpenSellerProfile = async () => {
+    setShowSellerModal(true);
+    setLoadingSellerListings(true);
+    try {
+      const { data } = await api.get(`/properties/user/${property.sellerId._id}`);
+      setSellerListings(data);
+    } catch (err) {
+      console.error("Failed to fetch seller listings");
+    } finally {
+      setLoadingSellerListings(false);
+    }
+  };
+
+  const navigateToProperty = (propId) => {
+    setShowSellerModal(false); // Close modal
+    navigate(`/property/${propId}`); // Route to new property
+    window.scrollTo(0, 0); // Scroll to top
+  };
+
   const renderStars = (rating) => {
     return [...Array(5)].map((_, i) => (
       <span key={i} style={{ color: i < rating ? '#f1c40f' : '#e0e0e0', fontSize: '1.2rem' }}>★</span>
@@ -159,7 +179,6 @@ const PropertyDetails = () => {
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           
-          {/* LEFT COLUMN - Property Details */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
@@ -186,7 +205,6 @@ const PropertyDetails = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN - Seller Info & Live Chat */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
             
@@ -205,7 +223,6 @@ const PropertyDetails = () => {
                     <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem' }}>✓ Verified</span>
                   )}
                 </p>
-                {/* Dynamically displaying the Average Rating for the seller */}
                 <div style={{ margin: '2px 0', fontSize: '0.9rem', color: '#7f8c8d' }}>
                   {renderStars(Math.round(avgRating))} 
                   <span style={{ marginLeft: '5px' }}>({reviews.length === 0 ? 'No reviews' : `${avgRating} / 5`})</span>
@@ -215,6 +232,14 @@ const PropertyDetails = () => {
                 )}
               </div>
             </div>
+
+            {/* View Seller Profile Button */}
+            <button 
+              onClick={handleOpenSellerProfile} 
+              style={{ width: '100%', padding: '10px', backgroundColor: '#fdfefe', color: '#3498db', border: '2px solid #3498db', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '15px' }}
+            >
+              View Full Profile
+            </button>
             
             {!userInfo ? (
               <p style={{ color: '#e74c3c', marginTop: '15px' }}>Please <Link to="/login">login</Link> to contact the seller.</p>
@@ -227,7 +252,6 @@ const PropertyDetails = () => {
                 <div style={{ backgroundColor: '#2c3e50', color: '#fff', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>
                   Live Chat with Seller
                 </div>
-                
                 <div style={{ height: '250px', overflowY: 'auto', padding: '10px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {chatHistory.length === 0 ? (
                     <p style={{ textAlign: 'center', color: '#aaa', fontSize: '0.9rem', marginTop: 'auto', marginBottom: 'auto' }}>No messages yet. Say hello!</p>
@@ -243,7 +267,6 @@ const PropertyDetails = () => {
                   )}
                   <div ref={chatEndRef} />
                 </div>
-
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', borderTop: '1px solid #ddd' }}>
                   <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." required style={{ flex: 1, padding: '10px', border: 'none', outline: 'none' }} />
                   <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#2ecc71', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Send</button>
@@ -265,8 +288,6 @@ const PropertyDetails = () => {
         {/* REVIEWS SECTION */}
         <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px solid #eee' }}>
           <h2>Seller Ratings & Reviews</h2>
-
-          {/* Review Submission Form (Only visible to Buyers) */}
           {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
             <div style={{ backgroundColor: '#f4f4f9', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
               <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>
@@ -302,7 +323,6 @@ const PropertyDetails = () => {
             </div>
           )}
 
-          {/* Display Existing Reviews */}
           {reviews.length === 0 ? (
             <p style={{ color: '#7f8c8d' }}>This seller currently has no reviews.</p>
           ) : (
@@ -326,7 +346,6 @@ const PropertyDetails = () => {
                       </div>
                     </div>
 
-                    {/* Edit & Delete Controls for the Review Owner */}
                     {userInfo && userInfo._id === review.buyerId?._id && (
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={() => handleEditClick(review)} style={{ padding: '4px 10px', backgroundColor: '#f39c12', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
@@ -342,6 +361,78 @@ const PropertyDetails = () => {
         </div>
 
       </div>
+
+      {/* SELLER PROFILE MODAL */}
+      {showSellerModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '8px', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            
+            {/* Modal Header */}
+            <div style={{ padding: '30px', backgroundColor: '#f4f4f9', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                {property.sellerId?.profilePhoto ? (
+                  <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }} />
+                ) : (
+                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#bdc3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '2.5rem', border: '3px solid #fff', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                    {property.sellerId?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <h2 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {property.sellerId?.name}
+                    {property.sellerId?.isVerified && (
+                      <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>✓ Verified Seller</span>
+                    )}
+                  </h2>
+                  <div style={{ marginBottom: '5px', fontSize: '1rem', color: '#7f8c8d' }}>
+                    {renderStars(Math.round(avgRating))} 
+                    <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>{avgRating} / 5</span> ({reviews.length} Reviews)
+                  </div>
+                  {property.sellerId?.phoneNumber && <p style={{ margin: 0, color: '#555' }}>📞 {property.sellerId.phoneNumber}</p>}
+                  <p style={{ margin: 0, color: '#555' }}>✉️ {property.sellerId?.email}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSellerModal(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#95a5a6', lineHeight: 1 }}>&times;</button>
+            </div>
+
+            {/* Modal Body - Seller's Listings */}
+            <div style={{ padding: '30px' }}>
+              <h3 style={{ margin: '0 0 20px 0' }}>Active Listings ({sellerListings.length})</h3>
+              
+              {loadingSellerListings ? (
+                <p>Loading properties...</p>
+              ) : sellerListings.length === 0 ? (
+                <p style={{ color: '#7f8c8d' }}>This seller has no other active listings.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                  {sellerListings.map(item => (
+                    <div 
+                      key={item._id} 
+                      onClick={() => navigateToProperty(item._id)}
+                      style={{ border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s', backgroundColor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      {item.images && item.images.length > 0 ? (
+                        <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '140px', backgroundColor: '#ecf0f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdc3c7' }}>No Image</div>
+                      )}
+                      <div style={{ padding: '15px' }}>
+                        <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</h4>
+                        <p style={{ margin: 0, color: '#2ecc71', fontWeight: 'bold' }}>${item.price.toLocaleString()}</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '0.8rem', color: '#7f8c8d' }}>{item.location.city}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

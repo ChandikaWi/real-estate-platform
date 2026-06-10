@@ -191,3 +191,15 @@ export const getSellerAnalytics = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get all public properties by a specific seller
+// @route   GET /api/properties/user/:sellerId
+export const getPropertiesBySellerId = async (req, res) => {
+  try {
+    const properties = await Property.find({ sellerId: req.params.sellerId })
+      .sort({ createdAt: -1 }); // Newest first
+    res.json(properties);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
