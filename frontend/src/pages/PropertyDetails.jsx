@@ -10,18 +10,32 @@ const PropertyDetails = () => {
   const [error, setError] = useState(null);
   const [favStatus, setFavStatus] = useState('');
   
-  // Real-Time Chat State
+  // Chat State
   const [chatHistory, setChatHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
   const chatEndRef = useRef(null);
+
+  // Reviews State
+  const [reviews, setReviews] = useState([]);
+  const [reviewFormData, setReviewFormData] = useState({ rating: 5, comment: '' });
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [reviewError, setReviewError] = useState('');
+
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
-    const fetchPropertyAndChats = async () => {
+    const fetchPropertyData = async () => {
       try {
         const { data: propData } = await api.get(`/properties/${id}`);
         setProperty(propData);
         
+        // Fetch reviews for this seller
+        if (propData.sellerId) {
+          const { data: reviewData } = await api.get(`/reviews/seller/${propData.sellerId._id}`);
+          setReviews(reviewData);
+        }
+
+        // Fetch chats
         if (userInfo) {
           const { data: chatData } = await api.get(`/messages/${id}`);
           setChatHistory(chatData);
@@ -32,14 +46,13 @@ const PropertyDetails = () => {
         setLoading(false);
       }
     };
-    fetchPropertyAndChats();
+    fetchPropertyData();
   }, [id, userInfo?._id]);
 
   useEffect(() => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);
-
       socket.on('receive_message', (newMessage) => {
         if (newMessage.propertyId._id === id || newMessage.propertyId === id) {
           setChatHistory((prev) => [...prev, newMessage]);
@@ -59,43 +72,75 @@ const PropertyDetails = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageText.trim()) return;
-
     try {
-      const { data } = await api.post('/messages', {
-        receiverId: property.sellerId._id,
-        propertyId: property._id,
-        message: messageText
-      });
+      const { data } = await api.post('/messages', { receiverId: property.sellerId._id, propertyId: property._id, message: messageText });
       setChatHistory((prev) => [...prev, data]);
       setMessageText('');
-    } catch (err) {
-      alert('Failed to send message');
-    }
+    } catch (err) { alert('Failed to send message'); }
   };
 
   const handleSaveFavorite = async () => { 
-    if (!userInfo) {
-      setFavStatus('Please login to save favorites.');
-      return;
-    }
+    if (!userInfo) return setFavStatus('Please login to save favorites.');
     try {
       await api.post('/favorites', { propertyId: property._id });
       setFavStatus('Saved to favorites!');
+    } catch (err) { setFavStatus(err.response?.data?.message || 'Failed to save'); }
+  };
+
+  // REVIEW HANDLERS
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewError('');
+    try {
+      if (editingReviewId) {
+        // Update existing review
+        const { data } = await api.put(`/reviews/${editingReviewId}`, reviewFormData);
+        setReviews(reviews.map(r => r._id === editingReviewId ? data : r));
+        setEditingReviewId(null);
+      } else {
+        // Create new review
+        const { data } = await api.post('/reviews', { sellerId: property.sellerId._id, ...reviewFormData });
+        setReviews([data, ...reviews]);
+      }
+      setReviewFormData({ rating: 5, comment: '' }); // Reset form
     } catch (err) {
-      setFavStatus(err.response?.data?.message || 'Failed to save');
+      setReviewError(err.response?.data?.message || 'Failed to submit review');
     }
   };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (window.confirm('Are you sure you want to delete your review?')) {
+      try {
+        await api.delete(`/reviews/${reviewId}`);
+        setReviews(reviews.filter(r => r._id !== reviewId));
+      } catch (err) { alert('Failed to delete review'); }
+    }
+  };
+
+  const handleEditClick = (review) => {
+    setEditingReviewId(review._id);
+    setReviewFormData({ rating: review.rating, comment: review.comment });
+  };
+
+  // UI HELPERS
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, i) => (
+      <span key={i} style={{ color: i < rating ? '#f1c40f' : '#e0e0e0', fontSize: '1.2rem' }}>★</span>
+    ));
+  };
+
+  const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : 0;
 
   if (loading) return <h2>Loading property details...</h2>;
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
   if (!property) return <h2>Property not found.</h2>;
 
-  // Role Checks
   const isOwner = userInfo && userInfo._id === property.sellerId._id;
   const isAdmin = userInfo && userInfo.role === 'admin';
+  const myExistingReview = reviews.find(r => r.buyerId._id === userInfo?._id);
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
       <Link to="/" style={{ textDecoration: 'none', color: '#3498db', marginBottom: '20px', display: 'inline-block' }}>&larr; Back to Listings</Link>
       
       <div style={{ backgroundColor: '#f9f9f9', padding: '30px', borderRadius: '8px', border: '1px solid #ddd' }}>
@@ -114,6 +159,7 @@ const PropertyDetails = () => {
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           
+          {/* LEFT COLUMN - Property Details */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6' }}>{property.description}</p>
@@ -140,12 +186,11 @@ const PropertyDetails = () => {
             )}
           </div>
 
-          {/* Right Column - Seller Info & LIVE CHAT */}
+          {/* RIGHT COLUMN - Seller Info & Live Chat */}
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
             <h3>Seller Information</h3>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-              {/* Seller Avatar */}
               {property.sellerId?.profilePhoto ? (
                 <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }} />
               ) : (
@@ -153,8 +198,6 @@ const PropertyDetails = () => {
                   {property.sellerId?.name?.charAt(0).toUpperCase()}
                 </div>
               )}
-              
-              {/* Seller Name & Phone */}
               <div>
                 <p style={{ margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   {property.sellerId?.name}
@@ -162,9 +205,13 @@ const PropertyDetails = () => {
                     <span style={{ backgroundColor: '#e1f5fe', color: '#0288d1', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem' }}>✓ Verified</span>
                   )}
                 </p>
-                {/* Phone Number Display */}
+                {/* Dynamically displaying the Average Rating for the seller */}
+                <div style={{ margin: '2px 0', fontSize: '0.9rem', color: '#7f8c8d' }}>
+                  {renderStars(Math.round(avgRating))} 
+                  <span style={{ marginLeft: '5px' }}>({reviews.length === 0 ? 'No reviews' : `${avgRating} / 5`})</span>
+                </div>
                 {property.sellerId?.phoneNumber && (
-                  <p style={{ margin: '5px 0 0 0', color: '#7f8c8d', fontSize: '0.9rem' }}>📞 {property.sellerId.phoneNumber}</p>
+                  <p style={{ margin: '2px 0 0 0', color: '#7f8c8d', fontSize: '0.9rem' }}>📞 {property.sellerId.phoneNumber}</p>
                 )}
               </div>
             </div>
@@ -204,7 +251,6 @@ const PropertyDetails = () => {
               </div>
             )}
 
-            {/* Favorites Button is hidden if the user is the Owner OR an Admin */}
             {!isOwner && !isAdmin && (
               <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
                 <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '12px', backgroundColor: '#fff', color: '#2c3e50', border: '1px solid #2c3e50', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -215,6 +261,86 @@ const PropertyDetails = () => {
             )}
           </div>
         </div>
+
+        {/* REVIEWS SECTION */}
+        <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px solid #eee' }}>
+          <h2>Seller Ratings & Reviews</h2>
+
+          {/* Review Submission Form (Only visible to Buyers) */}
+          {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
+            <div style={{ backgroundColor: '#f4f4f9', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+              <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>
+              {reviewError && <p style={{ color: '#e74c3c', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{reviewError}</p>}
+              
+              <form onSubmit={handleReviewSubmit}>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Rating:</label>
+                  <select value={reviewFormData.rating} onChange={(e) => setReviewFormData({...reviewFormData, rating: Number(e.target.value)})} style={{ padding: '5px', borderRadius: '4px' }}>
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Very Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Terrible</option>
+                  </select>
+                </div>
+                <textarea 
+                  required 
+                  value={reviewFormData.comment} 
+                  onChange={(e) => setReviewFormData({...reviewFormData, comment: e.target.value})} 
+                  placeholder="Write your review about this seller here..." 
+                  style={{ width: '100%', padding: '10px', boxSizing: 'border-box', minHeight: '80px', borderRadius: '4px', border: '1px solid #ccc', marginBottom: '10px' }} 
+                />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" style={{ padding: '8px 20px', backgroundColor: '#3498db', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    {editingReviewId ? 'Update Review' : 'Submit Review'}
+                  </button>
+                  {editingReviewId && (
+                    <button type="button" onClick={() => setEditingReviewId(null)} style={{ padding: '8px 20px', backgroundColor: '#95a5a6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Display Existing Reviews */}
+          {reviews.length === 0 ? (
+            <p style={{ color: '#7f8c8d' }}>This seller currently has no reviews.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {reviews.map((review) => (
+                <div key={review._id} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {review.buyerId?.profilePhoto ? (
+                        <img src={review.buyerId.profilePhoto} alt="Buyer" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#bdc3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
+                          {review.buyerId?.name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 'bold' }}>{review.buyerId?.name}</p>
+                        <div style={{ margin: '2px 0' }}>{renderStars(review.rating)}</div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#aaa' }}>{new Date(review.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Edit & Delete Controls for the Review Owner */}
+                    {userInfo && userInfo._id === review.buyerId?._id && (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={() => handleEditClick(review)} style={{ padding: '4px 10px', backgroundColor: '#f39c12', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
+                        <button onClick={() => handleDeleteReview(review._id)} style={{ padding: '4px 10px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                      </div>
+                    )}
+                  </div>
+                  <p style={{ marginTop: '15px', color: '#333', lineHeight: '1.5' }}>{review.comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
