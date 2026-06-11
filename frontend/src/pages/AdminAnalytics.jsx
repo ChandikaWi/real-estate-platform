@@ -32,21 +32,41 @@ const AdminAnalytics = () => {
 
   const exportPDF = async () => {
     const element = reportRef.current;
+    
+    // Adjust styles for perfect PDF capture
+    const originalPadding = element.style.padding;
     element.style.padding = '40px';
     element.style.backgroundColor = '#ffffff';
     
+    // Capture the canvas
     const canvas = await html2canvas(element, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/png');
+    
+    // A4 dimensions in mm
     const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = 210; 
+    const pageHeight = 297; 
     
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    // Calculate the total image height in mm based on the A4 width
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // Add the first page
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // Loop and add new pages
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight; 
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
     
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     pdf.save(`Executive_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     
-    // Revert styles
-    element.style.padding = '20px';
+    element.style.padding = originalPadding;
   };
 
   if (loading) return <h2>Loading Global Analytics...</h2>;
