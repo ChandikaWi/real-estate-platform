@@ -11,6 +11,7 @@ import MyPurchases from './pages/MyPurchases';
 import Compare from './pages/Compare';
 import Profile from './pages/Profile';
 import SellerAnalytics from './pages/SellerAnalytics';
+import AdminAnalytics from './pages/AdminAnalytics';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ const Navigation = () => {
             {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
             {userInfo.role === 'seller' && <Link to="/analytics">Analytics</Link>}
             {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
+            {userInfo.role === 'admin' && <Link to="/admin/analytics">Global Analytics</Link>}
             
             <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '5px 10px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px' }}>Logout</button>
           </>
@@ -80,6 +82,7 @@ function App() {
             <Route path="/compare" element={<Compare />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/analytics" element={<SellerAnalytics />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
           </Routes>
         </main>
       </div>
