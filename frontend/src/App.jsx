@@ -12,6 +12,8 @@ import Compare from './pages/Compare';
 import Profile from './pages/Profile';
 import SellerAnalytics from './pages/SellerAnalytics';
 import AdminAnalytics from './pages/AdminAnalytics';
+import BuyerDashboard from './pages/BuyerDashboard';
+import SidebarLayout from './components/SidebarLayout'; 
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ const Navigation = () => {
   };
 
   return (
-    <nav style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px' }}>
+    <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0' }}>
       <Link to="/" style={{ textDecoration: 'none', color: '#2c3e50' }}>
         <h2 style={{ margin: 0 }}>Real Estate Marketplace</h2>
       </Link>
@@ -31,26 +33,23 @@ const Navigation = () => {
         <Link to="/">Home</Link>
         {userInfo ? (
           <>
-            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#2c3e50', fontWeight: 'bold', marginRight: '15px' }}>
+            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#2c3e50', fontWeight: 'bold', margin: '0 15px' }}>
               {userInfo.profilePhoto ? (
-                <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '35px', height: '35px', borderRadius: '50%', objectFit: 'cover' }} />
               ) : (
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#3498db', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '35px', height: '35px', borderRadius: '50%', backgroundColor: '#3498db', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {userInfo.name.charAt(0).toUpperCase()}
                 </div>
               )}
               {userInfo.name}
             </Link>
             
-            {userInfo.role === 'buyer' && <Link to="/purchases">My Purchases</Link>}
-            {userInfo.role === 'buyer' && <Link to="/compare">Compare</Link>}
-            {userInfo.role === 'buyer' && <Link to="/favorites">My Favorites</Link>}
-            {userInfo.role === 'seller' && <Link to="/dashboard">Dashboard</Link>}
-            {userInfo.role === 'seller' && <Link to="/analytics">Analytics</Link>}
-            {userInfo.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
-            {userInfo.role === 'admin' && <Link to="/admin/analytics">Global Analytics</Link>}
+            {/* Unified Dashboard Link depending on Role */}
+            <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/dashboard' : '/admin'} style={{ padding: '8px 15px', backgroundColor: '#ecf0f1', color: '#2c3e50', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold' }}>
+              Dashboard
+            </Link>
             
-            <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '5px 10px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px' }}>Logout</button>
+            <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '8px 15px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Logout</button>
           </>
         ) : (
           <>
@@ -66,23 +65,33 @@ const Navigation = () => {
 function App() {
   return (
     <Router>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'system-ui' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', fontFamily: 'system-ui' }}>
         <Navigation />
         <main>
           <Routes>
+            {/* Public Routes (No Sidebar) */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/favorites" element={<Favorites />} />
-            <Route path="/edit-property/:id" element={<EditProperty />} />
-            <Route path="/purchases" element={<MyPurchases />} />
-            <Route path="/compare" element={<Compare />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/analytics" element={<SellerAnalytics />} />
-            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+
+            {/* Dashboard & Profile Routes */}
+            <Route path="/profile" element={<SidebarLayout><Profile /></SidebarLayout>} />
+            
+            {/* Buyer Routes */}
+            <Route path="/buyer/dashboard" element={<SidebarLayout><BuyerDashboard /></SidebarLayout>} />
+            <Route path="/favorites" element={<SidebarLayout><Favorites /></SidebarLayout>} />
+            <Route path="/purchases" element={<SidebarLayout><MyPurchases /></SidebarLayout>} />
+            <Route path="/compare" element={<SidebarLayout><Compare /></SidebarLayout>} />
+
+            {/* Admin Routes */}
+            <Route path="/admin/analytics" element={<SidebarLayout><AdminAnalytics /></SidebarLayout>} />
+            <Route path="/admin/:tab?" element={<SidebarLayout><AdminDashboard /></SidebarLayout>} />
+
+            {/* Seller Routes */}
+            <Route path="/analytics" element={<SidebarLayout><SellerAnalytics /></SidebarLayout>} />
+            <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
+            <Route path="/dashboard/:tab?" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
           </Routes>
         </main>
       </div>
