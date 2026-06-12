@@ -37,28 +37,26 @@ const SidebarLayout = ({ children }) => {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '85vh', borderTop: '1px solid #eee', marginTop: '10px' }}>
-      {/* Sidebar */}
+    <div style={{ display: 'flex', minHeight: '85vh', borderTop: '1px solid var(--border-color)' }}>
+      {/* Sidebar - Uses dynamic card background */}
       <div style={{
         width: isExpanded ? '260px' : '70px',
-        backgroundColor: '#2c3e50',
-        color: '#fff',
+        backgroundColor: 'var(--bg-card)', 
+        borderRight: '1px solid var(--border-color)',
         transition: 'width 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRadius: '8px 0 0 8px'
       }}>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          style={{ padding: '15px', background: '#1a252f', color: '#fff', border: 'none', cursor: 'pointer', textAlign: isExpanded ? 'right' : 'center', outline: 'none' }}
+          style={{ padding: '15px', background: 'var(--bg-hover)', color: 'var(--text-main)', border: 'none', cursor: 'pointer', textAlign: isExpanded ? 'right' : 'center', outline: 'none', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold' }}
         >
           {isExpanded ? '◀ Collapse Menu' : '▶'}
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 0' }}>
           {links.map(link => {
-            // Check if active
             const isActive = location.pathname === link.path || 
               (location.pathname === '/dashboard' && link.path === '/dashboard/add') || 
               (location.pathname === '/admin' && link.path === '/admin/users');
@@ -69,18 +67,18 @@ const SidebarLayout = ({ children }) => {
                 to={link.path}
                 style={{
                   padding: '15px 20px',
-                  color: isActive ? '#3498db' : '#ecf0f1',
-                  backgroundColor: isActive ? '#1a252f' : 'transparent',
+                  color: isActive ? 'var(--primary-color)' : 'var(--text-main)',
+                  backgroundColor: isActive ? 'var(--bg-hover)' : 'transparent',
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '15px',
                   fontWeight: isActive ? 'bold' : 'normal',
                   whiteSpace: 'nowrap',
-                  borderLeft: isActive ? '4px solid #3498db' : '4px solid transparent',
+                  borderLeft: isActive ? '4px solid var(--primary-color)' : '4px solid transparent',
                   transition: 'background 0.2s'
                 }}
-                onMouseOver={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '#34495e' }}
+                onMouseOver={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
                 onMouseOut={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
                 <span style={{ fontSize: '1.2rem' }}>{link.icon}</span>
@@ -91,8 +89,8 @@ const SidebarLayout = ({ children }) => {
         </div>
       </div>
 
-      {/* Main Page Content */}
-      <div style={{ flex: 1, padding: '30px', backgroundColor: '#fcfcfc', border: '1px solid #eee', borderLeft: 'none', borderRadius: '0 8px 8px 0', overflowY: 'auto' }}>
+      {/* Main Page Content - Uses dynamic main background */}
+      <div style={{ flex: 1, padding: '30px', backgroundColor: 'var(--bg-main)', overflowY: 'auto' }}>
         {children}
       </div>
     </div>
