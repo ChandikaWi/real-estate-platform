@@ -4,8 +4,8 @@ const BuyerDashboard = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   return (
-    <div>
-      <h1 style={{ margin: '0 0 10px 0', color: 'var(--text-main)' }}>Buyer Dashboard</h1>
+    <div style={{ color: 'var(--text-main)' }}>
+      <h1 style={{ margin: '0 0 10px 0' }}>Buyer Dashboard</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>Welcome back, {userInfo?.name}. Navigate your account using the sidebar menu.</p>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
