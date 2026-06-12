@@ -5,21 +5,21 @@ const BuyerDashboard = () => {
 
   return (
     <div>
-      <h1 style={{ margin: '0 0 10px 0' }}>Buyer Dashboard</h1>
-      <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>Welcome back, {userInfo?.name}. Navigate your account using the sidebar menu.</p>
+      <h1 style={{ margin: '0 0 10px 0', color: 'var(--text-main)' }}>Buyer Dashboard</h1>
+      <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>Welcome back, {userInfo?.name}. Navigate your account using the sidebar menu.</p>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <Link to="/favorites" style={{ textDecoration: 'none', padding: '30px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #eee', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', color: '#2c3e50' }}>
-          <h2 style={{ margin: '0 0 10px 0' }}>❤️</h2>
-          <h3>My Favorites</h3>
+        <Link to="/favorites" style={{ textDecoration: 'none', padding: '30px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+          <h2 style={{ margin: '0 0 10px 0', fontSize: '2.5rem' }}>❤️</h2>
+          <h3 style={{ margin: 0 }}>My Favorites</h3>
         </Link>
-        <Link to="/purchases" style={{ textDecoration: 'none', padding: '30px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #eee', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', color: '#2c3e50' }}>
-          <h2 style={{ margin: '0 0 10px 0' }}>🛍️</h2>
-          <h3>My Purchases</h3>
+        <Link to="/purchases" style={{ textDecoration: 'none', padding: '30px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+          <h2 style={{ margin: '0 0 10px 0', fontSize: '2.5rem' }}>🛍️</h2>
+          <h3 style={{ margin: 0 }}>My Purchases</h3>
         </Link>
-        <Link to="/compare" style={{ textDecoration: 'none', padding: '30px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #eee', textAlign: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', color: '#2c3e50' }}>
-          <h2 style={{ margin: '0 0 10px 0' }}>⚖️</h2>
-          <h3>Compare Tool</h3>
+        <Link to="/compare" style={{ textDecoration: 'none', padding: '30px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+          <h2 style={{ margin: '0 0 10px 0', fontSize: '2.5rem' }}>⚖️</h2>
+          <h3 style={{ margin: 0 }}>Compare Tool</h3>
         </Link>
       </div>
     </div>
