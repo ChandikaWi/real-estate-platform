@@ -8,18 +8,14 @@ const Home = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Search, Filter, and Sort State
   const [keyword, setKeyword] = useState('');
   const [type, setType] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [bedrooms, setBedrooms] = useState('');
   const [sort, setSort] = useState('newest');
-
-  // Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-
   const [zoomedImage, setZoomedImage] = useState(null);
 
   const fetchProperties = async (currentPage = 1) => {
@@ -32,9 +28,7 @@ const Home = () => {
       if (maxPrice) queryParams.append('maxPrice', maxPrice);
       if (bedrooms) queryParams.append('bedrooms', bedrooms);
       if (sort) queryParams.append('sort', sort);
-      
       queryParams.append('page', currentPage);
-      // Limit is handled by the backend default (10 per page)
 
       const { data } = await api.get(`/properties?${queryParams.toString()}`);
       setProperties(data.properties);
@@ -47,153 +41,173 @@ const Home = () => {
     }
   };
 
-  // Fetch properties on initial load, or when 'page' / 'sort' state changes
   useEffect(() => {
     fetchProperties(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sort]);
 
-  // Handle manual search form submission
   const handleSearch = (e) => {
     e.preventDefault();
-    if (page !== 1) {
-      setPage(1); // Reset to first page, useEffect will trigger fetch
-    } else {
-      fetchProperties(1); // Fetch directly if already on page 1
-    }
+    if (page !== 1) setPage(1);
+    else fetchProperties(1);
   };
 
   const clearFilters = () => {
-    setKeyword('');
-    setType('');
-    setMinPrice('');
-    setMaxPrice('');
-    setBedrooms('');
-    setSort('newest');
-    if (page !== 1) {
-      setPage(1); 
-    } else {
-      // Small timeout ensures states are cleared before fetching manually
-      setTimeout(() => fetchProperties(1), 0); 
-    }
+    setKeyword(''); setType(''); setMinPrice(''); setMaxPrice(''); setBedrooms(''); setSort('newest');
+    if (page !== 1) setPage(1);
+    else setTimeout(() => fetchProperties(1), 0);
   };
 
-  if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
+  if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'var(--danger-color)' }}><h2>{error}</h2></div>;
 
   return (
-    <div>
-      <h1 style={{ marginBottom: '20px' }}>Find Your Dream Property</h1>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 20px', width: '100%', boxSizing: 'border-box' }}>
+      
+      {/* Hero Section Header */}
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: '800', margin: '0 0 15px 0', color: 'var(--text-main)', letterSpacing: '-1px' }}>
+          Discover Your New Home
+        </h1>
+        <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>
+          Explore the most extensive collection of premium real estate, apartments, and land tailored to your lifestyle.
+        </p>
+      </div>
 
-      {/* Filter and Search Bar */}
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', backgroundColor: '#f4f4f9', padding: '20px', borderRadius: '8px', marginBottom: '30px', alignItems: 'center' }}>
+      {/* Floating Search Bar */}
+      <form onSubmit={handleSearch} style={{ 
+        display: 'flex', gap: '15px', flexWrap: 'wrap', 
+        backgroundColor: 'var(--bg-card)', 
+        padding: '20px', 
+        borderRadius: '16px', 
+        marginBottom: '50px', 
+        alignItems: 'center',
+        boxShadow: 'var(--shadow-lg)',
+        border: '1px solid var(--border-color)'
+      }}>
         
-        <input type="text" placeholder="Search by city or title..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ padding: '10px', flex: '1', minWidth: '200px' }} />
+        <input type="text" placeholder="Location, neighborhood, or zip..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ padding: '14px', flex: '2', minWidth: '200px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
         
-        <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '10px' }}>
-          <option value="">All Types</option>
-          <option value="house">House</option>
-          <option value="apartment">Apartment</option>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
+          <option value="">Property Type</option>
+          <option value="house">Houses</option>
+          <option value="apartment">Apartments</option>
           <option value="land">Land</option>
         </select>
 
-        <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ padding: '10px', width: '80px' }} />
-        
-        <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ padding: '10px', width: '110px' }} />
-        <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ padding: '10px', width: '110px' }} />
+        <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ padding: '14px', width: '90px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
+        <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
+        <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
 
-        {/* Sort Dropdown triggers an automatic re-fetch */}
-        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '10px', marginLeft: 'auto' }}>
-          <option value="newest">Newest First</option>
-          <option value="price_low">Price: Low to High</option>
-          <option value="price_high">Price: High to Low</option>
-        </select>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Search</button>
-          <button type="button" onClick={clearFilters} style={{ padding: '10px 20px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
+        <div style={{ display: 'flex', gap: '10px', flex: '1' }}>
+          <button type="submit" style={{ flex: '1', padding: '14px', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>Search</button>
+          <button type="button" onClick={clearFilters} style={{ padding: '14px', backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Clear</button>
         </div>
       </form>
 
+      {/* Sorting & Results Count */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>
+        <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Latest Market Listings</h3>
+        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', fontWeight: '600', color: 'var(--text-main)', cursor: 'pointer' }}>
+          <option value="newest">Sort by: Newest First</option>
+          <option value="price_low">Sort by: Price (Low to High)</option>
+          <option value="price_high">Sort by: Price (High to Low)</option>
+        </select>
+      </div>
+
       {/* Property Grid */}
       {loading ? (
-        <h2>Loading properties...</h2>
+        <div style={{ textAlign: 'center', padding: '100px 0' }}><h2 style={{ color: 'var(--text-muted)' }}>Loading premium listings...</h2></div>
       ) : properties.length === 0 ? (
-        <h3>No properties found matching your criteria.</h3>
+        <div style={{ textAlign: 'center', padding: '100px 0' }}><h3 style={{ color: 'var(--text-muted)' }}>No properties match your exact criteria. Try adjusting your filters.</h3></div>
       ) : (
         <>
-          <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+          <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
             {properties.map((property) => (
-              <div key={property._id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <div key={property._id} style={{ 
+                backgroundColor: 'var(--bg-card)', 
+                borderRadius: '16px', 
+                overflow: 'hidden', 
+                boxShadow: 'var(--shadow-md)', 
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+              >
                 
-                {/* Thumbnail Display */}
-                {property.images && property.images.length > 0 ? (
-                  <img 
-                    src={property.images[0]} 
-                    alt={property.title} 
-                    onClick={() => setZoomedImage(property.images[0])} 
-                    style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '15px', cursor: 'zoom-in' }} 
-                  />
-                ) : (
-                  <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '4px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
-                    No Image
-                  </div>
-                )}
+                {/* Image & Badges */}
+                <div style={{ position: 'relative', height: '240px' }}>
+                  {property.images && property.images.length > 0 ? (
+                    <img src={property.images[0]} alt={property.title} onClick={() => setZoomedImage(property.images[0])} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+                  )}
+                  <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'capitalize', boxShadow: 'var(--shadow-sm)' }}>
+                    {property.type}
+                  </span>
+                  {property.sellerId?.isVerified && (
+                    <span style={{ position: 'absolute', top: '15px', right: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
+                      ✓ Verified
+                    </span>
+                  )}
+                </div>
 
-                <h3 style={{ marginTop: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{property.title}</h3>
-                {/* Dynamic Price Display */}
-                {property.previousPrice && property.previousPrice !== property.price ? (
-                  <div style={{ marginBottom: '15px' }}>
-                    <p style={{ margin: '0 0 5px 0', fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold' }}>
-                      ${property.price.toLocaleString()}
+                {/* Card Content */}
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <div style={{ marginBottom: '15px', flex: 1 }}>
+                    <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {property.title}
+                    </h3>
+                    
+                    {/* Dynamic Pricing */}
+                    {property.previousPrice && property.previousPrice !== property.price ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</span>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem' }}>${property.previousPrice.toLocaleString()}</span>
+                        <span style={{ backgroundColor: property.price < property.previousPrice ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: property.price < property.previousPrice ? 'var(--accent-color)' : 'var(--danger-color)', padding: '2px 6px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                          {property.price < property.previousPrice ? '↓' : '↑'} {Math.round(Math.abs(((property.price - property.previousPrice) / property.previousPrice) * 100))}%
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</div>
+                    )}
+                    
+                    <p style={{ margin: '10px 0 0 0', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      📍 {property.location.city}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
-                      <span style={{ textDecoration: 'line-through', color: '#95a5a6' }}>
-                        ${property.previousPrice.toLocaleString()}
-                      </span>
-                      <span style={{ 
-                        backgroundColor: property.price < property.previousPrice ? '#e8f8f5' : '#fdedec', 
-                        color: property.price < property.previousPrice ? '#27ae60' : '#c0392b', 
-                        padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' 
-                      }}>
-                        {property.price < property.previousPrice ? '↓' : '↑'} {Math.round(Math.abs(((property.price - property.previousPrice) / property.previousPrice) * 100))}%
-                      </span>
-                    </div>
                   </div>
-                ) : (
-                  <p style={{ fontSize: '1.2rem', color: '#2ecc71', fontWeight: 'bold', marginBottom: '15px' }}>
-                    ${property.price.toLocaleString()}
-                  </p>
-                )}
-                <p><strong>Location:</strong> {property.location.city}</p>
-                <p style={{ textTransform: 'capitalize' }}><strong>Type:</strong> {property.type}</p>
-                <p>{property.bedrooms} Beds | {property.bathrooms} Baths | {property.area} sqft</p>
-                
-                <button onClick={() => navigate(`/property/${property._id}`)} style={{ marginTop: '10px', width: '100%', padding: '10px', cursor: 'pointer', backgroundColor: '#3498db', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>
-                  View Details
-                </button>
+
+                  {/* Specs Footer */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', marginBottom: '15px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    <span>🛏️ {property.bedrooms} Beds</span>
+                    <span>🛁 {property.bathrooms} Baths</span>
+                    <span>📐 {property.area} sqft</span>
+                  </div>
+                  
+                  <button onClick={() => navigate(`/property/${property._id}`)} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', borderRadius: '8px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer' }}>
+                    View Property Details
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '40px', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '50px', gap: '20px' }}>
               <button 
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                style={{ padding: '10px 20px', backgroundColor: page === 1 ? '#ccc' : '#2c3e50', color: '#fff', border: 'none', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))} disabled={page === 1}
+                style={{ padding: '12px 24px', backgroundColor: page === 1 ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === 1 ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
               >
                 &larr; Previous
               </button>
               
-              <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
-                Page {page} of {totalPages}
-              </span>
+              <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>Page {page} of {totalPages}</span>
 
               <button 
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-                style={{ padding: '10px 20px', backgroundColor: page === totalPages ? '#ccc' : '#2c3e50', color: '#fff', border: 'none', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} disabled={page === totalPages}
+                style={{ padding: '12px 24px', backgroundColor: page === totalPages ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === totalPages ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
               >
                 Next &rarr;
               </button>
@@ -202,19 +216,11 @@ const Home = () => {
         </>
       )}
 
-      {/* Full-Screen Image Modal */}
+      {/* Image Zoom Modal */}
       {zoomedImage && (
-        <div 
-          onClick={() => setZoomedImage(null)} 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, cursor: 'zoom-out' }}
-        >
-          <img src={zoomedImage} alt="Zoomed" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }} />
-          <button 
-            onClick={() => setZoomedImage(null)} 
-            style={{ position: 'absolute', top: '20px', right: '30px', background: 'transparent', color: 'white', border: 'none', fontSize: '2rem', cursor: 'pointer' }}
-          >
-            &times;
-          </button>
+        <div onClick={() => setZoomedImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, cursor: 'zoom-out' }}>
+          <img src={zoomedImage} alt="Zoomed" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }} />
+          <button onClick={() => setZoomedImage(null)} style={{ position: 'absolute', top: '30px', right: '40px', background: 'transparent', color: 'white', border: 'none', fontSize: '3rem', cursor: 'pointer' }}>&times;</button>
         </div>
       )}
     </div>
