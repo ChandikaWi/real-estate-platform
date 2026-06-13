@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProperties, createProperty, deleteProperty, getPropertyById, updateProperty, getSellerProperties, getSellerAnalytics, getPropertiesBySellerId } from '../controllers/propertyController.js';
+import { getProperties, createProperty, deleteProperty, getPropertyById, updateProperty, getSellerProperties, getSellerAnalytics, getPropertiesBySellerId, getRecommendations } from '../controllers/propertyController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -14,7 +14,9 @@ router.route('/seller/me')
 router.route('/seller/analytics')
   .get(protect, authorize('seller'), getSellerAnalytics);
 
-// Route for public seller profiles
+router.route('/recommendations')
+  .get(protect, authorize('buyer'), getRecommendations);
+
 router.route('/user/:sellerId')
   .get(getPropertiesBySellerId);
 

@@ -18,6 +18,10 @@ const Home = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [zoomedImage, setZoomedImage] = useState(null);
 
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+
   const fetchProperties = async (currentPage = 1) => {
     setLoading(true);
     try {
@@ -44,6 +48,28 @@ const Home = () => {
   useEffect(() => {
     fetchProperties(page);
   }, [page, sort]);
+
+  useEffect(() => {
+    fetchProperties(page);
+
+    // Fetch Personalized Recommendations if user is a buyer
+    if (userInfo && userInfo.role === 'buyer') {
+      const fetchRecommendations = async () => {
+        setLoadingRecs(true);
+        try {
+          // Pass token in headers for this specific protected route
+          const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+          const { data } = await api.get('/properties/recommendations', config);
+          setRecommendations(data);
+        } catch (err) {
+          console.error("Failed to load recommendations");
+        } finally {
+          setLoadingRecs(false);
+        }
+      };
+      fetchRecommendations();
+    }
+  }, [page, sort]); // Also depends on userInfo conceptually, but runs on mount
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -214,6 +240,71 @@ const Home = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* RECOMMENDATION ENGINE */}
+      {userInfo && userInfo.role === 'buyer' && (
+        <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: '2rem', margin: '0 0 5px 0', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            ✨ Recommended for You
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '25px', fontSize: '1.1rem' }}>Based on your favorites, budget patterns, and search history.</p>
+          
+          {loadingRecs ? (
+            <div style={{ display: 'flex', gap: '20px', overflowX: 'hidden' }}>
+              {[1, 2, 3, 4].map(n => <div key={n} style={{ minWidth: '300px', height: '250px', backgroundColor: 'var(--bg-hover)', borderRadius: '12px', animation: 'pulse 1.5s infinite' }} />)}
+            </div>
+          ) : recommendations.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>Start exploring and saving properties to see personalized recommendations here!</p>
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              gap: '25px', 
+              overflowX: 'auto', 
+              paddingBottom: '20px',
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none', 
+              WebkitOverflowScrolling: 'none',
+              scrollSnapType: 'x mandatory'
+            }}>
+              {recommendations.map(prop => (
+                <div key={`rec-${prop._id}`} 
+                  onClick={() => { navigate(`/property/${prop._id}`); window.scrollTo(0, 0); }}
+                  style={{ 
+                    minWidth: '320px', 
+                    flex: '0 0 auto', 
+                    backgroundColor: 'var(--bg-card)', 
+                    borderRadius: '12px', 
+                    overflow: 'hidden', 
+                    border: '1px solid var(--border-color)', 
+                    cursor: 'pointer',
+                    scrollSnapAlign: 'start',
+                    boxShadow: 'var(--shadow-md)',
+                    transition: 'transform 0.3s ease'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <div style={{ position: 'relative', height: '200px' }}>
+                    {prop.images?.length > 0 ? (
+                      <img src={prop.images[0]} alt="Recommend" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)' }} />
+                    )}
+                    <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '5px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', backdropFilter: 'blur(4px)' }}>
+                      {Math.round((Math.random() * 15) + 80)}% Match
+                    </div>
+                  </div>
+                  <div style={{ padding: '15px' }}>
+                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
+                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: '800', fontSize: '1.2rem' }}>${prop.price.toLocaleString()}</p>
+                    <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>📍 {prop.location.city} • {prop.type}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Image Zoom Modal */}

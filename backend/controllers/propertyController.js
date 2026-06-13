@@ -203,3 +203,67 @@ export const getPropertiesBySellerId = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get personalized property recommendations based on budget and history
+// @route   GET /api/properties/recommendations
+export const getRecommendations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch user's history (Favorites and Purchases) to establish a pattern
+    const favorites = await Favorite.find({ userId }).populate('propertyId');
+    const orders = await Order.find({ buyerId: userId }).populate('propertyId');
+
+    // Combine all interacted properties
+    const allInteractions = [
+      ...favorites.map(f => f.propertyId).filter(Boolean),
+      ...orders.map(o => o.propertyId).filter(Boolean)
+    ];
+
+    // Fallback - If the user is brand new and has no history, return Trending properties
+    if (allInteractions.length === 0) {
+      const trending = await Property.find().sort({ views: -1, 'valuationMetrics.conditionScore': -1 }).limit(8);
+      return res.json(trending);
+    }
+
+    // Extract Budget Patterns & Preferences
+    const prices = allInteractions.map(p => p.price);
+    const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+    const minBudget = avgPrice * 0.6; // 40% below their average
+    const maxBudget = avgPrice * 1.4; // 40% above their average
+
+    // Calculate most frequent property type and city
+    const types = allInteractions.map(p => p.type);
+    const preferredType = types.sort((a,b) => types.filter(v => v===a).length - types.filter(v => v===b).length).pop();
+
+    const cities = allInteractions.map(p => p.location?.city).filter(Boolean);
+    const preferredCity = cities.sort((a,b) => cities.filter(v => v===a).length - cities.filter(v => v===b).length).pop();
+
+    const interactedIds = allInteractions.map(p => p._id);
+
+    // Query the database matching these intelligent patterns
+    const recommendations = await Property.find({
+      _id: { $nin: interactedIds }, // Exclude properties they already saved/bought
+      $or: [
+        { type: preferredType },
+        { 'location.city': preferredCity },
+        { price: { $gte: minBudget, $lte: maxBudget } }
+      ]
+    })
+    .sort({ views: -1 }) // Sort the matches by popularity
+    .limit(8);
+
+    // Pad with trending properties if the algorithm found fewer than 4 matches
+    if (recommendations.length < 4) {
+       const pad = await Property.find({ 
+         _id: { $nin: [...interactedIds, ...recommendations.map(p => p._id)] } 
+       }).sort({ views: -1 }).limit(8 - recommendations.length);
+       recommendations.push(...pad);
+    }
+
+    res.json(recommendations);
+  } catch (error) {
+    console.error("Recommendation Engine Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
