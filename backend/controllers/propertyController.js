@@ -267,3 +267,45 @@ export const getRecommendations = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get similar properties based on type, location, and price
+// @route   GET /api/properties/:id/similar
+export const getSimilarProperties = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    // Define a +/- 20% price range
+    const minPrice = property.price * 0.8;
+    const maxPrice = property.price * 1.2;
+
+    // Strict Match - Same Type, Same City, Similar Price
+    let similarProperties = await Property.find({
+      _id: { $ne: property._id }, // Exclude the current property
+      type: property.type,
+      'location.city': property.location.city,
+      price: { $gte: minPrice, $lte: maxPrice }
+    })
+    .sort({ views: -1 }) // Show most popular first
+    .limit(4);
+
+    // Broad Match Fallback - If strict matches < 4, ignore the city to fill the remaining slots
+    if (similarProperties.length < 4) {
+      const existingIds = similarProperties.map(p => p._id);
+      const fallbackProperties = await Property.find({
+        _id: { $ne: property._id, $nin: existingIds },
+        type: property.type,
+        price: { $gte: minPrice, $lte: maxPrice }
+      })
+      .sort({ views: -1 })
+      .limit(4 - similarProperties.length);
+      
+      similarProperties = [...similarProperties, ...fallbackProperties];
+    }
+
+    res.json(similarProperties);
+  } catch (error) {
+    console.error("Similar Properties Engine Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProperties, createProperty, deleteProperty, getPropertyById, updateProperty, getSellerProperties, getSellerAnalytics, getPropertiesBySellerId, getRecommendations } from '../controllers/propertyController.js';
+import { getProperties, createProperty, deleteProperty, getPropertyById, updateProperty, getSellerProperties, getSellerAnalytics, getPropertiesBySellerId, getRecommendations, getSimilarProperties } from '../controllers/propertyController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -19,6 +19,10 @@ router.route('/recommendations')
 
 router.route('/user/:sellerId')
   .get(getPropertiesBySellerId);
+
+// Similar Properties Route
+router.route('/:id/similar')
+  .get(getSimilarProperties);
 
 router.route('/:id')
   .get(getPropertyById)

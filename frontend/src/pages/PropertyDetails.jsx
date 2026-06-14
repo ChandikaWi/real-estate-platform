@@ -28,6 +28,9 @@ const PropertyDetails = () => {
   const [timeSlot, setTimeSlot] = useState('');
   const [visitMessage, setVisitMessage] = useState('');
 
+  // Similar Properties
+  const [similarProperties, setSimilarProperties] = useState([]);
+
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
@@ -35,14 +38,21 @@ const PropertyDetails = () => {
       try {
         const { data: propData } = await api.get(`/properties/${id}`);
         setProperty(propData);
-        if (propData.sellerId) {
-          const { data: reviewData } = await api.get(`/reviews/seller/${propData.sellerId._id}`);
-          setReviews(reviewData);
-        }
-        if (userInfo) {
-          const { data: chatData } = await api.get(`/messages/${id}`);
-          setChatHistory(chatData);
-        }
+        
+        // Parallel requests for speed
+        const requests = [
+          api.get(`/properties/${id}/similar`) // Fetch similar properties
+        ];
+
+        if (propData.sellerId) requests.push(api.get(`/reviews/seller/${propData.sellerId._id}`));
+        if (userInfo) requests.push(api.get(`/messages/${id}`));
+
+        const results = await Promise.all(requests);
+        
+        setSimilarProperties(results[0].data);
+        if (propData.sellerId) setReviews(results[1].data);
+        if (userInfo) setChatHistory(results[propData.sellerId ? 2 : 1].data);
+
         setLoading(false);
       } catch (err) {
         setError(err.response?.data?.message || err.message);
@@ -57,9 +67,7 @@ const PropertyDetails = () => {
       socket.connect();
       socket.emit('setup', userInfo);
       socket.on('receive_message', (newMessage) => {
-        if (newMessage.propertyId._id === id || newMessage.propertyId === id) {
-          setChatHistory((prev) => [...prev, newMessage]);
-        }
+        if (newMessage.propertyId._id === id || newMessage.propertyId === id) setChatHistory((prev) => [...prev, newMessage]);
       });
     }
     return () => { socket.off('receive_message'); socket.disconnect(); };
@@ -80,6 +88,15 @@ const PropertyDetails = () => {
     if (!userInfo) return setFavStatus('Please login to save favorites.');
     try { await api.post('/favorites', { propertyId: property._id }); setFavStatus('Saved to favorites!'); } 
     catch (err) { setFavStatus(err.response?.data?.message || 'Failed to save'); }
+  };
+
+  const handleScheduleVisit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/visits', { propertyId: property._id, date: visitDate, timeSlot });
+      setVisitMessage('Visit requested! Check your dashboard for updates.');
+      setVisitDate(''); setTimeSlot('');
+    } catch (err) { setVisitMessage(err.response?.data?.message || 'Failed to schedule visit.'); }
   };
 
   const handleReviewSubmit = async (e) => {
@@ -103,35 +120,19 @@ const PropertyDetails = () => {
     }
   };
 
-  const handleEditClick = (review) => {
-    setEditingReviewId(review._id); setReviewFormData({ rating: review.rating, comment: review.comment });
-  };
+  const handleEditClick = (review) => { setEditingReviewId(review._id); setReviewFormData({ rating: review.rating, comment: review.comment }); };
 
   const handleOpenSellerProfile = async () => {
     setShowSellerModal(true); setLoadingSellerListings(true);
     try { const { data } = await api.get(`/properties/user/${property.sellerId._id}`); setSellerListings(data); } 
-    catch (err) { console.error("Failed to fetch seller listings"); } 
-    finally { setLoadingSellerListings(false); }
-  };
-
-  const handleScheduleVisit = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/visits', { propertyId: property._id, date: visitDate, timeSlot });
-      setVisitMessage('Visit requested! Check your dashboard for updates.');
-      setVisitDate(''); setTimeSlot('');
-    } catch (err) {
-      setVisitMessage(err.response?.data?.message || 'Failed to schedule visit.');
-    }
+    catch (err) { console.error("Failed to fetch seller listings"); } finally { setLoadingSellerListings(false); }
   };
 
   const navigateToProperty = (propId) => { setShowSellerModal(false); navigate(`/property/${propId}`); window.scrollTo(0, 0); };
 
-  const renderStars = (rating) => {
-    return [...Array(5)].map((_, i) => (<span key={i} style={{ color: i < rating ? '#f1c40f' : 'var(--border-color)', fontSize: '1.2rem' }}>★</span>));
-  };
+  const renderStars = (rating) => [...Array(5)].map((_, i) => (<span key={i} style={{ color: i < rating ? '#f1c40f' : 'var(--border-color)', fontSize: '1.2rem' }}>★</span>));
 
-  if (loading) return <h2 style={{ color: 'var(--text-main)' }}>Loading property details...</h2>;
+  if (loading) return <div style={{ maxWidth: '1000px', margin: '50px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading property details...</h2></div>;
   if (error) return <h2 style={{ color: 'var(--danger-color)' }}>{error}</h2>;
   if (!property) return <h2 style={{ color: 'var(--text-main)' }}>Property not found.</h2>;
 
@@ -142,7 +143,7 @@ const PropertyDetails = () => {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px', color: 'var(--text-main)' }}>
-      <Link to="/" style={{ textDecoration: 'none', color: 'var(--primary-color)', marginBottom: '20px', display: 'inline-block', fontWeight: 'bold' }}>&larr; Back to Listings</Link>
+      <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', marginBottom: '20px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: 0 }}>&larr; Back</button>
       
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px' }}>
@@ -160,7 +161,7 @@ const PropertyDetails = () => {
 
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           
-          {/* LEFT COLUMN - Details */}
+          {/* LEFT COLUMN */}
           <div>
             <h3>Description</h3>
             <p style={{ lineHeight: '1.6', color: 'var(--text-muted)' }}>{property.description}</p>
@@ -187,10 +188,9 @@ const PropertyDetails = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN - Seller Info & Chat */}
+          {/* RIGHT COLUMN */}
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', height: 'fit-content' }}>
             <h3>Seller Information</h3>
-            
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
               {property.sellerId?.profilePhoto ? (
                 <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-color)' }} />
@@ -205,16 +205,11 @@ const PropertyDetails = () => {
                   {property.sellerId?.isVerified && <span style={{ backgroundColor: 'rgba(52, 152, 219, 0.1)', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold' }}>✓ Verified</span>}
                 </p>
                 <div style={{ margin: '2px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  {renderStars(Math.round(avgRating))} 
-                  <span style={{ marginLeft: '5px' }}>({reviews.length === 0 ? 'No reviews' : `${avgRating} / 5`})</span>
+                  {renderStars(Math.round(avgRating))} <span style={{ marginLeft: '5px' }}>({reviews.length === 0 ? 'No reviews' : `${avgRating} / 5`})</span>
                 </div>
-                {property.sellerId?.phoneNumber && <p style={{ margin: '2px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>📞 {property.sellerId.phoneNumber}</p>}
               </div>
             </div>
-
-            <button onClick={handleOpenSellerProfile} style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', color: 'var(--primary-color)', border: '2px solid var(--primary-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '15px' }}>
-              View Full Profile
-            </button>
+            <button onClick={handleOpenSellerProfile} style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', color: 'var(--primary-color)', border: '2px solid var(--primary-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '15px' }}>View Full Profile</button>
             
             {!userInfo ? (
               <p style={{ color: 'var(--danger-color)', marginTop: '15px' }}>Please <Link to="/login" style={{ color: 'var(--primary-color)' }}>login</Link> to contact the seller.</p>
@@ -224,13 +219,9 @@ const PropertyDetails = () => {
               <p style={{ color: '#f39c12', marginTop: '15px', fontWeight: 'bold' }}>Admin View</p>
             ) : (
               <div style={{ marginTop: '15px', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', padding: '10px', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>
-                  Live Chat with Seller
-                </div>
+                <div style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', padding: '10px', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Live Chat with Seller</div>
                 <div style={{ height: '250px', overflowY: 'auto', padding: '10px', backgroundColor: 'var(--bg-main)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {chatHistory.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 'auto' }}>No messages yet. Say hello!</p>
-                  ) : (
+                  {chatHistory.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 'auto' }}>No messages yet. Say hello!</p> : (
                     chatHistory.map((msg, index) => {
                       const isMe = msg.senderId._id === userInfo._id;
                       return (
@@ -249,48 +240,25 @@ const PropertyDetails = () => {
               </div>
             )}
 
-            {/* VISIT SCHEDULING UI */}
+            {/* Visit Scheduling UI */}
             {userInfo && userInfo.role === 'buyer' && !isOwner && !isAdmin && (
               <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
                 <h4 style={{ margin: '0 0 15px 0' }}>📅 Schedule a Visit</h4>
                 {visitMessage && <p style={{ fontSize: '0.85rem', color: visitMessage.includes('requested') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{visitMessage}</p>}
                 
                 <form onSubmit={handleScheduleVisit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input 
-                    type="date" 
-                    required 
-                    min={new Date().toISOString().split('T')[0]} // Prevents picking past dates
-                    value={visitDate} 
-                    onChange={(e) => setVisitDate(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }} 
-                  />
-                  <select 
-                    required 
-                    value={timeSlot} 
-                    onChange={(e) => setTimeSlot(e.target.value)} 
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }}
-                  >
-                    <option value="">Select a Time Slot</option>
-                    <option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option>
-                    <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
-                    <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
-                    <option value="01:00 PM - 02:00 PM">01:00 PM - 02:00 PM</option>
-                    <option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option>
-                    <option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option>
-                    <option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option>
+                  <input type="date" required min={new Date().toISOString().split('T')[0]} value={visitDate} onChange={(e) => setVisitDate(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }} />
+                  <select required value={timeSlot} onChange={(e) => setTimeSlot(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }}>
+                    <option value="">Select a Time Slot</option><option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option><option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option><option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option><option value="01:00 PM - 02:00 PM">01:00 PM - 02:00 PM</option><option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option><option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option><option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option>
                   </select>
-                  <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-                    Request Viewing
-                  </button>
+                  <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>Request Viewing</button>
                 </form>
               </div>
             )}
 
             {!isOwner && !isAdmin && (
               <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
-                <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-                  Save to Favorites
-                </button>
+                <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>Save to Favorites</button>
                 {favStatus && <p style={{ marginTop: '10px', textAlign: 'center', color: favStatus.includes('Saved') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{favStatus}</p>}
               </div>
             )}
@@ -304,7 +272,6 @@ const PropertyDetails = () => {
             <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
               <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>
               {reviewError && <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{reviewError}</p>}
-              
               <form onSubmit={handleReviewSubmit}>
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Rating:</label>
@@ -314,18 +281,14 @@ const PropertyDetails = () => {
                 </div>
                 <textarea required value={reviewFormData.comment} onChange={(e) => setReviewFormData({...reviewFormData, comment: e.target.value})} placeholder="Write your review here..." style={{ width: '100%', padding: '10px', boxSizing: 'border-box', minHeight: '80px', borderRadius: '6px', marginBottom: '10px' }} />
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    {editingReviewId ? 'Update Review' : 'Submit Review'}
-                  </button>
+                  <button type="submit" style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{editingReviewId ? 'Update Review' : 'Submit Review'}</button>
                   {editingReviewId && <button type="button" onClick={() => setEditingReviewId(null)} style={{ padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>}
                 </div>
               </form>
             </div>
           )}
 
-          {reviews.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)' }}>This seller currently has no reviews.</p>
-          ) : (
+          {reviews.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>This seller currently has no reviews.</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {reviews.map((review) => (
                 <div key={review._id} style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -334,9 +297,7 @@ const PropertyDetails = () => {
                       {review.buyerId?.profilePhoto ? (
                         <img src={review.buyerId.profilePhoto} alt="Buyer" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
-                          {review.buyerId?.name?.charAt(0).toUpperCase()}
-                        </div>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{review.buyerId?.name?.charAt(0).toUpperCase()}</div>
                       )}
                       <div>
                         <p style={{ margin: 0, fontWeight: 'bold' }}>{review.buyerId?.name}</p>
@@ -344,7 +305,6 @@ const PropertyDetails = () => {
                         <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(review.createdAt).toLocaleDateString()}</p>
                       </div>
                     </div>
-
                     {userInfo && userInfo._id === review.buyerId?._id && (
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button onClick={() => handleEditClick(review)} style={{ padding: '4px 10px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
@@ -359,6 +319,37 @@ const PropertyDetails = () => {
           )}
         </div>
 
+        {/* SIMILAR PROPERTIES SECTION */}
+        {similarProperties.length > 0 && (
+          <div style={{ marginTop: '50px', paddingTop: '30px', borderTop: '2px solid var(--border-color)' }}>
+            <h2 style={{ fontSize: '1.8rem', margin: '0 0 5px 0', color: 'var(--text-main)' }}>Similar Properties You Might Like</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Based on your current viewing preferences.</p>
+            
+            <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {similarProperties.map(prop => (
+                <div key={prop._id} 
+                  onClick={() => navigateToProperty(prop._id)}
+                  style={{ minWidth: '280px', flex: '0 0 auto', backgroundColor: 'var(--bg-main)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease' }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <div style={{ height: '160px', backgroundColor: 'var(--bg-hover)' }}>
+                    {prop.images?.length > 0 ? (
+                      <img src={prop.images[0]} alt="Similar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+                    )}
+                  </div>
+                  <div style={{ padding: '15px' }}>
+                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
+                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.1rem' }}>${prop.price.toLocaleString()}</p>
+                    <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>📍 {prop.location.city} • {prop.bedrooms} Beds</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SELLER PROFILE MODAL */}
@@ -384,7 +375,6 @@ const PropertyDetails = () => {
                     {renderStars(Math.round(avgRating))} 
                     <span style={{ marginLeft: '8px', fontWeight: 'bold', color: 'var(--text-main)' }}>{avgRating} / 5</span> ({reviews.length} Reviews)
                   </div>
-                  {property.sellerId?.phoneNumber && <p style={{ margin: 0, color: 'var(--text-muted)' }}>📞 {property.sellerId.phoneNumber}</p>}
                 </div>
               </div>
               <button onClick={() => setShowSellerModal(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>&times;</button>
@@ -392,26 +382,11 @@ const PropertyDetails = () => {
 
             <div style={{ padding: '30px' }}>
               <h3 style={{ margin: '0 0 20px 0' }}>Active Listings ({sellerListings.length})</h3>
-              
-              {loadingSellerListings ? (
-                <p style={{ color: 'var(--text-muted)' }}>Loading properties...</p>
-              ) : sellerListings.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)' }}>This seller has no other active listings.</p>
-              ) : (
+              {loadingSellerListings ? <p style={{ color: 'var(--text-muted)' }}>Loading properties...</p> : sellerListings.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>This seller has no other active listings.</p> : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
                   {sellerListings.map(item => (
-                    <div 
-                      key={item._id} 
-                      onClick={() => navigateToProperty(item._id)}
-                      style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s', backgroundColor: 'var(--bg-main)', boxShadow: 'var(--shadow-sm)' }}
-                      onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
-                      onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                      {item.images && item.images.length > 0 ? (
-                        <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ width: '100%', height: '140px', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
-                      )}
+                    <div key={item._id} onClick={() => navigateToProperty(item._id)} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s', backgroundColor: 'var(--bg-main)', boxShadow: 'var(--shadow-sm)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                      {item.images?.length > 0 ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '140px', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>}
                       <div style={{ padding: '15px' }}>
                         <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</h4>
                         <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold' }}>${item.price.toLocaleString()}</p>
@@ -422,11 +397,9 @@ const PropertyDetails = () => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 };
