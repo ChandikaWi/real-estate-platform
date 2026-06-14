@@ -320,11 +320,15 @@ const PropertyDetails = () => {
         </div>
 
         {/* SIMILAR PROPERTIES SECTION */}
-        {similarProperties.length > 0 && (
-          <div style={{ marginTop: '50px', paddingTop: '30px', borderTop: '2px solid var(--border-color)' }}>
-            <h2 style={{ fontSize: '1.8rem', margin: '0 0 5px 0', color: 'var(--text-main)' }}>Similar Properties You Might Like</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Based on your current viewing preferences.</p>
-            
+        <div style={{ marginTop: '50px', paddingTop: '30px', borderTop: '2px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: '1.8rem', margin: '0 0 5px 0', color: 'var(--text-main)' }}>Similar Properties You Might Like</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Based on your current viewing preferences.</p>
+          
+          {similarProperties.length === 0 ? (
+            <div style={{ padding: '30px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>No similar properties available on the market right now.</p>
+            </div>
+          ) : (
             <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {similarProperties.map(prop => (
                 <div key={prop._id} 
@@ -342,14 +346,14 @@ const PropertyDetails = () => {
                   </div>
                   <div style={{ padding: '15px' }}>
                     <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
-                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.1rem' }}>${prop.price.toLocaleString()}</p>
+                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.1rem' }}>Rs.{prop.price.toLocaleString()}</p>
                     <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>📍 {prop.location.city} • {prop.bedrooms} Beds</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* SELLER PROFILE MODAL */}
