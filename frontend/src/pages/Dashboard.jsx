@@ -20,6 +20,8 @@ const Dashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]); 
   
+  const [visits, setVisits] = useState([]);
+
   const [formData, setFormData] = useState({
     title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
     bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
@@ -28,7 +30,7 @@ const Dashboard = () => {
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('userInfo'));
     if (!storedUser || storedUser.role !== 'seller') navigate('/login');
-    else { setUserInfo(storedUser); fetchInquiries(); fetchMyProperties(); fetchSales(); }
+    else { setUserInfo(storedUser); fetchInquiries(); fetchMyProperties(); fetchSales(); fetchVisits(); } // 👈 Added here
   }, [navigate]);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ const Dashboard = () => {
   const fetchMyProperties = async () => { try { const { data } = await api.get('/properties/seller/me'); setMyProperties(data); } catch (e) {} };
   const fetchSales = async () => { try { const { data } = await api.get('/orders/seller'); setSales(data); } catch (e) {} };
   const fetchInquiries = async () => { try { const { data } = await api.get('/messages'); setMessages(data); setLoadingMessages(false); } catch (e) { setLoadingMessages(false); } };
+  const fetchVisits = async () => { try { const { data } = await api.get('/visits/seller'); setVisits(data); } catch (e) {} };
 
   const handleDeleteProperty = async (id) => {
     if (window.confirm('Delete this listing?')) {
@@ -61,6 +64,13 @@ const Dashboard = () => {
       const { data } = await api.post('/messages', { receiverId, propertyId, message: replyText });
       setMessages((prev) => [data, ...prev]); setReplyText(''); setReplyingTo(null);
     } catch (err) { alert("Failed"); }
+  };
+
+  const handleVisitAction = async (id, status) => {
+    try {
+      const { data } = await api.put(`/visits/${id}/status`, { status });
+      setVisits(visits.map(v => v._id === id ? data : v));
+    } catch (err) { alert('Failed to update visit status'); }
   };
 
   const handleSubmit = async (e) => {
@@ -210,6 +220,59 @@ const Dashboard = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ color: isPending ? '#f39c12' : 'var(--accent-color)', fontWeight: 'bold' }}>{sale.status}</span>
                             {isPending && <button onClick={() => handleCompleteOrder(sale._id)} style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mark Completed</button>}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Visit Requests */}
+      {currentTab === 'visits' && (
+        <section>
+          <h1 style={{ margin: '0 0 5px 0' }}>Visit Requests</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Approve or decline property viewings requested by buyers.</p>
+          {visits.length === 0 ? <p>No visit requests yet.</p> : (
+            <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
+                    <th style={{ padding: '15px' }}>Property</th>
+                    <th style={{ padding: '15px' }}>Buyer Details</th>
+                    <th style={{ padding: '15px' }}>Requested Time</th>
+                    <th style={{ padding: '15px' }}>Status & Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map(visit => {
+                    const isPending = visit.status === 'Pending';
+                    return (
+                      <tr key={visit._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '15px', fontWeight: 'bold' }}>{visit.propertyId?.title}</td>
+                        <td style={{ padding: '15px' }}>
+                          <div style={{ fontWeight: 'bold' }}>{visit.buyerId?.name}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📞 {visit.buyerId?.phoneNumber || 'No phone'}</div>
+                        </td>
+                        <td style={{ padding: '15px' }}>
+                          <div style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>{new Date(visit.date).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{visit.timeSlot}</div>
+                        </td>
+                        <td style={{ padding: '15px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ backgroundColor: isPending ? 'rgba(243, 156, 18, 0.1)' : visit.status === 'Accepted' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)', color: isPending ? '#f39c12' : visit.status === 'Accepted' ? 'var(--accent-color)' : 'var(--danger-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                              {visit.status}
+                            </span>
+                            {isPending && (
+                              <>
+                                <button onClick={() => handleVisitAction(visit._id, 'Accepted')} style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Accept</button>
+                                <button onClick={() => handleVisitAction(visit._id, 'Rejected')} style={{ padding: '6px 12px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Reject</button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

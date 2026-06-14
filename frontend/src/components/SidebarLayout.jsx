@@ -17,6 +17,7 @@ const SidebarLayout = ({ children }) => {
       { path: '/purchases', label: 'My Purchases', icon: '🛍️' },
       { path: '/compare', label: 'Compare Properties', icon: '⚖️' },
       { path: '/profile', label: 'Manage Account', icon: '👤' },
+      { path: '/visits', label: 'My Visits', icon: '📅' },
     ];
   } else if (userInfo.role === 'seller') {
     links = [
@@ -26,6 +27,7 @@ const SidebarLayout = ({ children }) => {
       { path: '/dashboard/sales', label: 'Orders Received', icon: '💰' },
       { path: '/analytics', label: 'Performance Analytics', icon: '📈' },
       { path: '/profile', label: 'Manage Account', icon: '👤' },
+      { path: '/dashboard/visits', label: 'Visit Requests', icon: '📅' },
     ];
   } else if (userInfo.role === 'admin') {
     links = [

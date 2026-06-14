@@ -24,6 +24,10 @@ const PropertyDetails = () => {
   const [sellerListings, setSellerListings] = useState([]);
   const [loadingSellerListings, setLoadingSellerListings] = useState(false);
 
+  const [visitDate, setVisitDate] = useState('');
+  const [timeSlot, setTimeSlot] = useState('');
+  const [visitMessage, setVisitMessage] = useState('');
+
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
@@ -108,6 +112,17 @@ const PropertyDetails = () => {
     try { const { data } = await api.get(`/properties/user/${property.sellerId._id}`); setSellerListings(data); } 
     catch (err) { console.error("Failed to fetch seller listings"); } 
     finally { setLoadingSellerListings(false); }
+  };
+
+  const handleScheduleVisit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/visits', { propertyId: property._id, date: visitDate, timeSlot });
+      setVisitMessage('Visit requested! Check your dashboard for updates.');
+      setVisitDate(''); setTimeSlot('');
+    } catch (err) {
+      setVisitMessage(err.response?.data?.message || 'Failed to schedule visit.');
+    }
   };
 
   const navigateToProperty = (propId) => { setShowSellerModal(false); navigate(`/property/${propId}`); window.scrollTo(0, 0); };
@@ -230,6 +245,43 @@ const PropertyDetails = () => {
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', borderTop: '1px solid var(--border-color)' }}>
                   <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." required style={{ flex: 1, padding: '10px', border: 'none', outline: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }} />
                   <button type="submit" style={{ padding: '10px 15px', backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Send</button>
+                </form>
+              </div>
+            )}
+
+            {/* VISIT SCHEDULING UI */}
+            {userInfo && userInfo.role === 'buyer' && !isOwner && !isAdmin && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                <h4 style={{ margin: '0 0 15px 0' }}>📅 Schedule a Visit</h4>
+                {visitMessage && <p style={{ fontSize: '0.85rem', color: visitMessage.includes('requested') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{visitMessage}</p>}
+                
+                <form onSubmit={handleScheduleVisit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input 
+                    type="date" 
+                    required 
+                    min={new Date().toISOString().split('T')[0]} // Prevents picking past dates
+                    value={visitDate} 
+                    onChange={(e) => setVisitDate(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }} 
+                  />
+                  <select 
+                    required 
+                    value={timeSlot} 
+                    onChange={(e) => setTimeSlot(e.target.value)} 
+                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }}
+                  >
+                    <option value="">Select a Time Slot</option>
+                    <option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option>
+                    <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                    <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                    <option value="01:00 PM - 02:00 PM">01:00 PM - 02:00 PM</option>
+                    <option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option>
+                    <option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option>
+                    <option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option>
+                  </select>
+                  <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
+                    Request Viewing
+                  </button>
                 </form>
               </div>
             )}

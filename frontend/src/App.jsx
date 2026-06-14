@@ -18,6 +18,7 @@ import SellerAnalytics from './pages/SellerAnalytics';
 import AdminAnalytics from './pages/AdminAnalytics';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SidebarLayout from './components/SidebarLayout';
+import MyVisits from './pages/MyVisits';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -116,6 +117,7 @@ function App() {
               <Route path="/analytics" element={<SidebarLayout><SellerAnalytics /></SidebarLayout>} />
               <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
               <Route path="/dashboard/:tab?" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
+              <Route path="/visits" element={<SidebarLayout><MyVisits /></SidebarLayout>} />
             </Routes>
           </main>
         </div>
