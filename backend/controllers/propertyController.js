@@ -309,3 +309,59 @@ export const getSimilarProperties = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get properties based on lifestyle quiz answers
+// @route   POST /api/properties/lifestyle-match
+export const getLifestyleMatches = async (req, res) => {
+  try {
+    const { vibe, priority, commute } = req.body;
+    
+    // Start with a base query
+    let query = {};
+    let sortOption = { views: -1 }; // Default to popular
+
+    // Vibe Mapping
+    if (vibe === 'urban') {
+      query.type = { $in: ['apartment', 'house'] };
+      // Assuming urban means closer to transport/city center
+      query['valuationMetrics.distanceToTransport'] = { $lte: 5 }; 
+    } else if (vibe === 'suburban') {
+      query.type = 'house';
+      query['valuationMetrics.distanceToTransport'] = { $gte: 5 };
+    }
+
+    // Priority Mapping
+    if (priority === 'family') {
+      query.bedrooms = { $gte: 3 }; // Need space for a family
+    } else if (priority === 'nightlife') {
+      query.type = 'apartment'; // Typically closer to action
+    } else if (priority === 'budget') {
+      sortOption = { price: 1 }; // Sort by cheapest first
+    }
+
+    // Commute Mapping
+    if (commute === 'transit') {
+      query['valuationMetrics.distanceToTransport'] = { $lte: 2 }; // Very close to transport
+    } else if (commute === 'drive') {
+      query['valuationMetrics.parkingSpaces'] = { $gte: 1 }; // Must have parking
+    }
+
+    // Execute the dynamically built query
+    const matches = await Property.find(query)
+      .sort(sortOption)
+      .limit(6);
+
+    // Fallback - If the exact lifestyle match is too strict, loosen it
+    if (matches.length === 0) {
+      const looseMatches = await Property.find({ type: query.type || 'house' })
+        .sort(sortOption)
+        .limit(6);
+      return res.json(looseMatches);
+    }
+
+    res.json(matches);
+  } catch (error) {
+    console.error("Lifestyle Engine Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};

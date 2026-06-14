@@ -22,6 +22,11 @@ const Home = () => {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
+  // Lifestyle Engine
+  const [lifestyleAnswers, setLifestyleAnswers] = useState({ vibe: '', priority: '', commute: '' });
+  const [lifestyleMatches, setLifestyleMatches] = useState(null);
+  const [loadingLifestyle, setLoadingLifestyle] = useState(false);
+
   const fetchProperties = async (currentPage = 1) => {
     setLoading(true);
     try {
@@ -70,6 +75,27 @@ const Home = () => {
       fetchRecommendations();
     }
   }, [page, sort]); // Also depends on userInfo conceptually, but runs on mount
+
+  const handleLifestyleSubmit = async () => {
+    if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
+      alert("Please answer all 3 questions to get your match!");
+      return;
+    }
+    setLoadingLifestyle(true);
+    try {
+      const { data } = await api.post('/properties/lifestyle-match', lifestyleAnswers);
+      setLifestyleMatches(data);
+    } catch (err) {
+      console.error("Failed to generate lifestyle matches");
+    } finally {
+      setLoadingLifestyle(false);
+    }
+  };
+
+  const resetLifestyleQuiz = () => {
+    setLifestyleAnswers({ vibe: '', priority: '', commute: '' });
+    setLifestyleMatches(null);
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -302,6 +328,117 @@ const Home = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LIFESTYLE MATCHING SYSTEM */}
+      {userInfo && userInfo.role === 'buyer' && (
+        <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)', paddingBottom: '50px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <h2 style={{ fontSize: '2.2rem', margin: '0 0 10px 0', color: 'var(--text-main)' }}>
+              🎯 Find Your Perfect Lifestyle Match
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+              Tired of endless filtering? Tell us how you live, and our predictive engine will find properties that match your exact vibe.
+            </p>
+          </div>
+
+          {!lifestyleMatches ? (
+            /* The Quiz UI */
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', maxWidth: '800px', margin: '0 auto' }}>
+              
+              <div style={{ marginBottom: '30px' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>1. What is your ideal neighborhood vibe?</h3>
+                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'urban'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.vibe === 'urban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'urban' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    🏙️ Busy & Urban
+                  </button>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'suburban'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.vibe === 'suburban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'suburban' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    🏡 Quiet & Suburban
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '30px' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>2. What is your top priority right now?</h3>
+                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'family'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'family' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'family' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    👨‍👩‍👧‍👦 Family & Schools
+                  </button>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'nightlife'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'nightlife' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'nightlife' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    🍸 Nightlife & Social
+                  </button>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'budget'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'budget' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'budget' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    💰 Maximum Affordability
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '40px' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>3. How do you prefer to commute?</h3>
+                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'transit'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.commute === 'transit' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'transit' ? 'rgba(243, 156, 18, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    🚆 Public Transit
+                  </button>
+                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'drive'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.commute === 'drive' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'drive' ? 'rgba(243, 156, 18, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+                    🚗 I Drive Everywhere
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleLifestyleSubmit} 
+                disabled={loadingLifestyle}
+                style={{ width: '100%', padding: '16px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: loadingLifestyle ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: 'var(--shadow-md)' }}
+              >
+                {loadingLifestyle ? 'Analyzing Data...' : 'Find My Matches 🚀'}
+              </button>
+            </div>
+
+          ) : (
+            /* The Results UI */
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Your Curated Lifestyle Matches</h3>
+                <button onClick={resetLifestyleQuiz} style={{ padding: '8px 16px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  ↻ Retake Quiz
+                </button>
+              </div>
+
+              {lifestyleMatches.length === 0 ? (
+                <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>We couldn't find a perfect match right now, but check back soon as new properties are added daily!</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+                  {lifestyleMatches.map((property) => (
+                    <div key={`life-${property._id}`} 
+                      style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}
+                    >
+                      <div style={{ position: 'relative', height: '200px' }}>
+                        {property.images && property.images.length > 0 ? (
+                          <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+                        )}
+                        <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
+                          100% Lifestyle Match
+                        </span>
+                      </div>
+                      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{property.title}</h3>
+                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</div>
+                        <p style={{ margin: '10px 0 15px 0', color: 'var(--text-muted)' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
+                        <button onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: 'auto' }}>
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
