@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react
 import { useContext } from 'react';
 import { ThemeProvider, ThemeContext } from './context/ThemeContext';
 
-// Import Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,6 +18,7 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SidebarLayout from './components/SidebarLayout';
 import MyVisits from './pages/MyVisits';
+import AIChatBot from './components/AIChatBot';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -101,6 +101,9 @@ function App() {
       <Router>
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Navigation />
+          
+          <AIChatBot /> 
+          
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Routes>
               <Route path="/" element={<Home />} />
