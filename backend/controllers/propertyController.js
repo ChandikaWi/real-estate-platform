@@ -1,6 +1,8 @@
 import Property from '../models/Property.js';
 import Order from '../models/Order.js';
 import Message from '../models/Message.js';
+import Favorite from '../models/Favorite.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get all properties (with search, filter, pagination)
 // @route   GET /api/properties
@@ -125,6 +127,24 @@ export const updateProperty = async (req, res) => {
       { new: true } // Returns the newly updated document
     );
     res.json(updatedProperty);
+
+    // SMART ALERT - Check for Price Drop before saving
+    if (req.body.price && Number(req.body.price) < property.price) {
+      const priceDropPercentage = Math.round(((property.price - req.body.price) / property.price) * 100);
+      
+      // Find all buyers who favorited this exact property
+      const favorites = await Favorite.find({ propertyId: property._id });
+      
+      // Send them all a notification
+      const notifications = favorites.map(fav => ({
+        userId: fav.userId, // The buyer
+        type: 'price_drop',
+        message: `🔥 Price dropped by ${priceDropPercentage}% on "${property.title}"! It is now $${req.body.price.toLocaleString()}.`,
+        link: `/property/${property._id}`
+      }));
+      if (notifications.length > 0) await Notification.insertMany(notifications);
+    }
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,5 +1,6 @@
 import Visit from '../models/Visit.js';
 import Property from '../models/Property.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Create a new visit request
 // @route   POST /api/visits
@@ -78,6 +79,13 @@ export const updateVisitStatus = async (req, res) => {
       .populate('propertyId', 'title')
       .populate('buyerId', 'name email phoneNumber profilePhoto');
 
+    // SMART ALERT - Notify buyer of visit approval/rejection  
+    await Notification.create({
+      userId: visit.buyerId,
+      type: 'visit_update',
+      message: `📅 Your visit request for "${visit.propertyId.title}" was ${status.toLowerCase()} by the seller.`,
+      link: '/visits' // Link to their visits dashboard
+    });  
     res.json(updatedVisit);
   } catch (error) {
     res.status(500).json({ message: error.message });

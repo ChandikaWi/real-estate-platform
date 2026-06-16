@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { ThemeProvider, ThemeContext } from './context/ThemeContext';
+import { useState, useEffect, useRef } from 'react';
+import api from './api/axiosConfig';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -24,65 +26,122 @@ const Navigation = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useContext(ThemeContext);
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+  
+  // Smart Alerts State
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const dropdownRef = useRef(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem('userInfo');
-    navigate('/login');
+  // Fetch alerts if logged in
+  useEffect(() => {
+    if (userInfo) {
+      const fetchNotifs = async () => {
+        try { const { data } = await api.get('/notifications'); setNotifications(data); } 
+        catch (err) { console.error('Failed to load alerts'); }
+      };
+      fetchNotifs();
+      // Poll every 30 seconds for new alerts
+      const interval = setInterval(fetchNotifs, 30000); 
+      return () => clearInterval(interval);
+    }
+  }, [userInfo]);
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setShowNotifs(false); };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleNotificationClick = async (notif) => {
+    setShowNotifs(false);
+    if (!notif.isRead) {
+      try {
+        await api.put(`/notifications/${notif._id}/read`);
+        setNotifications(notifications.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+      } catch (err) {}
+    }
+    navigate(notif.link);
   };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (err) {}
+  };
+
+  const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <nav style={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center', 
-      padding: '15px 30px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-      backgroundColor: 'var(--bg-nav)',
-      backdropFilter: 'blur(10px)',
-      borderBottom: '1px solid var(--border-color)',
-      boxShadow: 'var(--shadow-sm)'
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px',
+      position: 'sticky', top: 0, zIndex: 1000, backgroundColor: 'var(--bg-nav)',
+      backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)'
     }}>
       <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>
-          R
-        </div>
+        <div style={{ width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>R</div>
         <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.5px' }}>RealEstate</h2>
       </Link>
       
       <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
         <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-main)', fontWeight: '500' }}>Home</Link>
         
-        {/* Theme Toggle Button */}
-        <button 
-          onClick={toggleTheme} 
-          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-main)', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}
-          title="Toggle Theme"
-        >
+        <button onClick={toggleTheme} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-main)', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }} title="Toggle Theme">
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
 
         {userInfo ? (
           <>
-            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'var(--text-main)', fontWeight: '600' }}>
-              {userInfo.profilePhoto ? (
-                <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-color)' }} />
-              ) : (
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  {userInfo.name.charAt(0).toUpperCase()}
+            {/* NOTIFICATION BELL WIDGET*/}
+            <div style={{ position: 'relative' }} ref={dropdownRef}>
+              <button onClick={() => setShowNotifs(!showNotifs)} style={{ position: 'relative', background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-main)', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                🔔
+                {unreadCount > 0 && (
+                  <span style={{ position: 'absolute', top: '-5px', right: '-5px', backgroundColor: 'var(--danger-color)', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px', border: '2px solid var(--bg-nav)' }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* DROPDOWN PANEL */}
+              {showNotifs && (
+                <div style={{ position: 'absolute', top: '50px', right: '-50px', width: '350px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-hover)' }}>
+                    <h4 style={{ margin: 0, color: 'var(--text-main)' }}>Smart Alerts</h4>
+                    {unreadCount > 0 && <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>Mark all read</button>}
+                  </div>
+                  
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', margin: 0 }}>You're all caught up!</p>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif._id} onClick={() => handleNotificationClick(notif)} style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', backgroundColor: notif.isRead ? 'transparent' : 'var(--bg-hover)', transition: 'background 0.2s', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+                          <div style={{ fontSize: '1.5rem' }}>
+                            {notif.type === 'price_drop' ? '📉' : notif.type === 'visit_update' ? '📅' : '💬'}
+                          </div>
+                          <div>
+                            <p style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.4', fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.message}</p>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(notif.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
+            </div>
+
+            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'var(--text-main)', fontWeight: '600' }}>
+              {userInfo.profilePhoto ? <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-color)' }} /> : <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{userInfo.name.charAt(0).toUpperCase()}</div>}
               <span style={{ display: 'none', '@media (minWidth: 768px)': { display: 'inline' } }}>{userInfo.name.split(' ')[0]}</span>
             </Link>
             
-            <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/dashboard' : '/admin'} style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', boxShadow: 'var(--shadow-sm)' }}>
-              Dashboard
-            </Link>
-            
-            <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', fontWeight: '600' }}>
-              Logout
-            </button>
+            <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/dashboard' : '/admin'} style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', boxShadow: 'var(--shadow-sm)' }}>Dashboard</Link>
+            <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', fontWeight: '600' }}>Logout</button>
           </>
         ) : (
           <div style={{ display: 'flex', gap: '10px' }}>
