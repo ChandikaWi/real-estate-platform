@@ -81,18 +81,19 @@ export const updateVisitStatus = async (req, res) => {
     visit.status = status;
     await visit.save();
     
-    // Return populated data so UI updates smoothly
+    // POPULATE the data FIRST so the title exists
     const updatedVisit = await Visit.findById(visit._id)
       .populate('propertyId', 'title')
       .populate('buyerId', 'name email phoneNumber profilePhoto');
 
-    // SMART ALERT - Notify buyer of visit approval/rejection  
+    // MART ALERT - NOW trigger the notification using updatedVisit
     await Notification.create({
-      userId: visit.buyerId,
+      userId: updatedVisit.buyerId._id,
       type: 'visit_update',
-      message: `📅 Your visit request for "${visit.propertyId.title}" was ${status.toLowerCase()} by the seller.`,
-      link: '/visits' // Link to their visits dashboard
-    });  
+      message: `📅 Your visit request for "${updatedVisit.propertyId.title}" was ${status.toLowerCase()} by the seller.`,
+      link: '/visits' 
+    });
+
     res.json(updatedVisit);
   } catch (error) {
     res.status(500).json({ message: error.message });

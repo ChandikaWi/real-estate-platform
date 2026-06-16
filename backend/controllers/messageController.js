@@ -1,4 +1,6 @@
 import Message from '../models/Message.js';
+import Notification from '../models/Notification.js';
+import Property from '../models/Property.js';
 
 export const sendMessage = async (req, res) => {
   try {
@@ -22,6 +24,18 @@ export const sendMessage = async (req, res) => {
       .populate('senderId', 'name email')
       .populate('propertyId', 'title');
 
+    // SMART ALERT - Notify the receiver
+    // If a seller is replying, the link takes the buyer to the property page.
+    // If a buyer is inquiring, the link takes the seller to their inquiries dashboard.
+    const notifLink = req.user.role === 'seller' ? `/property/${propertyId}` : '/dashboard/inquiries';
+
+    await Notification.create({
+      userId: receiverId,
+      type: 'message',
+      message: `💬 New message from ${populatedMessage.senderId.name} regarding "${populatedMessage.propertyId?.title || 'a property'}".`,
+      link: notifLink
+    });
+
     // REAL-TIME EMIT - Send the message to the receiver's private room
     const io = req.app.get('io');
     io.to(receiverId.toString()).emit('receive_message', populatedMessage);
@@ -42,7 +56,7 @@ export const getMessages = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+}; 
 
 // Get chat history between buyer and seller for a specific property
 export const getPropertyMessages = async (req, res) => {
@@ -57,4 +71,4 @@ export const getPropertyMessages = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+};  
