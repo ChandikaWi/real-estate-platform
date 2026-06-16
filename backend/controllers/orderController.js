@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import Property from '../models/Property.js';
 import nodemailer from 'nodemailer';
+import Notification from '../models/Notification.js';
 
 // Configure a demo email transporter 
 const transporter = nodemailer.createTransport({
@@ -30,6 +31,16 @@ export const processCheckout = async (req, res) => {
       amount: property.price
     });
     const savedOrder = await order.save();
+
+    const purchasedProperty = await Property.findById(propertyId);
+    
+    // SMART ALERT - Notify Seller of a sale!
+    await Notification.create({
+      userId: purchasedProperty.sellerId,
+      type: 'order',
+      message: `💰 Cha-ching! ${req.user.name} just purchased "${purchasedProperty.title}".`,
+      link: '/dashboard/sales'
+    });
 
     // Dispatch Emails
     const buyerEmailHtml = `

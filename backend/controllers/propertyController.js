@@ -3,6 +3,7 @@ import Order from '../models/Order.js';
 import Message from '../models/Message.js';
 import Favorite from '../models/Favorite.js';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 
 // @desc    Get all properties (with search, filter, pagination)
 // @route   GET /api/properties
@@ -62,6 +63,16 @@ export const createProperty = async (req, res) => {
   try {
     const property = new Property({ ...req.body, sellerId: req.user._id });
     const createdProperty = await property.save();
+    // SMART ALERT - Notify all Admins of new inventory
+    const admins = await User.find({ role: 'admin' });
+    const adminNotifs = admins.map(admin => ({
+      userId: admin._id,
+      type: 'alert',
+      message: `🏢 New property listed: "${property.title}" by ${req.user.name}.`,
+      link: '/admin/properties'
+    }));
+    if (adminNotifs.length > 0) await Notification.insertMany(adminNotifs);
+
     res.status(201).json(createdProperty);
   } catch (error) {
     res.status(500).json({ message: error.message });

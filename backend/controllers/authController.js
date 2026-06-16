@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import Favorite from '../models/Favorite.js';
 import Message from '../models/Message.js';
 import generateToken from '../utils/generateToken.js'; 
+import Notification from '../models/Notification.js';
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -21,6 +22,16 @@ export const registerUser = async (req, res) => {
       password,
       role
     });
+
+    // SMART ALERT - Notify all Admins of a new user
+    const admins = await User.find({ role: 'admin' });
+    const adminNotifs = admins.map(admin => ({
+      userId: admin._id,
+      type: 'system',
+      message: `👋 New ${user.role} joined the platform: ${user.name}.`,
+      link: '/admin/users'
+    }));
+    if (adminNotifs.length > 0) await Notification.insertMany(adminNotifs);
 
     if (user) {
       res.status(201).json({

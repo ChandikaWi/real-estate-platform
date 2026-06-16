@@ -1,5 +1,6 @@
 import Review from '../models/Review.js';
 import Order from '../models/Order.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get all reviews for a specific seller
 // @route   GET /api/reviews/seller/:sellerId
@@ -36,6 +37,13 @@ export const addReview = async (req, res) => {
     const review = await Review.create({ sellerId, buyerId, rating, comment });
     const populatedReview = await Review.findById(review._id).populate('buyerId', 'name profilePhoto');
     
+    // SMART ALERT - Notify Seller of a new review
+    await Notification.create({
+      userId: sellerId,
+      type: 'review',
+      message: `⭐ You received a new ${rating}-star review from ${req.user.name}!`,
+      link: '/analytics' // Sends them to their performance matrix
+    });
     res.status(201).json(populatedReview);
   } catch (error) {
     res.status(500).json({ message: error.message });

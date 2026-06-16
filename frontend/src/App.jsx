@@ -78,6 +78,19 @@ const Navigation = () => {
     } catch (err) {}
   };
 
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'price_drop': return '📉';
+      case 'visit_update': return '📅';
+      case 'message': return '💬';
+      case 'order': return '💰';
+      case 'review': return '⭐';
+      case 'alert': 
+      case 'system': return '🚨';
+      default: return '🔔';
+    }
+  };
+
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -128,7 +141,7 @@ const Navigation = () => {
                       notifications.map(notif => (
                         <div key={notif._id} onClick={() => handleNotificationClick(notif)} style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', backgroundColor: notif.isRead ? 'transparent' : 'var(--bg-hover)', transition: 'background 0.2s', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
                           <div style={{ fontSize: '1.5rem' }}>
-                            {notif.type === 'price_drop' ? '📉' : notif.type === 'visit_update' ? '📅' : '💬'}
+                            {getNotificationIcon(notif.type)}
                           </div>
                           <div>
                             <p style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.4', fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.message}</p>

@@ -25,6 +25,13 @@ export const createVisit = async (req, res) => {
       timeSlot
     });
 
+    // SMART ALERT - Notify Seller of new visit request
+    await Notification.create({
+      userId: property.sellerId,
+      type: 'visit_update',
+      message: `📅 ${req.user.name} requested a viewing for "${property.title}" on ${date}.`,
+      link: '/dashboard/visits'
+    });
     res.status(201).json(visit);
   } catch (error) {
     res.status(500).json({ message: error.message });
