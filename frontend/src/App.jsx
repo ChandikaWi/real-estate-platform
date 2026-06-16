@@ -34,17 +34,24 @@ const Navigation = () => {
 
   // Fetch alerts if logged in
   useEffect(() => {
-    if (userInfo) {
+    if (userInfo?._id) {
       const fetchNotifs = async () => {
-        try { const { data } = await api.get('/notifications'); setNotifications(data); } 
-        catch (err) { console.error('Failed to load alerts'); }
+        try { 
+          const { data } = await api.get('/notifications'); 
+          setNotifications(data); 
+        } catch (err) { 
+          console.error('Failed to load alerts'); 
+        }
       };
-      fetchNotifs();
-      // Poll every 30 seconds for new alerts
-      const interval = setInterval(fetchNotifs, 30000); 
+      
+      fetchNotifs(); // Fetch immediately on load
+      
+      // Silently poll for new notifications every 60 seconds
+      const interval = setInterval(fetchNotifs, 60000); 
       return () => clearInterval(interval);
     }
-  }, [userInfo]);
+    // Depend ONLY on the primitive string ID, not the parsed object
+  }, [userInfo?._id]);
 
   // Close dropdown if clicked outside
   useEffect(() => {
