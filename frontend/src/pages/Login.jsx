@@ -17,10 +17,8 @@ const Login = () => {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('userInfo', JSON.stringify(data));
       
-      // Route based on role
-      if (data.role === 'admin') navigate('/admin');
-      else if (data.role === 'seller') navigate('/dashboard');
-      else navigate('/buyer/dashboard');
+      // Route all users to the Home page regardless of their role
+      navigate('/');
       
       window.location.reload(); // To update Navbar state
     } catch (err) {
