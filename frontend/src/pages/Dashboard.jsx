@@ -128,9 +128,22 @@ const Dashboard = () => {
             <input type="number" step="0.1" name="distanceToTransport" placeholder="Dist. to Transport (km)" value={formData.distanceToTransport} onChange={e => setFormData({...formData, distanceToTransport: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
 
             <div style={{ gridColumn: '1 / -1', marginTop: '10px', backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>Images</h4>
-              <input type="file" multiple accept="image/*" onChange={(e) => setImages(e.target.files)} style={{ padding: '8px', width: '100%' }} />
-            </div>
+            <h4 style={{ margin: '0 0 10px 0' }}>Upload Property Images (Max 5)</h4>
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*" 
+              onChange={(e) => {
+                if (e.target.files.length > 5) {
+                  alert("You can only upload a maximum of 5 pictures per listing.");
+                  e.target.value = ''; // Reset the input
+                } else {
+                  setImages(e.target.files);
+                }
+              }} 
+              style={{ padding: '8px', width: '100%' }} 
+            />
+          </div>
 
             <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '6px', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>
               {uploading ? 'Uploading...' : '🚀 Publish'}

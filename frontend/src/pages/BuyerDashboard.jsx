@@ -52,7 +52,7 @@ const BuyerDashboard = () => {
       }
     };
     fetchDashboardData();
-  }, [userInfo]);
+  }, [userInfo?._id]);
 
   const tooltipStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' };
 

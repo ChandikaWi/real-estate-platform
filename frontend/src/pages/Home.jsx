@@ -16,16 +16,18 @@ const Home = () => {
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [zoomedImage, setZoomedImage] = useState(null);
-
+  
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
-  // Lifestyle Engine
+  // Lifestyle Engine State
   const [lifestyleAnswers, setLifestyleAnswers] = useState({ vibe: '', priority: '', commute: '' });
   const [lifestyleMatches, setLifestyleMatches] = useState(null);
   const [loadingLifestyle, setLoadingLifestyle] = useState(false);
+  
+  // Lightbox State
+  const [lightbox, setLightbox] = useState({ isOpen: false, images: [], currentIndex: 0 });
 
   const fetchProperties = async (currentPage = 1) => {
     setLoading(true);
@@ -76,6 +78,7 @@ const Home = () => {
     }
   }, [page, sort]); // Also depends on userInfo conceptually, but runs on mount
 
+
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
       alert("Please answer all 3 questions to get your match!");
@@ -109,6 +112,25 @@ const Home = () => {
     else setTimeout(() => fetchProperties(1), 0);
   };
 
+  // Lightbox Navigation Functions
+  const openLightbox = (images, index) => {
+    if (images && images.length > 0) {
+      setLightbox({ isOpen: true, images, currentIndex: index });
+    }
+  };
+
+  const closeLightbox = () => setLightbox({ isOpen: false, images: [], currentIndex: 0 });
+
+  const nextImage = (e) => {
+    e.stopPropagation();
+    setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length }));
+  };
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length }));
+  };
+
   if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'var(--danger-color)' }}><h2>{error}</h2></div>;
 
   return (
@@ -136,18 +158,18 @@ const Home = () => {
         border: '1px solid var(--border-color)'
       }}>
         
-        <input type="text" placeholder="Location, neighborhood, or zip..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ padding: '14px', flex: '2', minWidth: '200px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
+        <input type="text" placeholder="Location, neighborhood, or zip..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ padding: '14px', flex: '2', minWidth: '200px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
         
-        <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
           <option value="">Property Type</option>
           <option value="house">Houses</option>
           <option value="apartment">Apartments</option>
           <option value="land">Land</option>
         </select>
 
-        <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ padding: '14px', width: '90px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
-        <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
-        <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }} />
+        <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ padding: '14px', width: '90px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+        <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+        <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
 
         <div style={{ display: 'flex', gap: '10px', flex: '1' }}>
           <button type="submit" style={{ flex: '1', padding: '14px', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>Search</button>
@@ -188,27 +210,48 @@ const Home = () => {
               onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
               >
                 
-                {/* Image & Badges */}
-                <div style={{ position: 'relative', height: '240px' }}>
-                  {property.images && property.images.length > 0 ? (
-                    <img src={property.images[0]} alt={property.title} onClick={() => setZoomedImage(property.images[0])} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
-                  )}
-                  <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'capitalize', boxShadow: 'var(--shadow-sm)' }}>
-                    {property.type}
-                  </span>
-                  {property.sellerId?.isVerified && (
-                    <span style={{ position: 'absolute', top: '15px', right: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-                      ✓ Verified
+                {/* MULTI-IMAGE GALLERY UI */}
+                <div style={{ padding: '10px' }}>
+                  {/* Main Large Image */}
+                  <div 
+                    onClick={() => openLightbox(property.images, 0)}
+                    style={{ position: 'relative', height: '220px', cursor: 'pointer', overflow: 'hidden', borderRadius: '8px', backgroundColor: 'var(--bg-hover)' }}
+                  >
+                    {property.images && property.images.length > 0 ? (
+                      <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+                    )}
+                    <span style={{ position: 'absolute', top: '10px', left: '10px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'capitalize', boxShadow: 'var(--shadow-sm)' }}>
+                      {property.type}
                     </span>
+                    {property.sellerId?.isVerified && (
+                      <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
+                        ✓ Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Small Thumbnail Images (Up to 4 more) */}
+                  {property.images && property.images.length > 1 && (
+                    <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
+                      {property.images.slice(1, 5).map((img, idx) => (
+                        <div 
+                          key={idx} 
+                          onClick={(e) => { e.stopPropagation(); openLightbox(property.images, idx + 1); }}
+                          style={{ flex: 1, height: '60px', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                        >
+                          <img src={img} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.2s' }} onMouseOver={e => e.currentTarget.style.opacity = '0.8'} onMouseOut={e => e.currentTarget.style.opacity = '1'} />
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
                 {/* Card Content */}
-                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div style={{ marginBottom: '15px', flex: 1 }}>
-                    <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <h3 style={{ margin: '10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {property.title}
                     </h3>
                     
@@ -288,8 +331,8 @@ const Home = () => {
               gap: '25px', 
               overflowX: 'auto', 
               paddingBottom: '20px',
-              scrollbarWidth: 'none', 
-              msOverflowStyle: 'none', 
+              scrollbarWidth: 'none', // Firefox
+              msOverflowStyle: 'none', // IE
               WebkitOverflowScrolling: 'none',
               scrollSnapType: 'x mandatory'
             }}>
@@ -323,7 +366,7 @@ const Home = () => {
                   </div>
                   <div style={{ padding: '15px' }}>
                     <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
-                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: '800', fontSize: '1.2rem' }}>${prop.price.toLocaleString()}</p>
+                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: '800', fontSize: '1.2rem' }}>Rs. {prop.price.toLocaleString()}</p>
                     <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>📍 {prop.location.city} • {prop.type}</p>
                   </div>
                 </div>
@@ -429,7 +472,7 @@ const Home = () => {
                       </div>
                       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                         <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{property.title}</h3>
-                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.previousPrice.toLocaleString()}</div>
+                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</div>
                         <p style={{ margin: '10px 0 15px 0', color: 'var(--text-muted)' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
                         <button onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: 'auto' }}>
                           View Details
@@ -444,11 +487,36 @@ const Home = () => {
         </div>
       )}
 
-      {/* Image Zoom Modal */}
-      {zoomedImage && (
-        <div onClick={() => setZoomedImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, cursor: 'zoom-out' }}>
-          <img src={zoomedImage} alt="Zoomed" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }} />
-          <button onClick={() => setZoomedImage(null)} style={{ position: 'absolute', top: '30px', right: '40px', background: 'transparent', color: 'white', border: 'none', fontSize: '3rem', cursor: 'pointer' }}>&times;</button>
+      {/* IMAGE LIGHTBOX MODAL */}
+      {lightbox.isOpen && lightbox.images.length > 0 && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          
+          <button onClick={closeLightbox} style={{ position: 'absolute', top: '20px', right: '30px', background: 'none', border: 'none', color: '#fff', fontSize: '3rem', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%', justifyContent: 'center', padding: '0 20px', boxSizing: 'border-box' }}>
+            
+            {lightbox.images.length > 1 && (
+              <button onClick={prevImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>
+                &#8592;
+              </button>
+            )}
+            
+            <img 
+              src={lightbox.images[lightbox.currentIndex]} 
+              alt="Enlarged Property" 
+              style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+            />
+            
+            {lightbox.images.length > 1 && (
+              <button onClick={nextImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>
+                &#8594;
+              </button>
+            )}
+          </div>
+          
+          <p style={{ color: '#fff', marginTop: '20px', fontSize: '1.2rem', fontWeight: 'bold' }}>
+            Photo {lightbox.currentIndex + 1} of {lightbox.images.length}
+          </p>
         </div>
       )}
     </div>
