@@ -47,6 +47,11 @@ const Profile = () => {
     } catch (err) { setMessage({ text: err.response?.data?.message || 'Update failed', type: 'error' }); setLoading(false); }
   };
 
+  const handleRemovePhoto = () => {
+    setProfilePhoto(''); // Clear existing photo URL
+    setImageFile(null);  // Clear any pending uploads
+  };
+
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE') return alert('Please type DELETE to confirm.');
     try {
@@ -78,32 +83,38 @@ const Profile = () => {
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Update Photo</label>
             <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} />
+            {/* REMOVE PHOTO BUTTON */}
+            {profilePhoto && (
+              <button type="button" onClick={handleRemovePhoto} style={{ display: 'block', marginTop: '8px', padding: '6px 12px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                🗑️ Remove Current Photo
+              </button>
+            )}
           </div>
         </div>
 
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Full Name</label>
-          <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px' }} />
+          <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} />
         </div>
 
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Email Address</label>
-          <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px' }} />
+          <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} />
         </div>
 
         {userInfo?.role === 'seller' && (
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Phone Number <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(Displayed to buyers)</span></label>
-            <input type="text" value={formData.phoneNumber} onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})} placeholder="+1 234 567 8900" style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px' }} />
+            <input type="text" value={formData.phoneNumber} onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})} placeholder="+1 234 567 8900" style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} />
           </div>
         )}
 
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>New Password <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(Leave blank to keep current)</span></label>
-          <input type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px' }} />
+          <input type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '6px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} />
         </div>
 
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>
+        <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1rem', boxShadow: 'var(--shadow-sm)' }}>
           {loading ? 'Saving Changes...' : 'Update Profile'}
         </button>
       </form>
@@ -117,16 +128,14 @@ const Profile = () => {
         </button>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '400px', border: '1px solid var(--border-color)' }}>
             <h2 style={{ color: 'var(--danger-color)', marginTop: 0 }}>Are you absolutely sure?</h2>
             <p style={{ color: 'var(--text-main)', lineHeight: '1.5' }}>This action cannot be undone. This will permanently delete your account, active listings, orders, and messages.</p>
             <p style={{ color: 'var(--text-muted)' }}>Please type <strong>DELETE</strong> to confirm.</p>
-            
-            <input type="text" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '20px', boxSizing: 'border-box', borderRadius: '6px' }} />
-            
+            <input type="text" value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} style={{ width: '100%', padding: '12px', marginBottom: '20px', boxSizing: 'border-box', borderRadius: '6px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }} />
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
               <button onClick={handleDeleteAccount} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Confirm Deletion</button>
