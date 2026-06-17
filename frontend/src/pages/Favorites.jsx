@@ -62,7 +62,7 @@ const Favorites = () => {
           {favorites.map((fav) => fav.propertyId && (
             <div key={fav._id} style={{ border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
               <h3 style={{ marginTop: 0 }}>{fav.propertyId.title}</h3>
-              <p style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: 'bold', margin: '10px 0' }}>${fav.propertyId.price.toLocaleString()}</p>
+              <p style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: 'bold', margin: '10px 0' }}>Rs. {fav.propertyId.price.toLocaleString()}</p>
               <p style={{ color: 'var(--text-muted)', margin: 0 }}>📍 {fav.propertyId.location.city}</p>
               
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
@@ -80,7 +80,7 @@ const Favorites = () => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '450px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)' }}>
             <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-main)' }}>Secure Checkout</h2>
-            <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0' }}>Paying <strong>${checkoutItem.price.toLocaleString()}</strong> for {checkoutItem.title}</p>
+            <p style={{ color: 'var(--text-muted)', margin: '0 0 20px 0' }}>Paying <strong>Rs. {checkoutItem.price.toLocaleString()}</strong> for {checkoutItem.title}</p>
             
             <form onSubmit={handleCheckoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
@@ -110,7 +110,7 @@ const Favorites = () => {
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setCheckoutItem(null)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
                 <button type="submit" disabled={processing} style={{ flex: 2, padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: processing ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-                  {processing ? 'Processing...' : `Pay $${checkoutItem.price.toLocaleString()}`}
+                  {processing ? 'Processing...' : `Pay Rs. ${checkoutItem.price.toLocaleString()}`}
                 </button>
               </div>
             </form>

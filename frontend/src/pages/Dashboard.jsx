@@ -112,8 +112,8 @@ const Dashboard = () => {
             <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
               <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
             </select>
-            <input type="number" name="price" placeholder="Current Price ($)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" name="previousPrice" placeholder="Previous Price (Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+            <input type="number" name="price" placeholder="Current Price (Rs.)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+            <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
             <textarea name="description" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '12px', gridColumn: '1 / -1', minHeight: '100px', borderRadius: '6px' }} />
 
             <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Details</h4></div>
@@ -150,7 +150,7 @@ const Dashboard = () => {
                   <div onClick={() => navigate(`/property/${prop._id}`)} style={{ cursor: 'pointer', flex: 1 }}>
                     {prop.images?.length > 0 ? <img src={prop.images[0]} alt="thumb" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '6px' }} /> : <div style={{ width: '100%', height: '180px', backgroundColor: 'var(--bg-hover)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
                     <h3 style={{ margin: '15px 0 5px 0' }}>{prop.title}</h3>
-                    <p style={{ margin: '0 0 15px 0', color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem' }}>${prop.price.toLocaleString()}</p>
+                    <p style={{ margin: '0 0 15px 0', color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem' }}>Rs. {prop.price.toLocaleString()}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                     <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
@@ -215,7 +215,7 @@ const Dashboard = () => {
                     return (
                       <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: '15px' }}>{sale.propertyId?.title}</td><td style={{ padding: '15px' }}>{sale.buyerId?.name}</td>
-                        <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>${sale.amount.toLocaleString()}</td>
+                        <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {sale.amount.toLocaleString()}</td>
                         <td style={{ padding: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ color: isPending ? '#f39c12' : 'var(--accent-color)', fontWeight: 'bold' }}>{sale.status}</span>

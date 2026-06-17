@@ -150,7 +150,7 @@ export const updateProperty = async (req, res) => {
       const notifications = favorites.map(fav => ({
         userId: fav.userId, // The buyer
         type: 'price_drop',
-        message: `🔥 Price dropped by ${priceDropPercentage}% on "${property.title}"! It is now $${req.body.price.toLocaleString()}.`,
+        message: `🔥 Price dropped by ${priceDropPercentage}% on "${property.title}"! It is now Rs.${req.body.price.toLocaleString()}.`,
         link: `/property/${property._id}`
       }));
       if (notifications.length > 0) await Notification.insertMany(notifications);

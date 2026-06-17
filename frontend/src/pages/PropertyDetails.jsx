@@ -148,7 +148,7 @@ const PropertyDetails = () => {
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px' }}>
           <h1 style={{ margin: 0 }}>{property.title}</h1>
-          <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>${property.price.toLocaleString()}</h2>
+          <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>Rs. {property.price.toLocaleString()}</h2>
         </div>
 
         {property.images && property.images.length > 0 && (

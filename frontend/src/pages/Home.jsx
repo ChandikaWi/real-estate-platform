@@ -215,14 +215,14 @@ const Home = () => {
                     {/* Dynamic Pricing */}
                     {property.previousPrice && property.previousPrice !== property.price ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</span>
-                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem' }}>${property.previousPrice.toLocaleString()}</span>
+                        <span style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</span>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Rs. {property.previousPrice.toLocaleString()}</span>
                         <span style={{ backgroundColor: property.price < property.previousPrice ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: property.price < property.previousPrice ? 'var(--accent-color)' : 'var(--danger-color)', padding: '2px 6px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>
                           {property.price < property.previousPrice ? '↓' : '↑'} {Math.round(Math.abs(((property.price - property.previousPrice) / property.previousPrice) * 100))}%
                         </span>
                       </div>
                     ) : (
-                      <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</div>
+                      <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</div>
                     )}
                     
                     <p style={{ margin: '10px 0 0 0', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -429,7 +429,7 @@ const Home = () => {
                       </div>
                       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                         <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{property.title}</h3>
-                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>${property.price.toLocaleString()}</div>
+                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.previousPrice.toLocaleString()}</div>
                         <p style={{ margin: '10px 0 15px 0', color: 'var(--text-muted)' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
                         <button onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: 'auto' }}>
                           View Details

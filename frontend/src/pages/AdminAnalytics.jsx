@@ -133,7 +133,7 @@ const AdminAnalytics = () => {
           </div>
           <div style={{ padding: '20px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', borderLeft: '5px solid #8e44ad' }}>
             <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>Gross Platform Revenue</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)' }}>${data.sales.totalRevenue.toLocaleString()}</h2>
+            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)' }}>Rs. {data.sales.totalRevenue.toLocaleString()}</h2>
           </div>
         </div>
 
@@ -186,8 +186,8 @@ const AdminAnalytics = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis dataKey="name" stroke="var(--text-muted)" />
-                <YAxis tickFormatter={(value) => `$${value}`} stroke="var(--text-muted)" />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                <YAxis tickFormatter={(value) => `Rs. ${value.toLocaleString()}`} stroke="var(--text-muted)" />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Revenue']} />
                 <Area type="monotone" dataKey="revenue" stroke="var(--primary-hover)" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
             </ResponsiveContainer>

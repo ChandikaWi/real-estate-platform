@@ -83,8 +83,8 @@ const EditProperty = () => {
         <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
           <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
         </select>
-        <input type="number" name="price" placeholder="Current Price ($)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-        <input type="number" name="previousPrice" placeholder="Previous Price (Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+        <input type="number" name="price" placeholder="Current Price (Rs.)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+        <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
         <textarea name="description" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '12px', gridColumn: '1 / -1', minHeight: '100px', borderRadius: '6px' }} />
 
         <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Details</h4></div>

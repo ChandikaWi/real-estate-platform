@@ -97,7 +97,7 @@ const AIChatBot = () => {
                         </div>
                         <div style={{ padding: '10px' }}>
                           <h4 style={{ margin: '0 0 5px 0', fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
-                          <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold' }}>${prop.price.toLocaleString()}</p>
+                          <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {prop.price.toLocaleString()}</p>
                           <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{prop.location.city} • {prop.bedrooms} Beds</p>
                         </div>
                       </div>

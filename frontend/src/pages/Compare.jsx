@@ -53,7 +53,7 @@ const Compare = () => {
               return (
                 <div key={prop._id} onClick={() => toggleSelection(prop)} style={{ border: `2px solid ${isSelected ? 'var(--primary-color)' : 'var(--border-color)'}`, padding: '15px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isSelected ? 'var(--bg-hover)' : 'var(--bg-card)' }}>
                   <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: '0.9rem' }}>{prop.title}</p>
-                  <p style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem', fontWeight: 'bold' }}>${prop.price.toLocaleString()}</p>
+                  <p style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem', fontWeight: 'bold' }}>Rs. {prop.price.toLocaleString()}</p>
                 </div>
               )
             })}
@@ -85,7 +85,7 @@ const Compare = () => {
                 <tbody>
                   <tr style={{ backgroundColor: 'var(--bg-card)' }}>
                     <td style={{ padding: '15px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>Price</td>
-                    {selectedProps.map(prop => <td key={prop._id} style={{ padding: '15px', fontSize: '1.2rem', color: 'var(--accent-color)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>${prop.price.toLocaleString()}</td>)}
+                    {selectedProps.map(prop => <td key={prop._id} style={{ padding: '15px', fontSize: '1.2rem', color: 'var(--accent-color)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Rs. {prop.price.toLocaleString()}</td>)}
                   </tr>
                   <tr>
                     <td style={{ padding: '15px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>Location</td>

@@ -17,13 +17,13 @@ export const handleChatQuery = async (req, res) => {
     else if (lowerMsg.includes('land') || lowerMsg.includes('plot')) { query.type = 'land'; queryExplanation.push('land'); }
 
     // NLP Extraction - Price limits (e.g., "under 50k", "below $100000", "max 5m")
-    const priceMatch = lowerMsg.match(/(?:under|below|max|less than|cheaper than)\s*\$?\s*(\d+)(k|m)?/i);
+    const priceMatch = lowerMsg.match(/(?:under|below|max|less than|cheaper than)\s*(?:rs\.?|\$)?\s*(\d+)(k|m)?/i);
     if (priceMatch) {
       let amount = parseInt(priceMatch[1]);
       if (priceMatch[2] === 'k') amount *= 1000;
       if (priceMatch[2] === 'm') amount *= 1000000;
       query.price = { $lte: amount };
-      queryExplanation.push(`under $${amount.toLocaleString()}`);
+      queryExplanation.push(`under Rs.${amount.toLocaleString()}`);
     }
 
     // NLP Extraction - Bedrooms (e.g., "2 bedroom", "3 beds", "4-bed")
