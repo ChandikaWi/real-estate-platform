@@ -78,6 +78,22 @@ const Navigation = () => {
     } catch (err) {}
   };
 
+  const handleExplicitMarkRead = async (e, id) => {
+    e.stopPropagation(); // Prevents the link redirect from triggering
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
+    } catch (err) { console.error('Failed to mark as read'); }
+  };
+
+  const handleDeleteNotification = async (e, id) => {
+    e.stopPropagation(); // Prevents the link redirect from triggering
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications(notifications.filter(n => n._id !== id));
+    } catch (err) { console.error('Failed to delete notification'); }
+  };
+
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'price_drop': return '📉';
@@ -139,14 +155,41 @@ const Navigation = () => {
                       <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', margin: 0 }}>You're all caught up!</p>
                     ) : (
                       notifications.map(notif => (
-                        <div key={notif._id} onClick={() => handleNotificationClick(notif)} style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', backgroundColor: notif.isRead ? 'transparent' : 'var(--bg-hover)', transition: 'background 0.2s', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
-                          <div style={{ fontSize: '1.5rem' }}>
-                            {getNotificationIcon(notif.type)}
+                        <div 
+                          key={notif._id} 
+                          onClick={() => handleNotificationClick(notif)} 
+                          style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', backgroundColor: notif.isRead ? 'transparent' : 'var(--bg-hover)', transition: 'background 0.2s', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}
+                        >
+                          <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', flex: 1 }}>
+                            <div style={{ fontSize: '1.5rem' }}>{getNotificationIcon(notif.type)}</div>
+                            <div>
+                              <p style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.4', fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.message}</p>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(notif.createdAt).toLocaleDateString()}</span>
+                            </div>
                           </div>
-                          <div>
-                            <p style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.4', fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.message}</p>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(notif.createdAt).toLocaleDateString()}</span>
+
+                          {/* ACTION BUTTONS (Read & Delete) */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {!notif.isRead && (
+                              <button 
+                                onClick={(e) => handleExplicitMarkRead(e, notif._id)} 
+                                title="Mark as Read"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', fontSize: '1.2rem', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                ☑
+                              </button>
+                            )}
+                            <button 
+                              onClick={(e) => handleDeleteNotification(e, notif._id)} 
+                              title="Delete Notification"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s' }}
+                              onMouseOver={(e) => e.currentTarget.style.color = 'var(--danger-color)'}
+                              onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                            >
+                              ☒
+                            </button>
                           </div>
+
                         </div>
                       ))
                     )}
