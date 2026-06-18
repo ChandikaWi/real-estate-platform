@@ -105,8 +105,33 @@ const AdminDashboard = () => {
                     <td style={{ padding: '15px' }}>{prop.title}</td><td style={{ padding: '15px' }}>{prop.sellerId?.name || 'Unknown'}</td>
                     <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {prop.price.toLocaleString()}</td>
                     <td style={{ padding: '15px' }}>
-                      <button onClick={(e) => handleDeleteProperty(prop._id, e)} style={{ backgroundColor: 'var(--danger-color)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px' }}>Delete</button>
-                    </td>
+                    <span style={{ 
+                      backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
+                      color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
+                    }}>
+                      {prop.status}
+                    </span>
+                    
+                    {prop.status === 'Pending Review' && (
+                      <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
+                        <button 
+                          onClick={async () => {
+                            await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
+                            fetchData(); // refresh the table
+                          }} 
+                          style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                        >Approve</button>
+                        <button 
+                          onClick={async () => {
+                            await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
+                            fetchData(); // refresh the table
+                          }} 
+                          style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                        >Reject</button>
+                      </div>
+                    )}
+                  </td>
                   </tr>
                 ))}
               </tbody>

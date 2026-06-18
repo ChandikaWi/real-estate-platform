@@ -147,7 +147,15 @@ const PropertyDetails = () => {
       
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px' }}>
-          <h1 style={{ margin: 0 }}>{property.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <h1 style={{ margin: 0 }}>{property.title}</h1>
+            {/* LIFECYCLE BADGE */}
+            {property.status !== 'Active' && (
+              <span style={{ backgroundColor: 'var(--danger-color)', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                {property.status}
+              </span>
+            )}
+          </div>
           <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>Rs. {property.price.toLocaleString()}</h2>
         </div>
 
@@ -241,7 +249,7 @@ const PropertyDetails = () => {
             )}
 
             {/* Visit Scheduling UI */}
-            {userInfo && userInfo.role === 'buyer' && !isOwner && !isAdmin && (
+            {userInfo && userInfo.role === 'buyer' && !isOwner && !isAdmin && property.status === 'Active' && (
               <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
                 <h4 style={{ margin: '0 0 15px 0' }}>📅 Schedule a Visit</h4>
                 {visitMessage && <p style={{ fontSize: '0.85rem', color: visitMessage.includes('requested') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{visitMessage}</p>}

@@ -16,6 +16,11 @@ const propertySchema = new mongoose.Schema({
   area: { type: Number, required: true }, 
   images: [{ type: String }], 
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, 
+  status: {
+    type: String,
+    enum: ['Draft', 'Pending Review', 'Active', 'Reserved', 'Sold', 'Rejected', 'Expired'],
+    default: 'Pending Review' // All new listings must be approved by admin first
+  },
   
   // Data payload for XGBoost/Random Forest model
   valuationMetrics: {

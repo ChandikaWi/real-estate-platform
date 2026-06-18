@@ -11,7 +11,7 @@ export const getProperties = async (req, res) => {
   try {
     const { keyword, minPrice, maxPrice, type, bedrooms, page = 1, limit = 10, sort } = req.query;
 
-    let query = {};
+    let query = { status: 'Active' };
 
     // Search by keyword (title or city)
     if (keyword) {
@@ -393,6 +393,35 @@ export const getLifestyleMatches = async (req, res) => {
     res.json(matches);
   } catch (error) {
     console.error("Lifestyle Engine Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update property lifecycle status (Admin/System)
+// @route   PUT /api/properties/:id/status
+export const updatePropertyStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const property = await Property.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+    
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    // Alert the seller that their listing was approved/rejected
+    if (status === 'Active' || status === 'Rejected') {
+      await Notification.create({
+        userId: property.sellerId,
+        type: 'system',
+        message: `📢 Your listing "${property.title}" is now ${status}.`,
+        link: '/dashboard/listings'
+      });
+    }
+
+    res.json(property);
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };

@@ -3,12 +3,12 @@ import Property from '../models/Property.js';
 import nodemailer from 'nodemailer';
 import Notification from '../models/Notification.js';
 
-// Configure a demo email transporter 
+// Configure a demo email transporter
 const transporter = nodemailer.createTransport({
   host: 'smtp.ethereal.email',
   port: 587,
   auth: {
-    user: 'dallin.cormier@ethereal.email', 
+    user: 'chandikawi17@gmail.com',
     pass: 'B6yC2DqN9xQpYgM2H6' 
   }
 });
@@ -19,9 +19,18 @@ export const processCheckout = async (req, res) => {
   try {
     const { propertyId, cardName, cardNumber } = req.body;
     
-    // Fetch property and seller details
-    const property = await Property.findById(propertyId).populate('sellerId', 'name email');
-    if (!property) return res.status(404).json({ message: 'Property not found' });
+    // ATOMIC UPDATE (Concurrency Protection & Double-Selling Prevention)
+    // This securely locks the inventory. It only updates IF the status is still 'Active'.
+    const property = await Property.findOneAndUpdate(
+      { _id: propertyId, status: 'Active' },
+      { status: 'Sold' }, // Instantly remove from available market
+      { new: true }
+    ).populate('sellerId', 'name email');
+
+    // If property is null, another buyer beat them to it in the last millisecond, or it's not active!
+    if (!property) {
+      return res.status(409).json({ message: 'Transaction Failed: This property was just reserved or sold to another buyer.' });
+    }
 
     // Create the Order
     const order = new Order({
@@ -32,28 +41,26 @@ export const processCheckout = async (req, res) => {
     });
     const savedOrder = await order.save();
 
-    const purchasedProperty = await Property.findById(propertyId);
-    
     // SMART ALERT - Notify Seller of a sale!
     await Notification.create({
-      userId: purchasedProperty.sellerId,
+      userId: property.sellerId._id,
       type: 'order',
-      message: `💰 Cha-ching! ${req.user.name} just purchased "${purchasedProperty.title}".`,
+      message: `💰 Cha-ching! ${req.user.name} just purchased "${property.title}".`,
       link: '/dashboard/sales'
     });
-
+    
     // Dispatch Emails
     const buyerEmailHtml = `
       <h2>Payment Successful!</h2>
       <p>Hi ${req.user.name},</p>
-      <p>Your mock payment of <strong>$${property.price.toLocaleString()}</strong> via card ending in ${cardNumber.slice(-4)} was successful.</p>
+      <p>Your payment of <strong>Rs. ${property.price.toLocaleString()}</strong> via card ending in ${cardNumber.slice(-4)} was successful.</p>
       <p>You are now the proud owner of: ${property.title}.</p>
     `;
 
     const sellerEmailHtml = `
       <h2>New Property Sold!</h2>
       <p>Hi ${property.sellerId.name},</p>
-      <p>Great news! Your property <strong>${property.title}</strong> was just purchased by ${req.user.name} for $${property.price.toLocaleString()}.</p>
+      <p>Great news! Your property <strong>${property.title}</strong> was just purchased by ${req.user.name} for Rs. ${property.price.toLocaleString()}.</p>
       <p>Log in to your dashboard to view the order details.</p>
     `;
 
@@ -118,6 +125,10 @@ export const updateOrderStatus = async (req, res) => {
       }
 
       order.status = 'Cancelled';
+
+      // INVENTORY ROLLBACK - If buyer cancels, put the property back on the market
+      await Property.findByIdAndUpdate(order.propertyId, { status: 'Active' });
+
     } 
     else if (action === 'complete') {
       // Ensure only the seller can complete
