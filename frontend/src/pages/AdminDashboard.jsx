@@ -116,19 +116,36 @@ const AdminDashboard = () => {
                     {prop.status === 'Pending Review' && (
                       <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
                         <button 
-                          onClick={async () => {
-                            await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
-                            fetchData(); // refresh the table
+                          onClick={async (e) => {
+                            e.stopPropagation(); 
+                            try {
+                              await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
+                              // Instantly update the local state array
+                              setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
+                            } catch (err) {
+                              alert('Failed to approve property.');
+                            }
                           }} 
                           style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                        >Approve</button>
+                        >
+                          Approve
+                        </button>
+                        
                         <button 
-                          onClick={async () => {
-                            await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
-                            fetchData(); // refresh the table
+                          onClick={async (e) => {
+                            e.stopPropagation(); 
+                            try {
+                              await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
+                              // Instantly update the local state array
+                              setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
+                            } catch (err) {
+                              alert('Failed to reject property.');
+                            }
                           }} 
                           style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                        >Reject</button>
+                        >
+                          Reject
+                        </button>
                       </div>
                     )}
                   </td>
