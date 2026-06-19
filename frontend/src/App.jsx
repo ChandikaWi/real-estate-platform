@@ -21,6 +21,7 @@ import BuyerDashboard from './pages/BuyerDashboard';
 import SidebarLayout from './components/SidebarLayout';
 import MyVisits from './pages/MyVisits';
 import AIChatBot from './components/AIChatBot';
+import socket from './api/socket';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -32,25 +33,32 @@ const Navigation = () => {
   const [showNotifs, setShowNotifs] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Fetch alerts if logged in
+  // Fetch alerts if logged in & Setup Real-Time Socket
   useEffect(() => {
     if (userInfo?._id) {
+      // Fetch historical notifications
       const fetchNotifs = async () => {
         try { 
           const { data } = await api.get('/notifications'); 
           setNotifications(data); 
-        } catch (err) { 
-          console.error('Failed to load alerts'); 
-        }
+        } catch (err) { console.error('Failed to load alerts'); }
       };
-      
-      fetchNotifs(); // Fetch immediately on load
-      
-      // Silently poll for new notifications every 60 seconds
-      const interval = setInterval(fetchNotifs, 60000); 
-      return () => clearInterval(interval);
+      fetchNotifs(); 
+
+      // REAL-TIME - Connect and join personal notification room
+      socket.connect();
+      socket.emit('setup', userInfo); // Joins a room with their user ID
+
+      // REAL-TIME - Listen for incoming instant alerts
+      socket.on('new_notification', (newNotif) => {
+        // Instantly add the new notification to the top of the list and increase unread count
+        setNotifications((prev) => [newNotif, ...prev]);
+      });
+
+      return () => {
+        socket.off('new_notification');
+      };
     }
-    // Depend ONLY on the primitive string ID, not the parsed object
   }, [userInfo?._id]);
 
   // Close dropdown if clicked outside

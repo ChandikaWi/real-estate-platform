@@ -66,11 +66,28 @@ const PropertyDetails = () => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);
+      
       socket.on('receive_message', (newMessage) => {
         if (newMessage.propertyId._id === id || newMessage.propertyId === id) setChatHistory((prev) => [...prev, newMessage]);
       });
     }
-    return () => { socket.off('receive_message'); socket.disconnect(); };
+
+    // REAL-TIME - Listen for global status changes (works even if user isn't logged in!)
+    socket.on('property_status_updated', (data) => {
+      // If the property we are looking at just changed status globally, update UI instantly
+      if (data.propertyId === id) {
+        setProperty((prevProperty) => ({
+          ...prevProperty,
+          status: data.status
+        }));
+      }
+    });
+
+    return () => { 
+      socket.off('receive_message'); 
+      socket.off('property_status_updated'); // Clean up listener
+      if (userInfo) socket.disconnect(); 
+    };
   }, [userInfo, id]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);

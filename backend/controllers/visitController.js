@@ -86,13 +86,17 @@ export const updateVisitStatus = async (req, res) => {
       .populate('propertyId', 'title')
       .populate('buyerId', 'name email phoneNumber profilePhoto');
 
-    // MART ALERT - NOW trigger the notification using updatedVisit
-    await Notification.create({
+    // SMART ALERT - Create the notification in the database
+    const newNotif = await Notification.create({
       userId: updatedVisit.buyerId._id,
       type: 'visit_update',
       message: `📅 Your visit request for "${updatedVisit.propertyId.title}" was ${status.toLowerCase()} by the seller.`,
       link: '/visits' 
     });
+
+    // REAL-TIME - Instantly push the notification to the Buyer's screen
+    const io = req.app.get('io');
+    io.to(updatedVisit.buyerId._id.toString()).emit('new_notification', newNotif);
 
     res.json(updatedVisit);
   } catch (error) {

@@ -42,12 +42,20 @@ export const processCheckout = async (req, res) => {
     const savedOrder = await order.save();
 
     // SMART ALERT - Notify Seller of a sale!
-    await Notification.create({
+    const newNotif = await Notification.create({
       userId: property.sellerId._id,
       type: 'order',
       message: `💰 Cha-ching! ${req.user.name} just purchased "${property.title}".`,
       link: '/dashboard/sales'
     });
+
+    const io = req.app.get('io'); // 🌟 Access Socket.io
+    
+    // -REAL-TIME - Push notification to Seller
+    io.to(property.sellerId._id.toString()).emit('new_notification', newNotif);
+    
+    // -REAL-TIME - Broadcast to the world that this property is gone!
+    io.emit('property_status_updated', { propertyId: property._id, status: 'Sold' });
     
     // Dispatch Emails
     const buyerEmailHtml = `
@@ -128,6 +136,10 @@ export const updateOrderStatus = async (req, res) => {
 
       // INVENTORY ROLLBACK - If buyer cancels, put the property back on the market
       await Property.findByIdAndUpdate(order.propertyId, { status: 'Active' });
+      
+      // REAL-TIME - Broadcast that the property is available again!
+      const io = req.app.get('io');
+      io.emit('property_status_updated', { propertyId: order.propertyId, status: 'Active' });
 
     } 
     else if (action === 'complete') {

@@ -410,15 +410,22 @@ export const updatePropertyStatus = async (req, res) => {
     
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
+    const io = req.app.get('io'); // Access Socket.io
+
     // Alert the seller that their listing was approved/rejected
     if (status === 'Active' || status === 'Rejected') {
-      await Notification.create({
+      const newNotif = await Notification.create({
         userId: property.sellerId,
         type: 'system',
         message: `📢 Your listing "${property.title}" is now ${status}.`,
         link: '/dashboard/listings'
       });
+      // -REAL-TIME - Push notification directly to the Seller
+      io.to(property.sellerId.toString()).emit('new_notification', newNotif);
     }
+
+    // -REAL-TIME - Broadcast global status change to anyone looking at this property
+    io.emit('property_status_updated', { propertyId: property._id, status: property.status });
 
     res.json(property);
   } catch (error) {
