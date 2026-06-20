@@ -3,13 +3,12 @@ import Property from '../models/Property.js';
 import nodemailer from 'nodemailer';
 import Notification from '../models/Notification.js';
 
-// Configure a demo email transporter
+// Configure real email transporter using environment variables
 const transporter = nodemailer.createTransport({
-  host: 'smtp.ethereal.email',
-  port: 587,
+  service: 'gmail', // Tells nodemailer to use Google's SMTP servers
   auth: {
-    user: 'chandikawi17@gmail.com',
-    pass: 'B6yC2DqN9xQpYgM2H6' 
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS 
   }
 });
 
@@ -19,62 +18,67 @@ export const processCheckout = async (req, res) => {
   try {
     const { propertyId, cardName, cardNumber } = req.body;
     
-    // ATOMIC UPDATE (Concurrency Protection & Double-Selling Prevention)
-    // This securely locks the inventory. It only updates IF the status is still 'Active'.
+    // ATOMIC UPDATE (Concurrency Protection)
     const property = await Property.findOneAndUpdate(
       { _id: propertyId, status: 'Active' },
-      { status: 'Sold' }, // Instantly remove from available market
+      { status: 'Sold' }, 
       { new: true }
     ).populate('sellerId', 'name email');
 
-    // If property is null, another buyer beat them to it in the last millisecond, or it's not active!
     if (!property) {
       return res.status(409).json({ message: 'Transaction Failed: This property was just reserved or sold to another buyer.' });
     }
 
-    // Create the Order
+    // Create the Order as PENDING
     const order = new Order({
       propertyId,
       buyerId: req.user._id,
       sellerId: property.sellerId._id,
-      amount: property.price
+      amount: property.price,
+      status: 'Pending' // et to Pending so the seller MUST approve it
     });
     const savedOrder = await order.save();
 
-    // SMART ALERT - Notify Seller of a sale!
-    const newNotif = await Notification.create({
+    // Notify Seller of the pending sale
+    await Notification.create({
       userId: property.sellerId._id,
       type: 'order',
-      message: `💰 Cha-ching! ${req.user.name} just purchased "${property.title}".`,
+      message: `💰 Action Required! ${req.user.name} just purchased "${property.title}". Please approve to complete the sale.`,
       link: '/dashboard/sales'
     });
+    
+    // Dispatch Initial Email to Seller ONLY
+    const sellerAlertHtml = `
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <div style="background-color: #2563eb; padding: 25px; text-align: center;">
+          <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Action Required ⚡</h1>
+        </div>
+        <div style="padding: 30px; background-color: #ffffff; color: #374151; line-height: 1.6;">
+          <h2 style="margin-top: 0; color: #111827;">New Order Pending Approval</h2>
+          <p style="font-size: 16px;">Hi <strong>${property.sellerId.name}</strong>,</p>
+          <p style="font-size: 16px;">Great news! You have a new purchase request. The buyer has successfully submitted their payment, and the property is now temporarily reserved.</p>
+          
+          <div style="background-color: #f3f4f6; border-left: 4px solid #f39c12; padding: 15px; margin: 25px 0; border-radius: 4px;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: bold;">Transaction Details</p>
+            <p style="margin: 5px 0;"><strong>Property:</strong> ${property.title}</p>
+            <p style="margin: 5px 0;"><strong>Buyer:</strong> ${req.user.name}</p>
+            <p style="margin: 5px 0;"><strong>Amount:</strong> <span style="color: #2563eb; font-weight: bold; font-size: 1.1rem;">Rs. ${property.price.toLocaleString()}</span></p>
+          </div>
 
-    const io = req.app.get('io'); // 🌟 Access Socket.io
-    
-    // -REAL-TIME - Push notification to Seller
-    io.to(property.sellerId._id.toString()).emit('new_notification', newNotif);
-    
-    // -REAL-TIME - Broadcast to the world that this property is gone!
-    io.emit('property_status_updated', { propertyId: property._id, status: 'Sold' });
-    
-    // Dispatch Emails
-    const buyerEmailHtml = `
-      <h2>Payment Successful!</h2>
-      <p>Hi ${req.user.name},</p>
-      <p>Your payment of <strong>Rs. ${property.price.toLocaleString()}</strong> via card ending in ${cardNumber.slice(-4)} was successful.</p>
-      <p>You are now the proud owner of: ${property.title}.</p>
+          <p style="font-size: 16px;">Please log in to your dashboard to review this transaction and mark it as <strong>Complete</strong> to officially finalize the sale.</p>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="http://localhost:5173/dashboard/sales" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; font-size: 16px;">Review Order in Dashboard</a>
+          </div>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+          This is an automated message from your Real Estate Platform.<br>
+          &copy; ${new Date().getFullYear()} RealEstate. All rights reserved.
+        </div>
+      </div>
     `;
 
-    const sellerEmailHtml = `
-      <h2>New Property Sold!</h2>
-      <p>Hi ${property.sellerId.name},</p>
-      <p>Great news! Your property <strong>${property.title}</strong> was just purchased by ${req.user.name} for Rs. ${property.price.toLocaleString()}.</p>
-      <p>Log in to your dashboard to view the order details.</p>
-    `;
-
-    // Fire and forget emails (async without awaiting to keep response fast)
-    transporter.sendMail({ from: '"PropTech System" <noreply@demo.com>', to: req.user.email, subject: 'Purchase Receipt', html: buyerEmailHtml }).catch(console.error);
-    transporter.sendMail({ from: '"PropTech System" <noreply@demo.com>', to: property.sellerId.email, subject: 'You have a new order!', html: sellerEmailHtml }).catch(console.error);
+    transporter.sendMail({ from: '"PropTech System" <noreply@demo.com>', to: property.sellerId.email, subject: 'Action Required: New Order Pending Approval', html: sellerAlertHtml }).catch(console.error);
 
     res.status(201).json(savedOrder);
   } catch (error) {
@@ -108,18 +112,16 @@ export const getSellerOrders = async (req, res) => {
 // @route   PUT /api/orders/:id/status
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { action } = req.body; // Expects 'cancel' or 'complete'
+    const { action } = req.body; 
     const order = await Order.findById(req.params.id);
     
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     if (action === 'cancel') {
-      // Ensure only the buyer can cancel
       if (order.buyerId.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: 'Not authorized to cancel this order' });
       }
 
-      // Check if it's within the 3-day window
       const orderDate = new Date(order.createdAt);
       const currentDate = new Date();
       const diffTime = Math.abs(currentDate - orderDate);
@@ -134,16 +136,13 @@ export const updateOrderStatus = async (req, res) => {
 
       order.status = 'Cancelled';
 
-      // INVENTORY ROLLBACK - If buyer cancels, put the property back on the market
+      // INVENTORY ROLLBACK
       await Property.findByIdAndUpdate(order.propertyId, { status: 'Active' });
-      
-      // REAL-TIME - Broadcast that the property is available again!
       const io = req.app.get('io');
-      io.emit('property_status_updated', { propertyId: order.propertyId, status: 'Active' });
+      if (io) io.emit('property_status_updated', { propertyId: order.propertyId, status: 'Active' });
 
     } 
     else if (action === 'complete') {
-      // Ensure only the seller can complete
       if (order.sellerId.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: 'Not authorized to complete this order' });
       }
@@ -156,10 +155,84 @@ export const updateOrderStatus = async (req, res) => {
 
     const updatedOrder = await order.save();
     
-    // Return the populated order so the UI updates smoothly
+    // Populate data so we have emails and names for the dispatch
     const populatedOrder = await Order.findById(updatedOrder._id)
-      .populate('propertyId buyerId');
+      .populate('propertyId')
+      .populate('buyerId', 'name email')
+      .populate('sellerId', 'name email');
       
+    // DISPATCH COMPLETION EMAILS
+    if (action === 'complete') {
+      const buyerSuccessHtml = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <div style="background-color: #10b981; padding: 25px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Congratulations! 🎉</h1>
+          </div>
+          <div style="padding: 30px; background-color: #ffffff; color: #374151; line-height: 1.6;">
+            <h2 style="margin-top: 0; color: #111827;">Your Purchase is Finalized</h2>
+            <p style="font-size: 16px;">Hi <strong>${populatedOrder.buyerId.name}</strong>,</p>
+            <p style="font-size: 16px;">We are thrilled to let you know that the seller has officially approved and completed your purchase. Welcome to your new property!</p>
+            
+            <div style="background-color: #f3f4f6; border-left: 4px solid #10b981; padding: 15px; margin: 25px 0; border-radius: 4px;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: bold;">Official Receipt</p>
+              <p style="margin: 5px 0;"><strong>Property:</strong> ${populatedOrder.propertyId.title}</p>
+              <p style="margin: 5px 0;"><strong>Seller:</strong> ${populatedOrder.sellerId.name}</p>
+              <p style="margin: 5px 0;"><strong>Order ID:</strong> #${populatedOrder._id}</p>
+              <p style="margin: 10px 0 5px 0; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                <strong>Total Paid:</strong> <span style="color: #10b981; font-weight: bold; font-size: 1.2rem;">Rs. ${populatedOrder.amount.toLocaleString()}</span>
+              </p>
+            </div>
+
+            <p style="font-size: 16px;">You can view the full details of your transaction in your buyer dashboard.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="http://localhost:5173/purchases" style="display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; font-size: 16px;">View My Purchases</a>
+            </div>
+          </div>
+          <div style="background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+            This is an automated receipt from your Real Estate Platform.<br>
+            &copy; ${new Date().getFullYear()} RealEstate. All rights reserved.
+          </div>
+        </div>
+      `;
+
+      const sellerConfirmationHtml = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <div style="background-color: #2563eb; padding: 25px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Sale Finalized 🤝</h1>
+          </div>
+          <div style="padding: 30px; background-color: #ffffff; color: #374151; line-height: 1.6;">
+            <h2 style="margin-top: 0; color: #111827;">Transaction Closed</h2>
+            <p style="font-size: 16px;">Hi <strong>${populatedOrder.sellerId.name}</strong>,</p>
+            <p style="font-size: 16px;">You have successfully marked the order as complete. The transaction is now officially closed, and the property status has been updated.</p>
+            
+            <div style="background-color: #f3f4f6; border-left: 4px solid #2563eb; padding: 15px; margin: 25px 0; border-radius: 4px;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: bold;">Sale Summary</p>
+              <p style="margin: 5px 0;"><strong>Property Sold:</strong> ${populatedOrder.propertyId.title}</p>
+              <p style="margin: 5px 0;"><strong>Sold To:</strong> ${populatedOrder.buyerId.name}</p>
+              <p style="margin: 5px 0;"><strong>Order ID:</strong> #${populatedOrder._id}</p>
+              <p style="margin: 10px 0 5px 0; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                <strong>Revenue Generated:</strong> <span style="color: #2563eb; font-weight: bold; font-size: 1.2rem;">Rs. ${populatedOrder.amount.toLocaleString()}</span>
+              </p>
+            </div>
+
+            <p style="font-size: 16px;">Excellent work! This sale has been added to your lifetime analytics.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="http://localhost:5173/dashboard/sales" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; font-size: 16px;">View Sales History</a>
+            </div>
+          </div>
+          <div style="background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+            This is an automated confirmation from your Real Estate Platform.<br>
+            &copy; ${new Date().getFullYear()} RealEstate. All rights reserved.
+          </div>
+        </div>
+      `;
+
+      transporter.sendMail({ from: '"PropTech System" <noreply@demo.com>', to: populatedOrder.buyerId.email, subject: 'Purchase Officially Completed!', html: buyerSuccessHtml }).catch(console.error);
+      transporter.sendMail({ from: '"PropTech System" <noreply@demo.com>', to: populatedOrder.sellerId.email, subject: 'Sale Successfully Finalized', html: sellerConfirmationHtml }).catch(console.error);
+    }
+
     res.json(populatedOrder);
   } catch (error) {
     res.status(500).json({ message: error.message });
