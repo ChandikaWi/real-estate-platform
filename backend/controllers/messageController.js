@@ -56,7 +56,7 @@ export const getMessages = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}; 
+};
 
 // Get chat history between buyer and seller for a specific property
 export const getPropertyMessages = async (req, res) => {
@@ -71,4 +71,4 @@ export const getPropertyMessages = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};  
+};

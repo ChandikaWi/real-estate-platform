@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api', // Points to Express backend
+  baseURL: 'http://localhost:5000/api', // Points to my Express backend
 });
 
 // Automatically attach the JWT token if it exists in localStorage

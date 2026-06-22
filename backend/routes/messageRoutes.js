@@ -8,7 +8,6 @@ router.route('/')
   .post(protect, sendMessage)
   .get(protect, getMessages);
 
-// Route for chat histories
 router.route('/:propertyId')
   .get(protect, getPropertyMessages);
 

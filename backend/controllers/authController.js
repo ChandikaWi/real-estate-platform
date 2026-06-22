@@ -2,7 +2,7 @@ import User from '../models/User.js';
 import Property from '../models/Property.js';
 import Favorite from '../models/Favorite.js';
 import Message from '../models/Message.js';
-import generateToken from '../utils/generateToken.js'; 
+import generateToken from '../utils/generateToken.js';
 import Notification from '../models/Notification.js';
 
 // @desc    Register a new user
@@ -32,7 +32,7 @@ export const registerUser = async (req, res) => {
       link: '/admin/users'
     }));
     if (adminNotifs.length > 0) await Notification.insertMany(adminNotifs);
-
+    
     if (user) {
       res.status(201).json({
         _id: user._id,

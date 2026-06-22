@@ -7,18 +7,17 @@ import { protect, authorize } from '../middleware/authMiddleware.js';
 
 dotenv.config();
 
-// Cloudinary credentials
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Storage engine
+// Set up the storage engine
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'real-estate-properties', // The folder name in Cloudinary account
+    folder: 'real-estate-properties', // The folder name in my Cloudinary account
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
   },
 });

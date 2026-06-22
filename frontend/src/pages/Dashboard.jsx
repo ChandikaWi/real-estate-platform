@@ -19,7 +19,7 @@ const Dashboard = () => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]); 
-  
+
   const [visits, setVisits] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -30,7 +30,7 @@ const Dashboard = () => {
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('userInfo'));
     if (!storedUser || storedUser.role !== 'seller') navigate('/login');
-    else { setUserInfo(storedUser); fetchInquiries(); fetchMyProperties(); fetchSales(); fetchVisits(); } // 👈 Added here
+    else { setUserInfo(storedUser); fetchInquiries(); fetchMyProperties(); fetchSales(); fetchVisits(); } 
   }, [navigate]);
 
   useEffect(() => {
@@ -45,6 +45,13 @@ const Dashboard = () => {
   const fetchSales = async () => { try { const { data } = await api.get('/orders/seller'); setSales(data); } catch (e) {} };
   const fetchInquiries = async () => { try { const { data } = await api.get('/messages'); setMessages(data); setLoadingMessages(false); } catch (e) { setLoadingMessages(false); } };
   const fetchVisits = async () => { try { const { data } = await api.get('/visits/seller'); setVisits(data); } catch (e) {} };
+
+  const handleVisitAction = async (id, status) => {
+    try {
+      const { data } = await api.put(`/visits/${id}/status`, { status });
+      setVisits(visits.map(v => v._id === id ? data : v));
+    } catch (err) { alert('Failed to update visit status'); }
+  };
 
   const handleDeleteProperty = async (id) => {
     if (window.confirm('Delete this listing?')) {
@@ -64,13 +71,6 @@ const Dashboard = () => {
       const { data } = await api.post('/messages', { receiverId, propertyId, message: replyText });
       setMessages((prev) => [data, ...prev]); setReplyText(''); setReplyingTo(null);
     } catch (err) { alert("Failed"); }
-  };
-
-  const handleVisitAction = async (id, status) => {
-    try {
-      const { data } = await api.put(`/visits/${id}/status`, { status });
-      setVisits(visits.map(v => v._id === id ? data : v));
-    } catch (err) { alert('Failed to update visit status'); }
   };
 
   const handleSubmit = async (e) => {
@@ -143,7 +143,7 @@ const Dashboard = () => {
               }} 
               style={{ padding: '8px', width: '100%' }} 
             />
-          </div>
+            </div>
 
             <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '6px', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>
               {uploading ? 'Uploading...' : '🚀 Publish'}
@@ -163,7 +163,7 @@ const Dashboard = () => {
                   <div onClick={() => navigate(`/property/${prop._id}`)} style={{ cursor: 'pointer', flex: 1 }}>
                     {prop.images?.length > 0 ? <img src={prop.images[0]} alt="thumb" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '6px' }} /> : <div style={{ width: '100%', height: '180px', backgroundColor: 'var(--bg-hover)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
                     <h3 style={{ margin: '15px 0 5px 0' }}>{prop.title}</h3>
-                    <p style={{ margin: '0 0 15px 0', color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem' }}>Rs. {prop.price.toLocaleString()}</p>
+                    <p style={{ margin: '0 0 15px 0', color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem' }}>Rs.{prop.price.toLocaleString()}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                     <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
@@ -228,7 +228,7 @@ const Dashboard = () => {
                     return (
                       <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: '15px' }}>{sale.propertyId?.title}</td><td style={{ padding: '15px' }}>{sale.buyerId?.name}</td>
-                        <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {sale.amount.toLocaleString()}</td>
+                        <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{sale.amount.toLocaleString()}</td>
                         <td style={{ padding: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ color: isPending ? '#f39c12' : 'var(--accent-color)', fontWeight: 'bold' }}>{sale.status}</span>
@@ -297,6 +297,7 @@ const Dashboard = () => {
           )}
         </section>
       )}
+
     </div>
   );
 };

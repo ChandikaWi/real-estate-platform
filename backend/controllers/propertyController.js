@@ -1,6 +1,6 @@
 import Property from '../models/Property.js';
-import Order from '../models/Order.js';
 import Message from '../models/Message.js';
+import Order from '../models/Order.js';
 import Favorite from '../models/Favorite.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
@@ -63,6 +63,7 @@ export const createProperty = async (req, res) => {
   try {
     const property = new Property({ ...req.body, sellerId: req.user._id });
     const createdProperty = await property.save();
+
     // SMART ALERT - Notify all Admins of new inventory
     const admins = await User.find({ role: 'admin' });
     const adminNotifs = admins.map(admin => ({
@@ -98,7 +99,7 @@ export const deleteProperty = async (req, res) => {
   }
 };
 
-// @desc    Fetch single property
+// @desc    Get a single property by ID
 // @route   GET /api/properties/:id
 export const getPropertyById = async (req, res) => {
   try {
@@ -117,7 +118,7 @@ export const getPropertyById = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+}; 
 
 // @desc    Update a property
 // @route   PUT /api/properties/:id
@@ -131,14 +132,6 @@ export const updateProperty = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this property' });
     }
 
-    // Update the document
-    const updatedProperty = await Property.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true } // Returns the newly updated document
-    );
-    res.json(updatedProperty);
-
     // SMART ALERT - Check for Price Drop before saving
     if (req.body.price && Number(req.body.price) < property.price) {
       const priceDropPercentage = Math.round(((property.price - req.body.price) / property.price) * 100);
@@ -146,7 +139,7 @@ export const updateProperty = async (req, res) => {
       // Find all buyers who favorited this exact property
       const favorites = await Favorite.find({ propertyId: property._id });
       
-      // Send them all a notification
+      // Send them all a notification!
       const notifications = favorites.map(fav => ({
         userId: fav.userId, // The buyer
         type: 'price_drop',
@@ -155,7 +148,14 @@ export const updateProperty = async (req, res) => {
       }));
       if (notifications.length > 0) await Notification.insertMany(notifications);
     }
-
+    
+    // Update the document
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true } // Returns the newly updated document
+    );
+    res.json(updatedProperty);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -180,7 +180,7 @@ export const getSellerAnalytics = async (req, res) => {
     const orders = await Order.find({ sellerId: req.user._id });
     const messages = await Message.find({ receiverId: req.user._id });
 
-    // Calculate Summary Totals 
+    // Calculate Summary Totals
     const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
     const totalSalesRevenue = orders
@@ -189,7 +189,7 @@ export const getSellerAnalytics = async (req, res) => {
 
     // Calculate Individual Listing Performance
     const listingPerformance = properties.map(prop => {
-      // Safely filter orders/messages using optional chaining 
+      // Safely filter orders/messages using optional chaining (?.) so null propertyIds don't crash
       const propOrders = orders.filter(o => o.propertyId?.toString() === prop._id.toString());
       const propMessages = messages.filter(m => m.propertyId?.toString() === prop._id.toString());
       
@@ -218,7 +218,7 @@ export const getSellerAnalytics = async (req, res) => {
       listings: listingPerformance
     });
   } catch (error) {
-    console.error("Analytics Error:", error); // Logs exact reason to terminal if it fails 
+    console.error("Analytics Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -420,11 +420,11 @@ export const updatePropertyStatus = async (req, res) => {
         message: `📢 Your listing "${property.title}" is now ${status}.`,
         link: '/dashboard/listings'
       });
-      // -REAL-TIME - Push notification directly to the Seller
+      // REAL-TIME - Push notification directly to the Seller
       io.to(property.sellerId.toString()).emit('new_notification', newNotif);
     }
 
-    // -REAL-TIME - Broadcast global status change to anyone looking at this property
+    // REAL-TIME - Broadcast global status change to anyone looking at this property
     io.emit('property_status_updated', { propertyId: property._id, status: property.status });
 
     res.json(property);

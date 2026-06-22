@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { ThemeProvider, ThemeContext } from './context/ThemeContext';
+import MyVisits from './pages/MyVisits';
 import { useState, useEffect, useRef } from 'react';
-import api from './api/axiosConfig';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -19,8 +19,8 @@ import SellerAnalytics from './pages/SellerAnalytics';
 import AdminAnalytics from './pages/AdminAnalytics';
 import BuyerDashboard from './pages/BuyerDashboard';
 import SidebarLayout from './components/SidebarLayout';
-import MyVisits from './pages/MyVisits';
 import AIChatBot from './components/AIChatBot';
+import api from './api/axiosConfig';
 import socket from './api/socket';
 
 const Navigation = () => {
@@ -79,6 +79,19 @@ const Navigation = () => {
     navigate(notif.link);
   };
 
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'price_drop': return '📉';
+      case 'visit_update': return '📅';
+      case 'message': return '💬';
+      case 'order': return '💰';
+      case 'review': return '⭐';
+      case 'alert': 
+      case 'system': return '🚨';
+      default: return '🔔';
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await api.put('/notifications/read-all');
@@ -100,19 +113,6 @@ const Navigation = () => {
       await api.delete(`/notifications/${id}`);
       setNotifications(notifications.filter(n => n._id !== id));
     } catch (err) { console.error('Failed to delete notification'); }
-  };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'price_drop': return '📉';
-      case 'visit_update': return '📅';
-      case 'message': return '💬';
-      case 'order': return '💰';
-      case 'review': return '⭐';
-      case 'alert': 
-      case 'system': return '🚨';
-      default: return '🔔';
-    }
   };
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
@@ -139,7 +139,7 @@ const Navigation = () => {
 
         {userInfo ? (
           <>
-            {/* NOTIFICATION BELL WIDGET*/}
+            {/* NOTIFICATION BELL WIDGET */}
             <div style={{ position: 'relative' }} ref={dropdownRef}>
               <button onClick={() => setShowNotifs(!showNotifs)} style={{ position: 'relative', background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-main)', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
                 🔔
@@ -231,7 +231,7 @@ function App() {
       <Router>
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Navigation />
-          
+          {/* Global AI Chatbot Widget */}
           <AIChatBot /> 
           
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>

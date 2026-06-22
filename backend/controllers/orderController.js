@@ -35,7 +35,7 @@ export const processCheckout = async (req, res) => {
       buyerId: req.user._id,
       sellerId: property.sellerId._id,
       amount: property.price,
-      status: 'Pending' // et to Pending so the seller MUST approve it
+      status: 'Pending' // Set to Pending so the seller MUST approve it
     });
     const savedOrder = await order.save();
 
@@ -161,8 +161,10 @@ export const updateOrderStatus = async (req, res) => {
       .populate('buyerId', 'name email')
       .populate('sellerId', 'name email');
       
-    // DISPATCH COMPLETION EMAILS
+    // DISPATCH COMPLETION EMAILS HERE
     if (action === 'complete') {
+      
+      // BUYER SUCCESS EMAIL TEMPLATE
       const buyerSuccessHtml = `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
           <div style="background-color: #10b981; padding: 25px; text-align: center;">
@@ -196,6 +198,7 @@ export const updateOrderStatus = async (req, res) => {
         </div>
       `;
 
+      // SELLER CONFIRMATION EMAIL TEMPLATE
       const sellerConfirmationHtml = `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
           <div style="background-color: #2563eb; padding: 25px; text-align: center;">

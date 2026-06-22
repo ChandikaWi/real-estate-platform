@@ -54,7 +54,7 @@ const MyPurchases = () => {
                   <tr key={order._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '15px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{order._id}</td>
                     <td style={{ padding: '15px', fontWeight: 'bold' }}>{order.propertyId?.title || 'Property Unavailable'}</td>
-                    <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--accent-color)' }}>Rs. {order.amount.toLocaleString()}</td>
+                    <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--accent-color)' }}>Rs.{order.amount.toLocaleString()}</td>
                     <td style={{ padding: '15px', color: 'var(--text-muted)' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
                     <td style={{ padding: '15px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

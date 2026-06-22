@@ -103,52 +103,52 @@ const AdminDashboard = () => {
                 {properties.map(prop => (
                   <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     <td style={{ padding: '15px' }}>{prop.title}</td><td style={{ padding: '15px' }}>{prop.sellerId?.name || 'Unknown'}</td>
-                    <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {prop.price.toLocaleString()}</td>
+                    <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{prop.price.toLocaleString()}</td>
                     <td style={{ padding: '15px' }}>
                     <span style={{ 
-                      backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
-                      color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
+                        backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
+                        color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
+                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
                     }}>
-                      {prop.status}
+                        {prop.status}
                     </span>
                     
                     {prop.status === 'Pending Review' && (
-                      <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
                         <button 
-                          onClick={async (e) => {
+                            onClick={async (e) => {
                             e.stopPropagation(); 
                             try {
-                              await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
-                              // Instantly update the local state array
-                              setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
+                                await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
+                                // Instantly update the local state array
+                                setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
                             } catch (err) {
-                              alert('Failed to approve property.');
+                                alert('Failed to approve property.');
                             }
-                          }} 
-                          style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                            }} 
+                            style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
                         >
-                          Approve
+                            Approve
                         </button>
                         
                         <button 
-                          onClick={async (e) => {
+                            onClick={async (e) => {
                             e.stopPropagation(); 
                             try {
-                              await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
-                              // Instantly update the local state array
-                              setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
+                                await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
+                                // Instantly update the local state array
+                                setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
                             } catch (err) {
-                              alert('Failed to reject property.');
+                                alert('Failed to reject property.');
                             }
-                          }} 
-                          style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                            }} 
+                            style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
                         >
-                          Reject
+                            Reject
                         </button>
-                      </div>
+                        </div>
                     )}
-                  </td>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -184,7 +184,7 @@ const AdminDashboard = () => {
             <h2 style={{ marginTop: 0 }}>Property Details</h2>
             {selectedProperty.images?.length > 0 ? <img src={selectedProperty.images[0]} alt="Prop" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '15px' }} /> : <div style={{ width: '100%', height: '200px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
             <h3 style={{ margin: '0 0 10px 0' }}>{selectedProperty.title}</h3>
-            <p style={{ color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem', marginTop: 0 }}>Rs. {selectedProperty.price.toLocaleString()}</p>
+            <p style={{ color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem', marginTop: 0 }}>Rs.{selectedProperty.price.toLocaleString()}</p>
             <p><strong>Seller:</strong> {selectedProperty.sellerId?.name || 'Unknown'}</p>
             <p><strong>Description:</strong> {selectedProperty.description}</p>
             <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>

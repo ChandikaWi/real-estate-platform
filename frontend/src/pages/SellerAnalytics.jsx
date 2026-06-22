@@ -144,7 +144,7 @@ const SellerAnalytics = () => {
           </div>
           <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', borderLeft: '5px solid var(--accent-color)' }}>
             <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>Capital Generated</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--accent-color)' }}>Rs. {analytics.summary.totalSalesRevenue.toLocaleString()}</h2>
+            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--accent-color)' }}>Rs.{analytics.summary.totalSalesRevenue.toLocaleString()}</h2>
           </div>
         </div>
 
@@ -220,7 +220,7 @@ const SellerAnalytics = () => {
                       <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--text-main)' }}>{item.views}</td>
                       <td style={{ padding: '15px', fontWeight: 'bold', color: '#f39c12' }}>{item.inquiries}</td>
                       <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--accent-color)' }}>{item.orders}</td>
-                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs. {item.revenue.toLocaleString()}</td>
+                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{item.revenue.toLocaleString()}</td>
                     </tr>
                   ))
                 )}

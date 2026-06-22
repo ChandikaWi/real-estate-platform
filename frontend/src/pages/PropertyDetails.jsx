@@ -62,7 +62,7 @@ const PropertyDetails = () => {
     fetchPropertyData();
   }, [id, userInfo?._id]);
 
-  useEffect(() => {
+useEffect(() => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);

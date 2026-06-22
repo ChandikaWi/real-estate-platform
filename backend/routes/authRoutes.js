@@ -6,7 +6,6 @@ const router = express.Router();
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
-
 router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile)

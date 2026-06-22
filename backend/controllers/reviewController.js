@@ -44,6 +44,7 @@ export const addReview = async (req, res) => {
       message: `⭐ You received a new ${rating}-star review from ${req.user.name}!`,
       link: '/analytics' // Sends them to their performance matrix
     });
+    
     res.status(201).json(populatedReview);
   } catch (error) {
     res.status(500).json({ message: error.message });

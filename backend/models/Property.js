@@ -5,10 +5,15 @@ const propertySchema = new mongoose.Schema({
   description: { type: String, required: true }, 
   price: { type: Number, required: true },
   previousPrice: { type: Number, default: null },
-  views: { type: Number, default: 0 }, 
+  views: { type: Number, default: 0 },
   location: { 
     city: { type: String, required: true },
     address: { type: String, required: true }
+  },
+  status: {
+    type: String,
+    enum: ['Draft', 'Pending Review', 'Active', 'Reserved', 'Sold', 'Rejected', 'Expired'],
+    default: 'Pending Review' // All new listings must be approved by admin first
   },
   type: { type: String, enum: ['house', 'apartment', 'land'], required: true }, 
   bedrooms: { type: Number, required: true }, 
@@ -16,11 +21,6 @@ const propertySchema = new mongoose.Schema({
   area: { type: Number, required: true }, 
   images: [{ type: String }], 
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, 
-  status: {
-    type: String,
-    enum: ['Draft', 'Pending Review', 'Active', 'Reserved', 'Sold', 'Rejected', 'Expired'],
-    default: 'Pending Review' // All new listings must be approved by admin first
-  },
   
   // Data payload for XGBoost/Random Forest model
   valuationMetrics: {
@@ -31,7 +31,6 @@ const propertySchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Indexing for search performance
 propertySchema.index({ 'location.city': 1, price: 1 });
 
 export default mongoose.model('Property', propertySchema);

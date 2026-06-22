@@ -32,6 +32,7 @@ export const createVisit = async (req, res) => {
       message: `📅 ${req.user.name} requested a viewing for "${property.title}" on ${date}.`,
       link: '/dashboard/visits'
     });
+
     res.status(201).json(visit);
   } catch (error) {
     res.status(500).json({ message: error.message });

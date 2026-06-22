@@ -14,20 +14,20 @@ const SidebarLayout = ({ children }) => {
     links = [
       { path: '/buyer/dashboard', label: 'Dashboard Home', icon: '🏠' },
       { path: '/favorites', label: 'My Favorites', icon: '❤️' },
+      { path: '/visits', label: 'My Visits', icon: '📅' },
       { path: '/purchases', label: 'My Purchases', icon: '🛍️' },
       { path: '/compare', label: 'Compare Properties', icon: '⚖️' },
       { path: '/profile', label: 'Manage Account', icon: '👤' },
-      { path: '/visits', label: 'My Visits', icon: '📅' },
     ];
   } else if (userInfo.role === 'seller') {
     links = [
       { path: '/dashboard/add', label: 'Add New Property', icon: '➕' },
       { path: '/dashboard/listings', label: 'Active Listings', icon: '📋' },
       { path: '/dashboard/inquiries', label: 'Live Inquiries', icon: '💬' },
+      { path: '/dashboard/visits', label: 'Visit Requests', icon: '📅' },
       { path: '/dashboard/sales', label: 'Orders Received', icon: '💰' },
       { path: '/analytics', label: 'Performance Analytics', icon: '📈' },
       { path: '/profile', label: 'Manage Account', icon: '👤' },
-      { path: '/dashboard/visits', label: 'Visit Requests', icon: '📅' },
     ];
   } else if (userInfo.role === 'admin') {
     links = [
@@ -40,7 +40,7 @@ const SidebarLayout = ({ children }) => {
 
   return (
     <div style={{ display: 'flex', minHeight: '85vh', borderTop: '1px solid var(--border-color)' }}>
-      {/* Sidebar - Uses dynamic card background */}
+      {/* Sidebar */}
       <div style={{
         width: isExpanded ? '260px' : '70px',
         backgroundColor: 'var(--bg-card)', 
@@ -91,7 +91,7 @@ const SidebarLayout = ({ children }) => {
         </div>
       </div>
 
-      {/* Main Page Content - Uses dynamic main background */}
+      {/* Main Page Content */}
       <div style={{ flex: 1, padding: '30px', backgroundColor: 'var(--bg-main)', overflowY: 'auto' }}>
         {children}
       </div>
