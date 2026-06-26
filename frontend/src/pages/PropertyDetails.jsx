@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import socket from '../api/socket';
 
 const PropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); 
+  const reviewsSectionRef = useRef(null);
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -91,6 +93,22 @@ useEffect(() => {
   }, [userInfo, id]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
+
+  // Auto-scroll to reviews if redirected from the Purchases page
+  useEffect(() => {
+    if (!loading && property && location.state?.openReview && reviewsSectionRef.current) {
+      setTimeout(() => {
+        reviewsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Add a brief highlight flash to draw the user's eye to the review box
+        reviewsSectionRef.current.style.transition = 'box-shadow 0.5s';
+        reviewsSectionRef.current.style.boxShadow = '0 0 20px var(--accent-color)';
+        setTimeout(() => {
+          reviewsSectionRef.current.style.boxShadow = 'none';
+        }, 2000);
+      }, 500); // Small delay ensures images/layout have rendered before calculating scroll math
+    }
+  }, [loading, property, location.state]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -291,8 +309,8 @@ useEffect(() => {
         </div>
 
         {/* REVIEWS SECTION */}
-        <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px solid var(--border-color)' }}>
-          <h2>Seller Ratings & Reviews</h2>
+        <div ref={reviewsSectionRef} style={{ marginTop: '50px', borderTop: '2px solid var(--border-color)', paddingTop: '30px' }}>
+          <h2 style={{ margin: '0 0 20px 0', color: 'var(--text-main)' }}>Seller Ratings & Reviews</h2>
           {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
             <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
               <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>

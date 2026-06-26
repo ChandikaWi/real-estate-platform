@@ -85,6 +85,7 @@ const Navigation = () => {
       case 'visit_update': return '📅';
       case 'message': return '💬';
       case 'order': return '💰';
+      case 'order_update': return '🤝'; 
       case 'review': return '⭐';
       case 'alert': 
       case 'system': return '🚨';

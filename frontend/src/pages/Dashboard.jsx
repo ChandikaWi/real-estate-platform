@@ -13,19 +13,27 @@ const Dashboard = () => {
   const [sales, setSales] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [visits, setVisits] = useState([]);
   
+  // Custom UI State Management
+  const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null); 
-  const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]); 
-
-  const [visits, setVisits] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
     bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
+
+  // Helper to show inline messages safely
+  const showMessage = (text, type = 'success') => {
+    setValidationMsg({ text, type });
+    setTimeout(() => setValidationMsg({ text: '', type: '' }), 4000);
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('userInfo'));
@@ -50,19 +58,48 @@ const Dashboard = () => {
     try {
       const { data } = await api.put(`/visits/${id}/status`, { status });
       setVisits(visits.map(v => v._id === id ? data : v));
-    } catch (err) { alert('Failed to update visit status'); }
+      showMessage(`Visit request ${status.toLowerCase()} successfully.`);
+    } catch (err) { showMessage('Failed to update visit status', 'error'); }
   };
 
-  const handleDeleteProperty = async (id) => {
-    if (window.confirm('Delete this listing?')) {
-      try { await api.delete(`/properties/${id}`); setMyProperties(myProperties.filter(p => p._id !== id)); } catch (err) { alert('Failed'); }
-    }
+  const handleDeleteProperty = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Property?',
+      message: 'Are you sure you want to permanently delete this listing?',
+      onConfirm: async () => {
+        try { 
+          await api.delete(`/properties/${id}`); 
+          setMyProperties(myProperties.filter(p => p._id !== id)); 
+          showMessage('Listing deleted successfully.');
+        } catch (err) { showMessage('Failed to delete property.', 'error'); }
+        setConfirmDialog({ isOpen: false });
+      }
+    });
   };
 
-  const handleCompleteOrder = async (orderId) => {
-    if (window.confirm('Mark this order as completed?')) {
-      try { const { data } = await api.put(`/orders/${orderId}/status`, { action: 'complete' }); setSales(sales.map(s => s._id === orderId ? data : s)); } catch (err) { alert('Failed'); }
-    }
+  const handleUpdateOrderStatus = (orderId, action) => {
+    const dialogMessage = action === 'approve' 
+      ? 'Approve this request and proceed to offline negotiation?' 
+      : action === 'complete' 
+      ? 'Mark this property as officially SOLD?' 
+      : 'Cancel this request and put the property back on the market?';
+
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Update Request Status',
+      message: dialogMessage,
+      onConfirm: async () => {
+        try { 
+          const { data } = await api.put(`/orders/${orderId}/status`, { action }); 
+          setSales(sales.map(s => s._id === orderId ? data : s)); 
+          showMessage(`Status updated to ${data.status} successfully.`);
+        } catch (err) { 
+          showMessage(err.response?.data?.message || 'Failed to update request', 'error'); 
+        }
+        setConfirmDialog({ isOpen: false });
+      }
+    });
   };
 
   const handleReply = async (e, receiverId, propertyId) => {
@@ -70,11 +107,12 @@ const Dashboard = () => {
     try {
       const { data } = await api.post('/messages', { receiverId, propertyId, message: replyText });
       setMessages((prev) => [data, ...prev]); setReplyText(''); setReplyingTo(null);
-    } catch (err) { alert("Failed"); }
+      showMessage('Reply sent successfully!');
+    } catch (err) { showMessage("Failed to send reply.", "error"); }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setMessage(''); setUploading(true);
+    e.preventDefault(); setUploading(true);
     try {
       let uploadedImageUrls = [];
       if (images.length > 0) {
@@ -89,77 +127,77 @@ const Dashboard = () => {
         images: uploadedImageUrls, valuationMetrics: { yearBuilt: Number(formData.yearBuilt), distanceToTransport: Number(formData.distanceToTransport), parkingSpaces: Number(formData.parkingSpaces), conditionScore: Number(formData.conditionScore) }
       };
       await api.post('/properties', payload);
-      setMessage('Property listed successfully!');
+      showMessage('Property listed successfully! It is pending admin review.');
       setFormData({ title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house', bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: '' });
       setImages([]); setUploading(false); fetchMyProperties();
-    } catch (err) { setMessage('Error: ' + (err.response?.data?.message || err.message)); setUploading(false); }
+    } catch (err) { showMessage('Error: ' + (err.response?.data?.message || err.message), 'error'); setUploading(false); }
   };
 
   if (!userInfo) return null;
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', color: 'var(--text-main)' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', color: 'var(--text-main)', position: 'relative' }}>
       
-      {currentTab === 'add' && (
-        <section>
-          <h1 style={{ margin: '0 0 5px 0' }}>Add New Property</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Fill out the details below to list a new property.</p>
-          {message && <div style={{ padding: '15px', backgroundColor: 'var(--accent-color)', color: '#fff', marginBottom: '15px', borderRadius: '6px' }}>{message}</div>}
-
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-            <div style={{ gridColumn: '1 / -1' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Basic Info</h4></div>
-            <input type="text" name="title" placeholder="Title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
-              <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
-            </select>
-            <input type="number" name="price" placeholder="Current Price (Rs.)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
-            <textarea name="description" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '12px', gridColumn: '1 / -1', minHeight: '100px', borderRadius: '6px' }} />
-
-            <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Details</h4></div>
-            <input type="text" name="city" placeholder="City" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="text" name="address" placeholder="Address" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" name="area" placeholder="Sqft" value={formData.area} onChange={e => setFormData({...formData, area: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" name="bedrooms" placeholder="Beds" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" name="bathrooms" placeholder="Baths" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px', gridColumn: '1 / -1' }} />
-
-            <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Valuation</h4></div>
-            <input type="number" name="yearBuilt" placeholder="Year Built" value={formData.yearBuilt} onChange={e => setFormData({...formData, yearBuilt: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
-            <input type="number" step="0.1" name="distanceToTransport" placeholder="Dist. to Transport (km)" value={formData.distanceToTransport} onChange={e => setFormData({...formData, distanceToTransport: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
-
-            <div style={{ gridColumn: '1 / -1', marginTop: '10px', backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
-            <h4 style={{ margin: '0 0 10px 0' }}>Upload Property Images (Max 5)</h4>
-            <input 
-              type="file" 
-              multiple 
-              accept="image/*" 
-              onChange={(e) => {
-                if (e.target.files.length > 5) {
-                  alert("You can only upload a maximum of 5 pictures per listing.");
-                  e.target.value = ''; // Reset the input
-                } else {
-                  setImages(e.target.files);
-                }
-              }} 
-              style={{ padding: '8px', width: '100%' }} 
-            />
-            </div>
-
-            <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '6px', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>
-              {uploading ? 'Uploading...' : '🚀 Publish'}
-            </button>
-          </form>
-        </section>
+      {/* Global Inline Notification Banner */}
+      {validationMsg.text && (
+        <div style={{ padding: '15px', marginBottom: '20px', borderRadius: '8px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `1px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold' }}>
+          {validationMsg.text}
+        </div>
       )}
+
+      {currentTab === 'add' && (
+      <section>
+        <h1 style={{ margin: '0 0 5px 0' }}>Add New Property</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Fill out the details below to list a new property.</p>
+        {validationMsg.text && (
+          <div style={{ padding: '15px', marginBottom: '20px', borderRadius: '8px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `1px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold' }}>
+            {validationMsg.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ gridColumn: '1 / -1' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Basic Info</h4></div>
+          <input type="text" name="title" placeholder="Title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
+            <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
+          </select>
+          <input type="number" name="price" placeholder="Current Price (Rs.)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+          <textarea name="description" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '12px', gridColumn: '1 / -1', minHeight: '100px', borderRadius: '6px' }} />
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Details</h4></div>
+          <input type="text" name="city" placeholder="City" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="text" name="address" placeholder="Address" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="area" placeholder="Sqft" value={formData.area} onChange={e => setFormData({...formData, area: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="bedrooms" placeholder="Beds" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="bathrooms" placeholder="Baths" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
+
+          {/* VALUATION SECTION */}
+          <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Valuation Metrics</h4></div>
+          <input type="number" name="yearBuilt" placeholder="Year Built" value={formData.yearBuilt} onChange={e => setFormData({...formData, yearBuilt: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" step="0.1" name="distanceToTransport" placeholder="Dist. to Transport (km)" value={formData.distanceToTransport} onChange={e => setFormData({...formData, distanceToTransport: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="parkingSpaces" placeholder="Parking Spaces" value={formData.parkingSpaces} onChange={e => setFormData({...formData, parkingSpaces: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+          <input type="number" name="conditionScore" placeholder="Condition Score (1-10)" value={formData.conditionScore} onChange={e => setFormData({...formData, conditionScore: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '10px', backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>Upload Property Images (Max 5)</h4>
+            <input type="file" multiple accept="image/*" onChange={(e) => { if (e.target.files.length > 5) { showMessage("Max 5 pictures.", "error"); e.target.value = ''; } else { setImages(e.target.files); } }} style={{ padding: '8px', width: '100%' }} />
+          </div>
+
+          <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '6px', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>
+            {uploading ? 'Uploading...' : '🚀 Publish'}
+          </button>
+        </form>
+      </section>
+    )}
 
       {currentTab === 'listings' && (
         <section>
           <h1 style={{ margin: '0 0 5px 0' }}>Your Active Listings</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Manage, edit, or delete your current properties.</p>
           {myProperties.length === 0 ? <p>No active properties.</p> : (
             <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
               {myProperties.map((prop) => (
-                <div key={prop._id} style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-sm)' }}>
+                <div key={prop._id} style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
                   <div onClick={() => navigate(`/property/${prop._id}`)} style={{ cursor: 'pointer', flex: 1 }}>
                     {prop.images?.length > 0 ? <img src={prop.images[0]} alt="thumb" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '6px' }} /> : <div style={{ width: '100%', height: '180px', backgroundColor: 'var(--bg-hover)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
                     <h3 style={{ margin: '15px 0 5px 0' }}>{prop.title}</h3>
@@ -179,18 +217,16 @@ const Dashboard = () => {
       {currentTab === 'inquiries' && (
         <section>
           <h1 style={{ margin: '0 0 5px 0' }}>Buyer Inquiries</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Reply to messages in real-time.</p>
           {loadingMessages ? <p>Loading...</p> : messages.length === 0 ? <p>No messages yet.</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {messages.map((msg) => {
                 const isMe = msg.senderId._id === userInfo._id;
                 return (
-                  <div key={msg._id} style={{ border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
+                  <div key={msg._id} style={{ border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', backgroundColor: 'var(--bg-card)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                       <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                         <strong>{isMe ? 'You replied to:' : 'From:'}</strong> {msg.senderId?.name} <br/>
-                        <strong>Regarding:</strong> <span style={{ color: 'var(--primary-color)', cursor: 'pointer' }} onClick={() => navigate(`/property/${msg.propertyId._id}`)}>{msg.propertyId?.title}</span><br/>
-                        <strong>Date:</strong> {new Date(msg.createdAt).toLocaleString()}
+                        <strong>Regarding:</strong> <span style={{ color: 'var(--primary-color)', cursor: 'pointer' }} onClick={() => navigate(`/property/${msg.propertyId._id}`)}>{msg.propertyId?.title}</span>
                       </p>
                       {!isMe && <button onClick={() => setReplyingTo(msg._id)} style={{ height: '35px', padding: '0 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reply</button>}
                     </div>
@@ -212,9 +248,8 @@ const Dashboard = () => {
 
       {currentTab === 'sales' && (
         <section>
-          <h1 style={{ margin: '0 0 5px 0' }}>Orders Received</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Track sales and update statuses.</p>
-          {sales.length === 0 ? <p>No sales yet.</p> : (
+          <h1 style={{ margin: '0 0 5px 0' }}>Purchase Requests</h1>
+          {sales.length === 0 ? <p>No purchase requests yet.</p> : (
             <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -223,21 +258,24 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sales.map(sale => {
-                    const isPending = sale.status === 'Pending';
-                    return (
-                      <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '15px' }}>{sale.propertyId?.title}</td><td style={{ padding: '15px' }}>{sale.buyerId?.name}</td>
-                        <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{sale.amount.toLocaleString()}</td>
-                        <td style={{ padding: '15px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ color: isPending ? '#f39c12' : 'var(--accent-color)', fontWeight: 'bold' }}>{sale.status}</span>
-                            {isPending && <button onClick={() => handleCompleteOrder(sale._id)} style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Mark Completed</button>}
+                  {sales.map(sale => (
+                    <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '15px' }}>{sale.propertyId?.title}</td><td style={{ padding: '15px' }}>{sale.buyerId?.name}</td>
+                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{sale.amount.toLocaleString()}</td>
+                      <td style={{ padding: '15px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ backgroundColor: sale.status === 'Completed' ? 'rgba(39, 174, 96, 0.1)' : sale.status === 'Approved' ? 'rgba(59, 130, 246, 0.1)' : sale.status === 'Pending' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', color: sale.status === 'Completed' ? 'var(--accent-color)' : sale.status === 'Approved' ? '#3b82f6' : sale.status === 'Pending' ? '#f39c12' : 'var(--danger-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content' }}>
+                            {sale.status}
+                          </span>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {sale.status === 'Pending' && <button onClick={() => handleUpdateOrderStatus(sale._id, 'approve')} style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Approve Request</button>}
+                            {sale.status === 'Approved' && <button onClick={() => handleUpdateOrderStatus(sale._id, 'complete')} style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Mark as Sold</button>}
+                            {(sale.status === 'Pending' || sale.status === 'Approved') && <button onClick={() => handleUpdateOrderStatus(sale._id, 'cancel')} style={{ padding: '6px 12px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}>Cancel</button>}
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -245,20 +283,15 @@ const Dashboard = () => {
         </section>
       )}
 
-      {/* Visit Requests */}
       {currentTab === 'visits' && (
         <section>
           <h1 style={{ margin: '0 0 5px 0' }}>Visit Requests</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Approve or decline property viewings requested by buyers.</p>
           {visits.length === 0 ? <p>No visit requests yet.</p> : (
             <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
-                    <th style={{ padding: '15px' }}>Property</th>
-                    <th style={{ padding: '15px' }}>Buyer Details</th>
-                    <th style={{ padding: '15px' }}>Requested Time</th>
-                    <th style={{ padding: '15px' }}>Status & Action</th>
+                    <th style={{ padding: '15px' }}>Property</th><th style={{ padding: '15px' }}>Buyer Details</th><th style={{ padding: '15px' }}>Requested Time</th><th style={{ padding: '15px' }}>Status & Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,19 +300,11 @@ const Dashboard = () => {
                     return (
                       <tr key={visit._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: '15px', fontWeight: 'bold' }}>{visit.propertyId?.title}</td>
-                        <td style={{ padding: '15px' }}>
-                          <div style={{ fontWeight: 'bold' }}>{visit.buyerId?.name}</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📞 {visit.buyerId?.phoneNumber || 'No phone'}</div>
-                        </td>
-                        <td style={{ padding: '15px' }}>
-                          <div style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>{new Date(visit.date).toLocaleDateString()}</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{visit.timeSlot}</div>
-                        </td>
+                        <td style={{ padding: '15px' }}><div style={{ fontWeight: 'bold' }}>{visit.buyerId?.name}</div></td>
+                        <td style={{ padding: '15px' }}><div style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>{new Date(visit.date).toLocaleDateString()}</div></td>
                         <td style={{ padding: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ backgroundColor: isPending ? 'rgba(243, 156, 18, 0.1)' : visit.status === 'Accepted' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)', color: isPending ? '#f39c12' : visit.status === 'Accepted' ? 'var(--accent-color)' : 'var(--danger-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                              {visit.status}
-                            </span>
+                            <span style={{ backgroundColor: isPending ? 'rgba(243, 156, 18, 0.1)' : visit.status === 'Accepted' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)', color: isPending ? '#f39c12' : visit.status === 'Accepted' ? 'var(--accent-color)' : 'var(--danger-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{visit.status}</span>
                             {isPending && (
                               <>
                                 <button onClick={() => handleVisitAction(visit._id, 'Accepted')} style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Accept</button>
@@ -296,6 +321,20 @@ const Dashboard = () => {
             </div>
           )}
         </section>
+      )}
+
+      {/* Custom Global Confirmation Modal */}
+      {confirmDialog.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '400px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <h2 style={{ margin: '0 0 10px 0', color: 'var(--text-main)' }}>{confirmDialog.title}</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '25px', lineHeight: '1.5' }}>{confirmDialog.message}</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmDialog({ isOpen: false })} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+              <button onClick={confirmDialog.onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Confirm</button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

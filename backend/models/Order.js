@@ -5,10 +5,10 @@ const orderSchema = new mongoose.Schema({
   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   amount: { type: Number, required: true },
-  status: { 
-    type: String, 
-    enum: ['Pending', 'Completed', 'Cancelled'], 
-    default: 'Pending' 
+  status: {
+    type: String,
+    enum: ['Pending', 'Approved', 'Completed', 'Cancelled'],
+    default: 'Pending'
   }
 }, { timestamps: true });
 
