@@ -6,12 +6,12 @@ import socket from '../api/socket';
 const PropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); 
-  const reviewsSectionRef = useRef(null);
+  const location = useLocation();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [favStatus, setFavStatus] = useState('');
+  const reviewsSectionRef = useRef(null);
   
   const [chatHistory, setChatHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
@@ -29,6 +29,9 @@ const PropertyDetails = () => {
   const [visitDate, setVisitDate] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
   const [visitMessage, setVisitMessage] = useState('');
+
+  const [buyerAiValuation, setBuyerAiValuation] = useState(null);
+  const [generatingValuation, setGeneratingValuation] = useState(false);
 
   // Similar Properties
   const [similarProperties, setSimilarProperties] = useState([]);
@@ -64,7 +67,7 @@ const PropertyDetails = () => {
     fetchPropertyData();
   }, [id, userInfo?._id]);
 
-useEffect(() => {
+  useEffect(() => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);
@@ -74,9 +77,9 @@ useEffect(() => {
       });
     }
 
-    // REAL-TIME - Listen for global status changes (works even if user isn't logged in!)
+    // REAL-TIME - Listen for global status changes 
     socket.on('property_status_updated', (data) => {
-      // If the property we are looking at just changed status globally, update UI instantly
+      // If the property looking at just changed status globally, update UI instantly
       if (data.propertyId === id) {
         setProperty((prevProperty) => ({
           ...prevProperty,
@@ -87,7 +90,7 @@ useEffect(() => {
 
     return () => { 
       socket.off('receive_message'); 
-      socket.off('property_status_updated'); // Clean up listener
+      socket.off('property_status_updated'); 
       if (userInfo) socket.disconnect(); 
     };
   }, [userInfo, id]);
@@ -123,6 +126,24 @@ useEffect(() => {
     if (!userInfo) return setFavStatus('Please login to save favorites.');
     try { await api.post('/favorites', { propertyId: property._id }); setFavStatus('Saved to favorites!'); } 
     catch (err) { setFavStatus(err.response?.data?.message || 'Failed to save'); }
+  };
+
+  const fetchPropertyValuation = async () => {
+    setGeneratingValuation(true);
+    try {
+      const { data } = await api.post('/properties/predict-price', {
+        city: property.location.city,
+        type: property.type,
+        bedrooms: property.bedrooms || 0,
+        bathrooms: property.bathrooms || 0,
+        area: property.area
+      });
+      setBuyerAiValuation(data.estimatedPrice);
+    } catch (err) {
+      alert("AI Valuation engine is currently unavailable.");
+    } finally {
+      setGeneratingValuation(false);
+    }
   };
 
   const handleScheduleVisit = async (e) => {
@@ -191,7 +212,28 @@ useEffect(() => {
               </span>
             )}
           </div>
-          <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>Rs. {property.price.toLocaleString()}</h2>
+
+          {/* AI Valuator UI */}
+          <div style={{ textAlign: 'right' }}>
+            <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>Rs. {property.price.toLocaleString()}</h2>
+            
+            {!buyerAiValuation ? (
+              <button 
+                onClick={fetchPropertyValuation} 
+                disabled={generatingValuation} 
+                style={{ marginTop: '10px', padding: '6px 12px', backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+              >
+                {generatingValuation ? 'Analyzing Market...' : '🤖 Check AI Fair Value'}
+              </button>
+            ) : (
+              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '6px', textAlign: 'left' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI Estimated Fair Market Value:</p>
+                <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--accent-color)', fontWeight: 'bold' }}>
+                  Rs. {Math.round(buyerAiValuation).toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {property.images && property.images.length > 0 && (
@@ -311,6 +353,7 @@ useEffect(() => {
         {/* REVIEWS SECTION */}
         <div ref={reviewsSectionRef} style={{ marginTop: '50px', borderTop: '2px solid var(--border-color)', paddingTop: '30px' }}>
           <h2 style={{ margin: '0 0 20px 0', color: 'var(--text-main)' }}>Seller Ratings & Reviews</h2>
+          
           {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
             <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
               <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>

@@ -4,6 +4,7 @@ import Order from '../models/Order.js';
 import Favorite from '../models/Favorite.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import axios from 'axios';
 
 // @desc    Get all properties (with search, filter, pagination)
 // @route   GET /api/properties
@@ -54,6 +55,33 @@ export const getProperties = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get AI Property Valuation
+// @route   POST /api/properties/predict-price
+// @access  Private
+export const getAIValuation = async (req, res) => {
+  try {
+    const { city, type, bedrooms, bathrooms, area } = req.body;
+
+    if (!city || !type || area === undefined) {
+      return res.status(400).json({ message: 'Missing required property details for AI valuation.' });
+    }
+
+    // Proxy request to Python FastAPI microservice on port 8000
+    const pythonResponse = await axios.post('http://127.0.0.1:8000/predict', {
+      city,
+      type: type.toLowerCase(),
+      bedrooms: Number(bedrooms) || 0,
+      bathrooms: Number(bathrooms) || 0,
+      area: Number(area)
+    });
+
+    res.json({ estimatedPrice: pythonResponse.data.estimated_price });
+  } catch (error) {
+    console.error("FastAPI Error:", error.message);
+    res.status(500).json({ message: 'AI Valuation Engine is currently unavailable.' });
   }
 };
 
@@ -149,12 +177,28 @@ export const updateProperty = async (req, res) => {
       if (notifications.length > 0) await Notification.insertMany(notifications);
     }
     
+    // Force status back to 'Pending Review' upon any edit
+    const updatedData = { ...req.body };
+    
+    // If the seller makes the edit, force to 'Pending Review'. 
+    // (Admins bypass this so they can fix typos without taking the listing offline)
+    if (req.user.role !== 'admin') {
+      updatedData.status = 'Pending Review';
+    }
+
     // Update the document
     const updatedProperty = await Property.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updatedData },
       { new: true } // Returns the newly updated document
     );
+
+    // REAL-TIME - Instantly broadcast the status change so buyers looking at the page know it's under review
+    const io = req.app.get('io');
+    if (io && req.user.role !== 'admin') {
+      io.emit('property_status_updated', { propertyId: property._id, status: 'Pending Review' });
+    }
+
     res.json(updatedProperty);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -180,7 +224,7 @@ export const getSellerAnalytics = async (req, res) => {
     const orders = await Order.find({ sellerId: req.user._id });
     const messages = await Message.find({ receiverId: req.user._id });
 
-    // Calculate Summary Totals
+    // Calculate Summary Totals (Safely fallback to 0 if 'views' is missing on old properties)
     const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
     const totalSalesRevenue = orders
@@ -218,7 +262,7 @@ export const getSellerAnalytics = async (req, res) => {
       listings: listingPerformance
     });
   } catch (error) {
-    console.error("Analytics Error:", error);
+    console.error("Analytics Error:", error); // Logs exact reason to terminal if it ever fails again
     res.status(500).json({ message: error.message });
   }
 };
@@ -372,9 +416,9 @@ export const getLifestyleMatches = async (req, res) => {
 
     // Commute Mapping
     if (commute === 'transit') {
-      query['valuationMetrics.distanceToTransport'] = { $lte: 2 }; // Very close to transport
+      query['valuationMetrics.distanceToTransport'] = { $lte: 2 }; 
     } else if (commute === 'drive') {
-      query['valuationMetrics.parkingSpaces'] = { $gte: 1 }; // Must have parking
+      query['valuationMetrics.parkingSpaces'] = { $gte: 1 }; 
     }
 
     // Execute the dynamically built query

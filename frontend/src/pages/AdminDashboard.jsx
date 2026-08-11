@@ -20,11 +20,39 @@ const AdminDashboard = () => {
       navigate('/login');
       return;
     }
+
     const fetchAdminData = async () => {
       try {
-        const [usersRes, propertiesRes] = await Promise.all([api.get('/admin/users'), api.get('/admin/properties')]);
-        setUsers(usersRes.data); setProperties(propertiesRes.data); setLoading(false);
-      } catch (err) { setError(err.response?.data?.message || 'Failed to load data'); setLoading(false); }
+        const [usersRes, propertiesRes] = await Promise.all([
+          api.get('/admin/users'), 
+          api.get('/admin/properties')
+        ]);
+        
+        // Fetch AI valuation for each property to compare
+        const propertiesWithValuation = await Promise.all(
+          propertiesRes.data.map(async (p) => {
+            try {
+              const res = await api.post('/properties/predict-price', {
+                city: p.location.city,
+                type: p.type,
+                bedrooms: p.bedrooms || 0,
+                bathrooms: p.bathrooms || 0,
+                area: p.area
+              });
+              return { ...p, aiPrice: res.data.estimatedPrice };
+            } catch {
+              return { ...p, aiPrice: null }; // Fallback if AI engine fails for a specific row
+            }
+          })
+        );
+
+        setUsers(usersRes.data); 
+        setProperties(propertiesWithValuation); 
+        setLoading(false);
+      } catch (err) { 
+        setError(err.response?.data?.message || 'Failed to load data'); 
+        setLoading(false); 
+      }
     };
     fetchAdminData();
   }, [navigate]);
@@ -50,7 +78,7 @@ const AdminDashboard = () => {
     } catch (error) { alert('Failed'); }
   };
 
-  if (loading) return <h2 style={{ color: 'var(--text-main)' }}>Loading...</h2>;
+  if (loading) return <h2 style={{ color: 'var(--text-main)' }}>Loading System Analysis...</h2>;
   if (error) return <h2 style={{ color: 'var(--danger-color)' }}>{error}</h2>;
 
   const overlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
@@ -90,67 +118,89 @@ const AdminDashboard = () => {
 
       {currentTab === 'properties' && (
         <section>
-          <h1 style={{ margin: '0 0 5px 0' }}>Manage Properties</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Click a row to view full details.</p>
+          <h1 style={{ margin: '0 0 5px 0' }}>Manage Properties & Market Audit</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Compare Listed Prices against the AI Valuation model.</p>
           <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', cursor: 'pointer' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '15px' }}>Title</th><th style={{ padding: '15px' }}>Seller</th><th style={{ padding: '15px' }}>Price</th><th style={{ padding: '15px' }}>Action</th>
+                  <th style={{ padding: '15px' }}>Title</th>
+                  <th style={{ padding: '15px' }}>Seller</th>
+                  <th style={{ padding: '15px' }}>Listed Price</th>
+                  <th style={{ padding: '15px' }}>AI Valuation</th>
+                  <th style={{ padding: '15px' }}>Market Audit</th>
+                  <th style={{ padding: '15px' }}>System Action</th>
                 </tr>
               </thead>
               <tbody>
-                {properties.map(prop => (
-                  <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <td style={{ padding: '15px' }}>{prop.title}</td><td style={{ padding: '15px' }}>{prop.sellerId?.name || 'Unknown'}</td>
-                    <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{prop.price.toLocaleString()}</td>
-                    <td style={{ padding: '15px' }}>
-                    <span style={{ 
-                        backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
-                        color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' 
-                    }}>
-                        {prop.status}
-                    </span>
-                    
-                    {prop.status === 'Pending Review' && (
-                        <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
-                        <button 
-                            onClick={async (e) => {
-                            e.stopPropagation(); 
-                            try {
-                                await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
-                                // Instantly update the local state array
-                                setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
-                            } catch (err) {
-                                alert('Failed to approve property.');
-                            }
-                            }} 
-                            style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                        >
-                            Approve
-                        </button>
+                {properties.map(prop => {
+                  // Calculate Variance
+                  const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15; // 15% above market
+                  const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85; // 15% below market
+                  
+                  return (
+                    <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '15px' }}>{prop.title}</td>
+                      <td style={{ padding: '15px' }}>{prop.sellerId?.name || 'Unknown'}</td>
+                      
+                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{prop.price.toLocaleString()}</td>
+                      
+                      {/* AI Price Column */}
+                      <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--text-main)' }}>
+                        {prop.aiPrice ? `Rs. ${Math.round(prop.aiPrice).toLocaleString()}` : 'N/A'}
+                      </td>
+                      
+                      {/* Market Audit Status */}
+                      <td style={{ padding: '15px' }}>
+                        {prop.aiPrice && (
+                          <span style={{ 
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold',
+                            backgroundColor: isOverpriced ? 'rgba(239, 68, 68, 0.1)' : isUnderpriced ? 'rgba(243, 156, 18, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                            color: isOverpriced ? 'var(--danger-color)' : isUnderpriced ? '#f39c12' : 'var(--accent-color)'
+                          }}>
+                            {isOverpriced ? '⚠️ Overpriced' : isUnderpriced ? '📉 Underpriced' : '✅ Fair Value'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '15px' }}>
+                        <span style={{ 
+                            backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
+                            color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', display: 'block', width: 'fit-content'
+                        }}>
+                            {prop.status}
+                        </span>
                         
-                        <button 
-                            onClick={async (e) => {
-                            e.stopPropagation(); 
-                            try {
-                                await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
-                                // Instantly update the local state array
-                                setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
-                            } catch (err) {
-                                alert('Failed to reject property.');
-                            }
-                            }} 
-                            style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                        >
-                            Reject
-                        </button>
-                        </div>
-                    )}
-                    </td>
-                  </tr>
-                ))}
+                        {prop.status === 'Pending Review' && (
+                            <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
+                            <button 
+                                onClick={async (e) => {
+                                e.stopPropagation(); 
+                                try {
+                                    await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
+                                    setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
+                                } catch (err) { alert('Failed to approve property.'); }
+                                }} 
+                                style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                            >Approve</button>
+                            
+                            <button 
+                                onClick={async (e) => {
+                                e.stopPropagation(); 
+                                try {
+                                    await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
+                                    setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
+                                } catch (err) { alert('Failed to reject property.'); }
+                                }} 
+                                style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                            >Reject</button>
+                            </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -183,8 +233,18 @@ const AdminDashboard = () => {
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Property Details</h2>
             {selectedProperty.images?.length > 0 ? <img src={selectedProperty.images[0]} alt="Prop" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '15px' }} /> : <div style={{ width: '100%', height: '200px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
+            
             <h3 style={{ margin: '0 0 10px 0' }}>{selectedProperty.title}</h3>
-            <p style={{ color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem', marginTop: 0 }}>Rs.{selectedProperty.price.toLocaleString()}</p>
+            
+            <div style={{ backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+              <p style={{ color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 0 5px 0' }}>Listed: Rs.{selectedProperty.price.toLocaleString()}</p>
+              {selectedProperty.aiPrice && (
+                <p style={{ color: 'var(--text-main)', fontWeight: 'bold', fontSize: '1rem', margin: 0 }}>
+                  AI Est: Rs.{Math.round(selectedProperty.aiPrice).toLocaleString()}
+                </p>
+              )}
+            </div>
+
             <p><strong>Seller:</strong> {selectedProperty.sellerId?.name || 'Unknown'}</p>
             <p><strong>Description:</strong> {selectedProperty.description}</p>
             <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>

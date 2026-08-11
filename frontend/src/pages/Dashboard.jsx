@@ -15,9 +15,11 @@ const Dashboard = () => {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [visits, setVisits] = useState([]);
   
-  // Custom UI State Management
   const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+  const [generatingPrice, setGeneratingPrice] = useState(false);
+  const [aiEstimatedPrice, setAiEstimatedPrice] = useState(null);
 
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null); 
@@ -29,7 +31,6 @@ const Dashboard = () => {
     bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
 
-  // Helper to show inline messages safely
   const showMessage = (text, type = 'success') => {
     setValidationMsg({ text, type });
     setTimeout(() => setValidationMsg({ text: '', type: '' }), 4000);
@@ -60,6 +61,30 @@ const Dashboard = () => {
       setVisits(visits.map(v => v._id === id ? data : v));
       showMessage(`Visit request ${status.toLowerCase()} successfully.`);
     } catch (err) { showMessage('Failed to update visit status', 'error'); }
+  };
+
+  const handleGenerateValuation = async () => {
+    if (!formData.city || !formData.area) {
+      showMessage("Please fill in City, Property Type, and Sqft first.", "error");
+      return;
+    }
+    setGeneratingPrice(true);
+    try {
+      const { data } = await api.post('/properties/predict-price', {
+        city: formData.city,
+        type: formData.type,
+        bedrooms: Number(formData.bedrooms) || 0,
+        bathrooms: Number(formData.bathrooms) || 0,
+        area: Number(formData.area)
+      });
+      
+      setAiEstimatedPrice(Math.round(data.estimatedPrice));
+      showMessage("✨ AI Suggested Price generated successfully!", "success");
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to generate AI valuation.", "error");
+    } finally {
+      setGeneratingPrice(false);
+    }
   };
 
   const handleDeleteProperty = (id) => {
@@ -129,7 +154,9 @@ const Dashboard = () => {
       await api.post('/properties', payload);
       showMessage('Property listed successfully! It is pending admin review.');
       setFormData({ title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house', bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: '' });
-      setImages([]); setUploading(false); fetchMyProperties();
+      setImages([]); 
+      setAiEstimatedPrice(null); // Clear the AI price after posting
+      setUploading(false); fetchMyProperties();
     } catch (err) { showMessage('Error: ' + (err.response?.data?.message || err.message), 'error'); setUploading(false); }
   };
 
@@ -138,7 +165,6 @@ const Dashboard = () => {
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', color: 'var(--text-main)', position: 'relative' }}>
       
-      {/* Global Inline Notification Banner */}
       {validationMsg.text && (
         <div style={{ padding: '15px', marginBottom: '20px', borderRadius: '8px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `1px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold' }}>
           {validationMsg.text}
@@ -149,11 +175,6 @@ const Dashboard = () => {
       <section>
         <h1 style={{ margin: '0 0 5px 0' }}>Add New Property</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Fill out the details below to list a new property.</p>
-        {validationMsg.text && (
-          <div style={{ padding: '15px', marginBottom: '20px', borderRadius: '8px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `1px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold' }}>
-            {validationMsg.text}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ gridColumn: '1 / -1' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Basic Info</h4></div>
@@ -161,8 +182,34 @@ const Dashboard = () => {
           <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
             <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
           </select>
-          <input type="number" name="price" placeholder="Current Price (Rs.)" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
-          <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
+          
+          {/* AI Valuator UI Side Display */}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input 
+              type="number" 
+              name="price" 
+              placeholder="Current Price (Rs.)" 
+              value={formData.price} 
+              onChange={e => setFormData({...formData, price: e.target.value})} 
+              required 
+              style={{ flex: 1, minWidth: '200px', padding: '12px', borderRadius: '6px' }} 
+            />
+            <button 
+              type="button" 
+              onClick={handleGenerateValuation} 
+              disabled={generatingPrice} 
+              style={{ padding: '12px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+            >
+              {generatingPrice ? 'Calculating...' : '✨ Generate AI Price'}
+            </button>
+            {aiEstimatedPrice && (
+              <div style={{ padding: '10px 15px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '6px', color: 'var(--accent-color)', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                AI Suggestion: Rs. {aiEstimatedPrice.toLocaleString()}
+              </div>
+            )}
+          </div>
+
+          <input type="number" name="previousPrice" placeholder="Previous Price (Rs. Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '12px', borderRadius: '6px', gridColumn: '1 / -1' }} />
           <textarea name="description" placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '12px', gridColumn: '1 / -1', minHeight: '100px', borderRadius: '6px' }} />
 
           <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Details</h4></div>
@@ -172,7 +219,6 @@ const Dashboard = () => {
           <input type="number" name="bedrooms" placeholder="Beds" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
           <input type="number" name="bathrooms" placeholder="Baths" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px' }} />
 
-          {/* VALUATION SECTION */}
           <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Valuation Metrics</h4></div>
           <input type="number" name="yearBuilt" placeholder="Year Built" value={formData.yearBuilt} onChange={e => setFormData({...formData, yearBuilt: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
           <input type="number" step="0.1" name="distanceToTransport" placeholder="Dist. to Transport (km)" value={formData.distanceToTransport} onChange={e => setFormData({...formData, distanceToTransport: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }} />
@@ -323,7 +369,6 @@ const Dashboard = () => {
         </section>
       )}
 
-      {/* Custom Global Confirmation Modal */}
       {confirmDialog.isOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '400px', border: '1px solid var(--border-color)', textAlign: 'center' }}>

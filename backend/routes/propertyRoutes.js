@@ -1,6 +1,7 @@
 import express from 'express';
 import { getProperties, createProperty, deleteProperty, getPropertyById, updateProperty, getSellerProperties, getSellerAnalytics, getPropertiesBySellerId, getRecommendations, getSimilarProperties, getLifestyleMatches, updatePropertyStatus } from '../controllers/propertyController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
+import { getAIValuation } from '../controllers/propertyController.js';
 
 const router = express.Router();
 
@@ -33,5 +34,7 @@ router.route('/:id')
   .get(getPropertyById)
   .put(protect, authorize('seller', 'admin'), updateProperty)
   .delete(protect, authorize('seller', 'admin'), deleteProperty);
+
+router.post('/predict-price', protect, getAIValuation);
 
 export default router;
