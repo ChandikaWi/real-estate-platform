@@ -11,8 +11,13 @@ const EditProperty = () => {
   const [generatingPrice, setGeneratingPrice] = useState(false);
   const [aiEstimatedPrice, setAiEstimatedPrice] = useState(null);
 
+  // Image Upload States
+  const [images, setImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
   const [formData, setFormData] = useState({
-    title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
+    title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house', listingType: 'buy',
     bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
 
@@ -22,13 +27,13 @@ const EditProperty = () => {
         const { data } = await api.get(`/properties/${id}`);
         setFormData({
           title: data.title,
-          listingType: data.listingType || 'buy',
           description: data.description,
           price: data.price,
           previousPrice: data.previousPrice || '',
           city: data.location.city,
           address: data.location.address,
           type: data.type,
+          listingType: data.listingType || 'buy', // Inherit buy/rent status
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
           area: data.area,
@@ -37,13 +42,18 @@ const EditProperty = () => {
           parkingSpaces: data.valuationMetrics?.parkingSpaces || '',
           conditionScore: data.valuationMetrics?.conditionScore || ''
         });
+        
+        // Save existing images
+        setExistingImages(data.images || []);
         setLoading(false);
-      } catch (err) { alert('Failed to load property'); navigate('/dashboard/listings'); }
+      } catch (err) { 
+        alert('Failed to load property'); 
+        navigate('/dashboard/listings'); 
+      }
     };
     fetchProperty();
   }, [id, navigate]);
 
-  // AI Valuation Generation
   const handleGenerateValuation = async () => {
     if (!formData.city || !formData.area) {
       alert("Please fill in City, Property Type, and Sqft first.");
@@ -69,19 +79,32 @@ const EditProperty = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUploading(true);
+    
     try {
+      let uploadedImageUrls = existingImages; // Default to current images
+
+      // If seller selected new images, upload them to replace the old ones
+      if (images.length > 0) {
+        const imageFormData = new FormData();
+        for (let i = 0; i < images.length; i++) imageFormData.append('images', images[i]);
+        const uploadRes = await api.post('/upload', imageFormData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        uploadedImageUrls = uploadRes.data;
+      }
+
       const payload = {
         title: formData.title,
-        listingType: formData.listingType,
         description: formData.description,
         price: Number(formData.price),
         previousPrice: formData.previousPrice ? Number(formData.previousPrice) : null,
         location: { city: formData.city, address: formData.address },
         type: formData.type,
+        listingType: formData.listingType,
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area),
-        status: 'Pending Review',
+        status: 'Pending Review', 
+        images: uploadedImageUrls, 
         valuationMetrics: {
           yearBuilt: Number(formData.yearBuilt),
           distanceToTransport: Number(formData.distanceToTransport),
@@ -89,12 +112,15 @@ const EditProperty = () => {
           conditionScore: Number(formData.conditionScore)
         }
       };
+      
       await api.put(`/properties/${id}`, payload);
       
-      // Alert Message
       alert('Property updated successfully! It has been submitted to the Admin for review before going live.');
       navigate('/dashboard/listings');
-    } catch (err) { alert('Update failed'); }
+    } catch (err) { 
+      alert('Update failed. Please try again.'); 
+      setUploading(false);
+    }
   };
 
   if (loading) return <h2 style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text-main)' }}>Loading...</h2>;
@@ -104,19 +130,22 @@ const EditProperty = () => {
       <h1 style={{ marginBottom: '5px' }}>Edit Property</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Note: Saving changes will temporarily hide your listing until an admin approves the updates.</p>
       
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
         
         {/* Basic Info */}
         <div style={{ gridColumn: '1 / -1' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Basic Info</h4></div>
         <input type="text" placeholder="Title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
-        <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
-          <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
-        </select>
-        <select name="listingType" value={formData.listingType} onChange={e => setFormData({...formData, listingType: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
-          <option value="buy">For Sale</option>
-          <option value="rent">For Rent (Monthly)</option>
-        </select>
-        {/* DYNAMIC PRICING & AI UI */}
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
+            <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
+          </select>
+          <select value={formData.listingType} onChange={e => setFormData({...formData, listingType: e.target.value})} style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
+            <option value="buy">For Sale</option><option value="rent">For Rent</option>
+          </select>
+        </div>
+        
+        {/* AI Valuator UI */}
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input 
             type="number" 
@@ -127,7 +156,6 @@ const EditProperty = () => {
             style={{ flex: 1, minWidth: '200px', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} 
           />
           
-          {/* ONLY show the AI Valuator if the user is Selling */}
           {formData.listingType === 'buy' && (
             <>
               <button 
@@ -158,15 +186,39 @@ const EditProperty = () => {
         <input type="number" placeholder="Beds" value={formData.bedrooms} onChange={e => setFormData({...formData, bedrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
         <input type="number" placeholder="Baths" value={formData.bathrooms} onChange={e => setFormData({...formData, bathrooms: e.target.value})} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
 
-        {/* ML / Valuation Metrics */}
+        {/* Valuation Metrics */}
         <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}><h4 style={{ margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Valuation Metrics (ML Data)</h4></div>
         <input type="number" placeholder="Year Built" value={formData.yearBuilt} onChange={e => setFormData({...formData, yearBuilt: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
         <input type="number" step="0.1" placeholder="Dist. to Transport (km)" value={formData.distanceToTransport} onChange={e => setFormData({...formData, distanceToTransport: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
         <input type="number" placeholder="Parking Spaces" value={formData.parkingSpaces} onChange={e => setFormData({...formData, parkingSpaces: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
         <input type="number" placeholder="Condition Score (1-10)" value={formData.conditionScore} onChange={e => setFormData({...formData, conditionScore: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
 
-        <button type="submit" style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-          Submit Updates for Review
+        {/* Image Upload Section */}
+        <div style={{ gridColumn: '1 / -1', marginTop: '10px', backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0 }}>Update Property Images</h4>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Currently has {existingImages.length} image(s). Leave blank to keep existing.
+            </span>
+          </div>
+          <input 
+            type="file" 
+            multiple 
+            accept="image/*" 
+            onChange={(e) => { 
+              if (e.target.files.length > 5) { 
+                alert("Maximum 5 pictures allowed."); 
+                e.target.value = ''; 
+              } else { 
+                setImages(e.target.files); 
+              } 
+            }} 
+            style={{ padding: '8px', width: '100%', color: 'var(--text-main)' }} 
+          />
+        </div>
+
+        <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '15px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '6px', cursor: uploading ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem', marginTop: '10px' }}>
+          {uploading ? 'Uploading updates...' : 'Submit Updates for Review'}
         </button>
       </form>
     </div>
