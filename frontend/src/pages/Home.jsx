@@ -8,6 +8,8 @@ const Home = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Search & Filter States
+  const [listingType, setListingType] = useState('buy'); // 'buy' or 'rent'
   const [keyword, setKeyword] = useState('');
   const [type, setType] = useState('');
   const [minPrice, setMinPrice] = useState('');
@@ -33,6 +35,7 @@ const Home = () => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams();
+      if (listingType) queryParams.append('listingType', listingType);
       if (keyword) queryParams.append('keyword', keyword);
       if (type) queryParams.append('type', type);
       if (minPrice) queryParams.append('minPrice', minPrice);
@@ -54,17 +57,13 @@ const Home = () => {
 
   useEffect(() => {
     fetchProperties(page);
-  }, [page, sort]);
+  }, [page, sort, listingType]); // listingType to auto-fetch when switching Buy/Rent
 
   useEffect(() => {
-    fetchProperties(page);
-
-    // Fetch Personalized Recommendations if user is a buyer
     if (userInfo && userInfo.role === 'buyer') {
       const fetchRecommendations = async () => {
         setLoadingRecs(true);
         try {
-          // Pass token in headers for this specific protected route
           const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
           const { data } = await api.get('/properties/recommendations', config);
           setRecommendations(data);
@@ -76,8 +75,7 @@ const Home = () => {
       };
       fetchRecommendations();
     }
-  }, [page, sort]); // Also depends on userInfo conceptually, but runs on mount
-
+  }, []); 
 
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
@@ -112,411 +110,342 @@ const Home = () => {
     else setTimeout(() => fetchProperties(1), 0);
   };
 
-  // Lightbox Navigation Functions
   const openLightbox = (images, index) => {
-    if (images && images.length > 0) {
-      setLightbox({ isOpen: true, images, currentIndex: index });
-    }
+    if (images && images.length > 0) setLightbox({ isOpen: true, images, currentIndex: index });
   };
-
   const closeLightbox = () => setLightbox({ isOpen: false, images: [], currentIndex: 0 });
-
-  const nextImage = (e) => {
-    e.stopPropagation();
-    setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length }));
-  };
-
-  const prevImage = (e) => {
-    e.stopPropagation();
-    setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length }));
-  };
+  const nextImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length })); };
+  const prevImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length })); };
 
   if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'var(--danger-color)' }}><h2>{error}</h2></div>;
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 20px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-main)', transition: 'background-color 0.3s ease' }}>
       
-      {/* Hero Section Header */}
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '3rem', fontWeight: '800', margin: '0 0 15px 0', color: 'var(--text-main)', letterSpacing: '-1px' }}>
-          Discover Your New Home
-        </h1>
-        <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>
-          Explore the most extensive collection of premium real estate, apartments, and land tailored to your lifestyle.
-        </p>
-      </div>
-
-      {/* Floating Search Bar */}
-      <form onSubmit={handleSearch} style={{ 
-        display: 'flex', gap: '15px', flexWrap: 'wrap', 
-        backgroundColor: 'var(--bg-card)', 
-        padding: '20px', 
-        borderRadius: '16px', 
-        marginBottom: '50px', 
-        alignItems: 'center',
-        boxShadow: 'var(--shadow-lg)',
-        border: '1px solid var(--border-color)'
-      }}>
+      {/* HERO SECTION */}
+      <div style={{ position: 'relative', width: '100%', height: '80vh', minHeight: '650px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         
-        <input type="text" placeholder="Location, neighborhood, or zip..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ padding: '14px', flex: '2', minWidth: '200px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+        <video autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}>
+          <source src="https://cdn.pixabay.com/video/2020/02/16/32463-392186835_large.mp4" type="video/mp4" />
+        </video>
         
-        <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
-          <option value="">Property Type</option>
-          <option value="house">Houses</option>
-          <option value="apartment">Apartments</option>
-          <option value="land">Land</option>
-        </select>
+        {/* Dynamic Dark Overlay for Text Readability */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1 }} />
 
-        <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ padding: '14px', width: '90px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
-        <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
-        <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ padding: '14px', flex: '1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+        {/* Hero Content */}
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 20px', width: '100%', maxWidth: '1000px' }}>
+          <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '800', margin: '0 0 20px 0', color: '#ffffff', letterSpacing: '-1px', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+            Elevate Your Way of Living
+          </h1>
+          <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: '#e5e7eb', maxWidth: '700px', margin: '0 auto 40px auto', textShadow: '0 2px 5px rgba(0,0,0,0.5)', lineHeight: 1.6 }}>
+            Powered by AI. Verified by Experts. Discover Sri Lanka's most premium homes, apartments, and land seamlessly.
+          </p>
 
-        <div style={{ display: 'flex', gap: '10px', flex: '1' }}>
-          <button type="submit" style={{ flex: '1', padding: '14px', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>Search</button>
-          <button type="button" onClick={clearFilters} style={{ padding: '14px', backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Clear</button>
+          {/* SEARCH CONSOLE */}
+          <div style={{ 
+            background: 'rgba(255, 255, 255, 0.1)', 
+            backdropFilter: 'blur(16px)', 
+            WebkitBackdropFilter: 'blur(16px)', 
+            border: '1px solid rgba(255, 255, 255, 0.2)', 
+            borderRadius: '24px', 
+            padding: '10px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            
+            {/* Buy / Rent Toggle Tabs */}
+            <div style={{ display: 'flex', gap: '10px', padding: '10px 20px' }}>
+              <button onClick={() => setListingType('buy')} style={{ padding: '8px 24px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', backgroundColor: listingType === 'buy' ? 'var(--primary-color)' : 'transparent', color: listingType === 'buy' ? '#fff' : '#e5e7eb' }}>Buy</button>
+              <button onClick={() => setListingType('rent')} style={{ padding: '8px 24px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', backgroundColor: listingType === 'rent' ? 'var(--primary-color)' : 'transparent', color: listingType === 'rent' ? '#fff' : '#e5e7eb' }}>Rent</button>
+            </div>
+
+            <form onSubmit={handleSearch} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px' }}>
+              <input type="text" placeholder="Location or neighborhood..." value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ flex: '2', minWidth: '200px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem' }} />
+              <select value={type} onChange={(e) => setType(e.target.value)} style={{ flex: '1', minWidth: '130px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem', cursor: 'pointer', backgroundColor: '#fff', color: '#333' }}>
+                <option value="">Any Type</option>
+                <option value="house">Houses</option>
+                <option value="apartment">Apartments</option>
+                <option value="land">Land</option>
+              </select>
+              <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ width: '80px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem' }} />
+              <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ flex: '1', minWidth: '120px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem' }} />
+              <button type="submit" style={{ flex: '1', minWidth: '120px', padding: '16px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'transform 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                Search
+              </button>
+            </form>
+          </div>
         </div>
-      </form>
-
-      {/* Sorting & Results Count */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>
-        <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Latest Market Listings</h3>
-        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', fontWeight: '600', color: 'var(--text-main)', cursor: 'pointer' }}>
-          <option value="newest">Sort by: Newest First</option>
-          <option value="price_low">Sort by: Price (Low to High)</option>
-          <option value="price_high">Sort by: Price (High to Low)</option>
-        </select>
       </div>
 
-      {/* Property Grid */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}><h2 style={{ color: 'var(--text-muted)' }}>Loading premium listings...</h2></div>
-      ) : properties.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}><h3 style={{ color: 'var(--text-muted)' }}>No properties match your exact criteria. Try adjusting your filters.</h3></div>
-      ) : (
-        <>
-          <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-            {properties.map((property) => (
-              <div key={property._id} style={{ 
-                backgroundColor: 'var(--bg-card)', 
-                borderRadius: '16px', 
-                overflow: 'hidden', 
-                boxShadow: 'var(--shadow-md)', 
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
-              onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-              >
-                
-                {/* MULTI-IMAGE GALLERY UI */}
-                <div style={{ padding: '10px' }}>
-                  {/* Main Large Image */}
-                  <div 
-                    onClick={() => openLightbox(property.images, 0)}
-                    style={{ position: 'relative', height: '220px', cursor: 'pointer', overflow: 'hidden', borderRadius: '8px', backgroundColor: 'var(--bg-hover)' }}
-                  >
+      {/* VALUE PROPOSITION BANNER */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', maxWidth: '1400px', margin: '-40px auto 60px auto', padding: '0 20px', position: 'relative', zIndex: 3 }}>
+        {[
+          { icon: '🤖', title: 'AI Price Predictions', desc: 'Ensure you never overpay with our 90%+ accurate XGBoost valuation model.' },
+          { icon: '🎯', title: 'Smart Lifestyle Match', desc: 'Take our quiz and let our algorithm curate properties matching your exact vibe.' },
+          { icon: '🛡️', title: 'Verified Sellers', desc: 'Secure offline transactions with fully vetted property owners and admins.' }
+        ].map((feature, i) => (
+          <div key={i} style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'flex-start', gap: '20px', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+            <div style={{ fontSize: '2.5rem', backgroundColor: 'var(--bg-hover)', width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px' }}>{feature.icon}</div>
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-main)', fontSize: '1.2rem' }}>{feature.title}</h3>
+              <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.5, fontSize: '0.95rem' }}>{feature.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Content Container */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', boxSizing: 'border-box' }}>
+        
+        {/* Sorting & Results Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '2rem', fontWeight: '800' }}>
+            {listingType === 'buy' ? 'Properties for Sale' : 'Properties for Rent'}
+          </h2>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', fontWeight: '600', color: 'var(--text-main)', cursor: 'pointer', outline: 'none', boxShadow: 'var(--shadow-sm)' }}>
+            <option value="newest">Sort by: Newest Arrivals</option>
+            <option value="price_low">Sort by: Price (Low to High)</option>
+            <option value="price_high">Sort by: Price (High to Low)</option>
+          </select>
+        </div>
+
+        {/* PREMIUM PROPERTY GRID */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '100px 0' }}><h2 style={{ color: 'var(--text-muted)' }}>Loading premium listings...</h2></div>
+        ) : properties.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '100px 0', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+            <h3 style={{ color: 'var(--text-main)', marginBottom: '10px' }}>No exact matches found</h3>
+            <p style={{ color: 'var(--text-muted)' }}>Try broadening your search or switching between Buy and Rent.</p>
+            <button onClick={clearFilters} style={{ marginTop: '15px', padding: '10px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Clear Filters</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+              {properties.map((property) => (
+                <div key={property._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}>
+                  
+                  {/* Image Container with Badges */}
+                  <div style={{ position: 'relative', height: '240px', cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--bg-hover)' }} onClick={() => navigate(`/property/${property._id}`)}>
                     {property.images && property.images.length > 0 ? (
-                      <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
+                      <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
                     )}
-                    <span style={{ position: 'absolute', top: '10px', left: '10px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'capitalize', boxShadow: 'var(--shadow-sm)' }}>
-                      {property.type}
-                    </span>
-                    {property.sellerId?.isVerified && (
-                      <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-                        ✓ Verified
+                    
+                    {/* Glass Badges */}
+                    <div style={{ position: 'absolute', top: '15px', left: '15px', display: 'flex', gap: '8px' }}>
+                      <span style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#111', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                        {property.type}
                       </span>
-                    )}
-                  </div>
-
-                  {/* Small Thumbnail Images (Up to 4 more) */}
-                  {property.images && property.images.length > 1 && (
-                    <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
-                      {property.images.slice(1, 5).map((img, idx) => (
-                        <div 
-                          key={idx} 
-                          onClick={(e) => { e.stopPropagation(); openLightbox(property.images, idx + 1); }}
-                          style={{ flex: 1, height: '60px', borderRadius: '4px', overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-color)' }}
-                        >
-                          <img src={img} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.2s' }} onMouseOver={e => e.currentTarget.style.opacity = '0.8'} onMouseOut={e => e.currentTarget.style.opacity = '1'} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Card Content */}
-                <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  <div style={{ marginBottom: '15px', flex: 1 }}>
-                    <h3 style={{ margin: '10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {property.title}
-                    </h3>
-                    
-                    {/* Dynamic Pricing */}
-                    {property.previousPrice && property.previousPrice !== property.price ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</span>
-                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Rs. {property.previousPrice.toLocaleString()}</span>
-                        <span style={{ backgroundColor: property.price < property.previousPrice ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: property.price < property.previousPrice ? 'var(--accent-color)' : 'var(--danger-color)', padding: '2px 6px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                          {property.price < property.previousPrice ? '↓' : '↑'} {Math.round(Math.abs(((property.price - property.previousPrice) / property.previousPrice) * 100))}%
+                      {property.sellerId?.isVerified && (
+                        <span style={{ backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+                          ✓ Verified
                         </span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</div>
-                    )}
-                    
-                    <p style={{ margin: '10px 0 0 0', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      📍 {property.location.city}
-                    </p>
-                  </div>
-
-                  {/* Specs Footer */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', marginBottom: '15px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                    <span>🛏️ {property.bedrooms} Beds</span>
-                    <span>🛁 {property.bathrooms} Baths</span>
-                    <span>📐 {property.area} sqft</span>
-                  </div>
-                  
-                  <button onClick={() => navigate(`/property/${property._id}`)} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', borderRadius: '8px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer' }}>
-                    View Property Details
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '50px', gap: '20px' }}>
-              <button 
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))} disabled={page === 1}
-                style={{ padding: '12px 24px', backgroundColor: page === 1 ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === 1 ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
-              >
-                &larr; Previous
-              </button>
-              
-              <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>Page {page} of {totalPages}</span>
-
-              <button 
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} disabled={page === totalPages}
-                style={{ padding: '12px 24px', backgroundColor: page === totalPages ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === totalPages ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
-              >
-                Next &rarr;
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* RECOMMENDATION ENGINE */}
-      {userInfo && userInfo.role === 'buyer' && (
-        <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)' }}>
-          <h2 style={{ fontSize: '2rem', margin: '0 0 5px 0', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            ✨ Recommended for You
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '25px', fontSize: '1.1rem' }}>Based on your favorites, budget patterns, and search history.</p>
-          
-          {loadingRecs ? (
-            <div style={{ display: 'flex', gap: '20px', overflowX: 'hidden' }}>
-              {[1, 2, 3, 4].map(n => <div key={n} style={{ minWidth: '300px', height: '250px', backgroundColor: 'var(--bg-hover)', borderRadius: '12px', animation: 'pulse 1.5s infinite' }} />)}
-            </div>
-          ) : recommendations.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)' }}>Start exploring and saving properties to see personalized recommendations here!</p>
-          ) : (
-            <div style={{ 
-              display: 'flex', 
-              gap: '25px', 
-              overflowX: 'auto', 
-              paddingBottom: '20px',
-              scrollbarWidth: 'none', // Firefox
-              msOverflowStyle: 'none', // IE
-              WebkitOverflowScrolling: 'none',
-              scrollSnapType: 'x mandatory'
-            }}>
-              {recommendations.map(prop => (
-                <div key={`rec-${prop._id}`} 
-                  onClick={() => { navigate(`/property/${prop._id}`); window.scrollTo(0, 0); }}
-                  style={{ 
-                    minWidth: '320px', 
-                    flex: '0 0 auto', 
-                    backgroundColor: 'var(--bg-card)', 
-                    borderRadius: '12px', 
-                    overflow: 'hidden', 
-                    border: '1px solid var(--border-color)', 
-                    cursor: 'pointer',
-                    scrollSnapAlign: 'start',
-                    boxShadow: 'var(--shadow-md)',
-                    transition: 'transform 0.3s ease'
-                  }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.03)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div style={{ position: 'relative', height: '200px' }}>
-                    {prop.images?.length > 0 ? (
-                      <img src={prop.images[0]} alt="Recommend" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)' }} />
-                    )}
-                    <div style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '5px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', backdropFilter: 'blur(4px)' }}>
-                      {Math.round((Math.random() * 15) + 80)}% Match
+                      )}
                     </div>
                   </div>
-                  <div style={{ padding: '15px' }}>
-                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
-                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: '800', fontSize: '1.2rem' }}>Rs. {prop.price.toLocaleString()}</p>
-                    <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>📍 {prop.location.city} • {prop.type}</p>
+
+                  {/* Card Content */}
+                  <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <div style={{ marginBottom: 'auto' }}>
+                      {/* Price Section */}
+                      {property.previousPrice && property.previousPrice !== property.price ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '1.6rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</span>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '1rem' }}>Rs. {property.previousPrice.toLocaleString()}</span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '800', marginBottom: '8px' }}>Rs. {property.price.toLocaleString()}</div>
+                      )}
+                      
+                      <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem', color: 'var(--text-main)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {property.title}
+                      </h3>
+                      <p style={{ margin: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        {property.location.address}, {property.location.city}
+                      </p>
+                    </div>
+
+                    {/* Specs Footer */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '20px', marginTop: '20px', borderTop: '1px solid var(--border-color)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>🛏️ {property.bedrooms} Beds</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>🛁 {property.bathrooms} Baths</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>📐 {property.area} sqft</span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* LIFESTYLE MATCHING SYSTEM */}
-      {userInfo && userInfo.role === 'buyer' && (
-        <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)', paddingBottom: '50px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '2.2rem', margin: '0 0 10px 0', color: 'var(--text-main)' }}>
-              🎯 Find Your Perfect Lifestyle Match
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
-              Tired of endless filtering? Tell us how you live, and our predictive engine will find properties that match your exact vibe.
-            </p>
-          </div>
-
-          {!lifestyleMatches ? (
-            /* The Quiz UI */
-            <div style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', maxWidth: '800px', margin: '0 auto' }}>
-              
-              <div style={{ marginBottom: '30px' }}>
-                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>1. What is your ideal neighborhood vibe?</h3>
-                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'urban'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.vibe === 'urban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'urban' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    🏙️ Busy & Urban
-                  </button>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'suburban'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.vibe === 'suburban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'suburban' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    🏡 Quiet & Suburban
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '30px' }}>
-                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>2. What is your top priority right now?</h3>
-                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'family'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'family' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'family' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    👨‍👩‍👧‍👦 Family & Schools
-                  </button>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'nightlife'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'nightlife' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'nightlife' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    🍸 Nightlife & Social
-                  </button>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'budget'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.priority === 'budget' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'budget' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    💰 Maximum Affordability
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '40px' }}>
-                <h3 style={{ margin: '0 0 15px 0', color: 'var(--text-main)' }}>3. How do you prefer to commute?</h3>
-                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'transit'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.commute === 'transit' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'transit' ? 'rgba(243, 156, 18, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    🚆 Public Transit
-                  </button>
-                  <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'drive'})} style={{ flex: 1, padding: '15px', borderRadius: '8px', border: `2px solid ${lifestyleAnswers.commute === 'drive' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'drive' ? 'rgba(243, 156, 18, 0.1)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
-                    🚗 I Drive Everywhere
-                  </button>
-                </div>
-              </div>
-
-              <button 
-                onClick={handleLifestyleSubmit} 
-                disabled={loadingLifestyle}
-                style={{ width: '100%', padding: '16px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: loadingLifestyle ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: 'var(--shadow-md)' }}
-              >
-                {loadingLifestyle ? 'Analyzing Data...' : 'Find My Matches 🚀'}
-              </button>
-            </div>
-
-          ) : (
-            /* The Results UI */
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Your Curated Lifestyle Matches</h3>
-                <button onClick={resetLifestyleQuiz} style={{ padding: '8px 16px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  ↻ Retake Quiz
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '60px', gap: '20px' }}>
+                <button onClick={() => setPage((prev) => Math.max(prev - 1, 1))} disabled={page === 1} style={{ padding: '12px 24px', backgroundColor: page === 1 ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === 1 ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+                  &larr; Previous
+                </button>
+                <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>Page {page} of {totalPages}</span>
+                <button onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} disabled={page === totalPages} style={{ padding: '12px 24px', backgroundColor: page === totalPages ? 'var(--bg-hover)' : 'var(--primary-color)', color: page === totalPages ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+                  Next &rarr;
                 </button>
               </div>
+            )}
+          </>
+        )}
 
-              {lifestyleMatches.length === 0 ? (
-                <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>We couldn't find a perfect match right now, but check back soon as new properties are added daily!</p>
+        {/* ROLE-BASED DYNAMIC SECTIONS */}
+
+        {/* If user is NOT logged in or is a Guest */}
+        {!userInfo && (
+          <div style={{ marginTop: '80px', marginBottom: '80px', padding: '60px', backgroundColor: 'var(--primary-color)', borderRadius: '24px', textAlign: 'center', color: '#fff', boxShadow: '0 20px 40px rgba(37, 99, 235, 0.2)' }}>
+            <h2 style={{ fontSize: '2.5rem', margin: '0 0 15px 0' }}>Unlock AI Lifestyle Matching</h2>
+            <p style={{ fontSize: '1.2rem', maxWidth: '600px', margin: '0 auto 30px auto', opacity: 0.9 }}>Join thousands of Sri Lankans finding their perfect homes using our predictive Machine Learning algorithms.</p>
+            <button onClick={() => navigate('/login')} style={{ padding: '16px 40px', backgroundColor: '#fff', color: 'var(--primary-color)', border: 'none', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>Create Free Account</button>
+          </div>
+        )}
+
+        {/* If user is a SELLER */}
+        {userInfo?.role === 'seller' && (
+          <div style={{ marginTop: '80px', marginBottom: '80px', padding: '60px', background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%)', borderRadius: '24px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '30px' }}>
+            <div style={{ flex: 1, minWidth: '300px' }}>
+              <h2 style={{ fontSize: '2.5rem', margin: '0 0 15px 0', color: 'var(--text-main)' }}>Price Your Property Perfectly</h2>
+              <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Stop guessing. Use our cutting-edge XGBoost AI model to generate highly accurate market valuations before you list your property.</p>
+            </div>
+            <button onClick={() => navigate('/dashboard/add')} style={{ padding: '16px 40px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '800', cursor: 'pointer', boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)' }}>Post a Listing Now</button>
+          </div>
+        )}
+
+        {/* If user is a BUYER (Recommendations & Quiz) */}
+        {userInfo?.role === 'buyer' && (
+          <>
+            {/* Recommendations */}
+            <div style={{ marginTop: '100px', paddingTop: '40px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' }}>
+                <div>
+                  <h2 style={{ fontSize: '2rem', margin: '0 0 5px 0', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>✨ Recommended for You</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '1.1rem' }}>Based on your favorites, budget patterns, and search history.</p>
+                </div>
+              </div>
+              
+              {loadingRecs ? (
+                <div style={{ display: 'flex', gap: '20px', overflowX: 'hidden' }}>
+                  {[1, 2, 3, 4].map(n => <div key={n} style={{ minWidth: '300px', height: '250px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />)}
+                </div>
+              ) : recommendations.length === 0 ? (
+                <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Start exploring and saving properties to see personalized recommendations here!</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-                  {lifestyleMatches.map((property) => (
-                    <div key={`life-${property._id}`} 
-                      style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}
-                    >
+                <div style={{ display: 'flex', gap: '25px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {recommendations.map(prop => (
+                    <div key={`rec-${prop._id}`} onClick={() => { navigate(`/property/${prop._id}`); window.scrollTo(0, 0); }} style={{ minWidth: '320px', flex: '0 0 auto', backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.03)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                       <div style={{ position: 'relative', height: '200px' }}>
-                        {property.images && property.images.length > 0 ? (
-                          <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
-                        )}
-                        <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-                          100% Lifestyle Match
-                        </span>
+                        {prop.images?.length > 0 ? <img src={prop.images[0]} alt="Recommend" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)' }} />}
+                        <div style={{ position: 'absolute', top: '15px', right: '15px', backgroundColor: 'rgba(0,0,0,0.8)', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '800', backdropFilter: 'blur(4px)' }}>
+                          {Math.round((Math.random() * 15) + 80)}% Match
+                        </div>
                       </div>
-                      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                        <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{property.title}</h3>
-                        <div style={{ fontSize: '1.4rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</div>
-                        <p style={{ margin: '10px 0 15px 0', color: 'var(--text-muted)' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
-                        <button onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: 'auto' }}>
-                          View Details
-                        </button>
+                      <div style={{ padding: '20px' }}>
+                        <div style={{ color: 'var(--text-main)', fontWeight: '800', fontSize: '1.4rem', marginBottom: '5px' }}>Rs. {prop.price.toLocaleString()}</div>
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{prop.title}</h4>
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {prop.location.city} • <span style={{ textTransform: 'capitalize' }}>{prop.type}</span></p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Lifestyle Quiz */}
+            <div style={{ marginTop: '80px', marginBottom: '80px', paddingTop: '60px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                <h2 style={{ fontSize: '2.5rem', margin: '0 0 10px 0', color: 'var(--text-main)' }}>🎯 Find Your Perfect Lifestyle Match</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Tired of endless filtering? Tell us how you live, and our predictive engine will find properties that match your exact vibe.</p>
+              </div>
+
+              {!lifestyleMatches ? (
+                <div style={{ backgroundColor: 'var(--bg-card)', padding: '50px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)', maxWidth: '900px', margin: '0 auto' }}>
+                  {/* Row 1 */}
+                  <div style={{ marginBottom: '40px' }}>
+                    <h3 style={{ margin: '0 0 20px 0', color: 'var(--text-main)', fontSize: '1.3rem' }}>1. What is your ideal neighborhood vibe?</h3>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'urban'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.vibe === 'urban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'urban' ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🏙️ Busy & Urban</button>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'suburban'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.vibe === 'suburban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'suburban' ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🏡 Quiet & Suburban</button>
+                    </div>
+                  </div>
+
+                  {/* Row 2 */}
+                  <div style={{ marginBottom: '40px' }}>
+                    <h3 style={{ margin: '0 0 20px 0', color: 'var(--text-main)', fontSize: '1.3rem' }}>2. What is your top priority right now?</h3>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'family'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.priority === 'family' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'family' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>👨‍👩‍👧‍👦 Family & Schools</button>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'nightlife'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.priority === 'nightlife' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'nightlife' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🍸 Nightlife & Social</button>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, priority: 'budget'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.priority === 'budget' ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.priority === 'budget' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>💰 Max Affordability</button>
+                    </div>
+                  </div>
+
+                  {/* Row 3 */}
+                  <div style={{ marginBottom: '40px' }}>
+                    <h3 style={{ margin: '0 0 20px 0', color: 'var(--text-main)', fontSize: '1.3rem' }}>3. How do you prefer to commute?</h3>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'transit'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.commute === 'transit' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'transit' ? 'rgba(243, 156, 18, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🚆 Public Transit</button>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, commute: 'drive'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.commute === 'drive' ? '#f39c12' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.commute === 'drive' ? 'rgba(243, 156, 18, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🚗 I Drive Everywhere</button>
+                    </div>
+                  </div>
+
+                  <button onClick={handleLifestyleSubmit} disabled={loadingLifestyle} style={{ width: '100%', padding: '20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: loadingLifestyle ? 'wait' : 'pointer', fontWeight: '800', fontSize: '1.2rem', boxShadow: '0 10px 20px rgba(37, 99, 235, 0.3)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                    {loadingLifestyle ? 'Analyzing Data...' : 'Find My Matches 🚀'}
+                  </button>
+                </div>
+              ) : (
+                /* The Quiz Results UI */
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.8rem' }}>Your Curated Lifestyle Matches</h3>
+                    <button onClick={resetLifestyleQuiz} style={{ padding: '10px 20px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>↻ Retake Quiz</button>
+                  </div>
+
+                  {lifestyleMatches.length === 0 ? (
+                    <div style={{ padding: '60px', backgroundColor: 'var(--bg-card)', borderRadius: '16px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem' }}>We couldn't find a perfect match right now, but check back soon!</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+                      {lifestyleMatches.map((property) => (
+                        <div key={`life-${property._id}`} onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                          <div style={{ position: 'relative', height: '220px' }}>
+                            {property.images && property.images.length > 0 ? <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
+                            <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '800', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>⭐ 100% Lifestyle Match</span>
+                          </div>
+                          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '800', marginBottom: '8px' }}>Rs. {property.price.toLocaleString()}</div>
+                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontWeight: '500' }}>{property.title}</h3>
+                            <p style={{ margin: 'auto 0 0 0', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* IMAGE LIGHTBOX MODAL */}
       {lightbox.isOpen && lightbox.images.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          
           <button onClick={closeLightbox} style={{ position: 'absolute', top: '20px', right: '30px', background: 'none', border: 'none', color: '#fff', fontSize: '3rem', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
-          
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%', justifyContent: 'center', padding: '0 20px', boxSizing: 'border-box' }}>
-            
             {lightbox.images.length > 1 && (
-              <button onClick={prevImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>
-                &#8592;
-              </button>
+              <button onClick={prevImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8592;</button>
             )}
-            
-            <img 
-              src={lightbox.images[lightbox.currentIndex]} 
-              alt="Enlarged Property" 
-              style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
-            />
-            
+            <img src={lightbox.images[lightbox.currentIndex]} alt="Enlarged Property" style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
             {lightbox.images.length > 1 && (
-              <button onClick={nextImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>
-                &#8594;
-              </button>
+              <button onClick={nextImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8594;</button>
             )}
           </div>
-          
-          <p style={{ color: '#fff', marginTop: '20px', fontSize: '1.2rem', fontWeight: 'bold' }}>
-            Photo {lightbox.currentIndex + 1} of {lightbox.images.length}
-          </p>
+          <p style={{ color: '#fff', marginTop: '20px', fontSize: '1.2rem', fontWeight: 'bold' }}>Photo {lightbox.currentIndex + 1} of {lightbox.images.length}</p>
         </div>
       )}
     </div>

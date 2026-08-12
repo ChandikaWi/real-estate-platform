@@ -10,16 +10,34 @@ import axios from 'axios';
 // @route   GET /api/properties
 export const getProperties = async (req, res) => {
   try {
-    const { keyword, minPrice, maxPrice, type, bedrooms, page = 1, limit = 10, sort } = req.query;
+    // Extract listingType from the query
+    const { keyword, minPrice, maxPrice, type, bedrooms, listingType, page = 1, limit = 10, sort } = req.query;
 
     let query = { status: 'Active' };
+    let andConditions = []; // Use array to safely combine multiple or queries
 
-    // Search by keyword (title or city)
+    //  Apply Listing Type Filter (Buy vs Rent)
+    if (listingType) {
+      if (listingType === 'buy') {
+        // Safe Fallback - Includes explicitly 'buy' OR legacy properties where the field doesn't exist yet
+        andConditions.push({ $or: [{ listingType: 'buy' }, { listingType: { $exists: false } }] });
+      } else {
+        query.listingType = listingType;
+      }
+    }
+
+    // Apply Keyword Search
     if (keyword) {
-      query.$or = [
-        { title: { $regex: keyword, $options: 'i' } },
-        { 'location.city': { $regex: keyword, $options: 'i' } }
-      ];
+      andConditions.push({
+        $or: [
+          { title: { $regex: keyword, $options: 'i' } },
+          { 'location.city': { $regex: keyword, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     // Filters

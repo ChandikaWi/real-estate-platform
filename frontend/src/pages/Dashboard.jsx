@@ -28,6 +28,7 @@ const Dashboard = () => {
 
   const [formData, setFormData] = useState({
     title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
+    listingType: 'buy',
     bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: ''
   });
 
@@ -149,11 +150,12 @@ const Dashboard = () => {
       const payload = {
         title: formData.title, description: formData.description, price: Number(formData.price), previousPrice: formData.previousPrice ? Number(formData.previousPrice) : null,
         location: { city: formData.city, address: formData.address }, type: formData.type, bedrooms: Number(formData.bedrooms), bathrooms: Number(formData.bathrooms), area: Number(formData.area),
+        listingType: formData.listingType,
         images: uploadedImageUrls, valuationMetrics: { yearBuilt: Number(formData.yearBuilt), distanceToTransport: Number(formData.distanceToTransport), parkingSpaces: Number(formData.parkingSpaces), conditionScore: Number(formData.conditionScore) }
       };
       await api.post('/properties', payload);
       showMessage('Property listed successfully! It is pending admin review.');
-      setFormData({ title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house', bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: '' });
+      setFormData({ title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house', listingType: 'buy', bedrooms: '', bathrooms: '', area: '', yearBuilt: '', distanceToTransport: '', parkingSpaces: '', conditionScore: '' });
       setImages([]); 
       setAiEstimatedPrice(null); // Clear the AI price after posting
       setUploading(false); fetchMyProperties();
@@ -182,30 +184,39 @@ const Dashboard = () => {
           <select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '12px', borderRadius: '6px' }}>
             <option value="house">House</option><option value="apartment">Apartment</option><option value="land">Land</option>
           </select>
-          
-          {/* AI Valuator UI Side Display */}
+          <select name="listingType" value={formData.listingType} onChange={e => setFormData({...formData, listingType: e.target.value})} style={{ padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}>
+            <option value="buy">For Sale</option>
+            <option value="rent">For Rent (Monthly)</option>
+          </select>
+          {/* DYNAMIC PRICING & AI UI */}
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input 
               type="number" 
               name="price" 
-              placeholder="Current Price (Rs.)" 
+              placeholder={formData.listingType === 'rent' ? "Monthly Rent (Rs.)" : "Selling Price (Rs.)"} 
               value={formData.price} 
               onChange={e => setFormData({...formData, price: e.target.value})} 
               required 
               style={{ flex: 1, minWidth: '200px', padding: '12px', borderRadius: '6px' }} 
             />
-            <button 
-              type="button" 
-              onClick={handleGenerateValuation} 
-              disabled={generatingPrice} 
-              style={{ padding: '12px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
-            >
-              {generatingPrice ? 'Calculating...' : '✨ Generate AI Price'}
-            </button>
-            {aiEstimatedPrice && (
-              <div style={{ padding: '10px 15px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '6px', color: 'var(--accent-color)', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                AI Suggestion: Rs. {aiEstimatedPrice.toLocaleString()}
-              </div>
+            
+            {/* ONLY show the AI Valuator if the user is Selling */}
+            {formData.listingType === 'buy' && (
+              <>
+                <button 
+                  type="button" 
+                  onClick={handleGenerateValuation} 
+                  disabled={generatingPrice} 
+                  style={{ padding: '12px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                >
+                  {generatingPrice ? 'Calculating...' : '✨ Generate AI Price'}
+                </button>
+                {aiEstimatedPrice && (
+                  <div style={{ padding: '10px 15px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '6px', color: 'var(--accent-color)', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    AI Suggestion: Rs. {aiEstimatedPrice.toLocaleString()}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
