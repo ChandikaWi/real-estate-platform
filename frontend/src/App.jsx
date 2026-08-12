@@ -4,9 +4,12 @@ import { ThemeProvider, ThemeContext } from './context/ThemeContext';
 import MyVisits from './pages/MyVisits';
 import { useState, useEffect, useRef } from 'react';
 
+// Import Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword'; 
+import ResetPassword from './pages/ResetPassword';  
 import Dashboard from './pages/Dashboard';
 import PropertyDetails from './pages/PropertyDetails';
 import AdminDashboard from './pages/AdminDashboard';
@@ -240,6 +243,11 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              
+              {/* PASSWORD RECOVERY */}
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
+
               <Route path="/property/:id" element={<PropertyDetails />} />
               <Route path="/profile" element={<SidebarLayout><Profile /></SidebarLayout>} />
               <Route path="/buyer/dashboard" element={<SidebarLayout><BuyerDashboard /></SidebarLayout>} />
