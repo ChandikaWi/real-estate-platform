@@ -267,10 +267,27 @@ const Home = () => {
                     </div>
 
                     {/* Specs Footer */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '20px', marginTop: '20px', borderTop: '1px solid var(--border-color)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>🛏️ {property.bedrooms} Beds</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>🛁 {property.bathrooms} Baths</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>📐 {property.area} sqft</span>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: property.type === 'land' ? 'center' : 'space-between', 
+                      paddingTop: '16px', 
+                      marginTop: 'auto', 
+                      borderTop: '1px solid var(--border-color)', 
+                      color: 'var(--text-main)', 
+                      fontWeight: '600', 
+                      fontSize: '0.95rem' 
+                    }}>
+                      {property.type !== 'land' ? (
+                        <>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛏️ {property.bedrooms || 0} Beds</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛁 {property.bathrooms || 0} Baths</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📐 {property.area?.toLocaleString()} sqft</span>
+                        </>
+                      ) : (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
+                          🏞️ Land Area: {property.area?.toLocaleString()} sqft
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

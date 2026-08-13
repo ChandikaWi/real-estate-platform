@@ -11,7 +11,12 @@ const PropertyDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [favStatus, setFavStatus] = useState('');
-  const reviewsSectionRef = useRef(null);
+  
+  // Refs for In-Page Navigation
+  const overviewRef = useRef(null);
+  const specsRef = useRef(null);
+  const reviewsRef = useRef(null);
+  const similarRef = useRef(null);
   
   const [chatHistory, setChatHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
@@ -33,8 +38,12 @@ const PropertyDetails = () => {
   const [buyerAiValuation, setBuyerAiValuation] = useState(null);
   const [generatingValuation, setGeneratingValuation] = useState(false);
 
-  // Similar Properties
   const [similarProperties, setSimilarProperties] = useState([]);
+
+  // INTERACTIVE GALLERY STATES
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [lightbox, setLightbox] = useState({ isOpen: false, index: 0 });
+  const [isZoomed, setIsZoomed] = useState(false); // Controls click-to-zoom in lightbox
 
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
@@ -44,11 +53,7 @@ const PropertyDetails = () => {
         const { data: propData } = await api.get(`/properties/${id}`);
         setProperty(propData);
         
-        // Parallel requests for speed
-        const requests = [
-          api.get(`/properties/${id}/similar`) // Fetch similar properties
-        ];
-
+        const requests = [api.get(`/properties/${id}/similar`)];
         if (propData.sellerId) requests.push(api.get(`/reviews/seller/${propData.sellerId._id}`));
         if (userInfo) requests.push(api.get(`/messages/${id}`));
 
@@ -71,21 +76,13 @@ const PropertyDetails = () => {
     if (userInfo) {
       socket.connect();
       socket.emit('setup', userInfo);
-      
       socket.on('receive_message', (newMessage) => {
         if (newMessage.propertyId._id === id || newMessage.propertyId === id) setChatHistory((prev) => [...prev, newMessage]);
       });
     }
 
-    // REAL-TIME - Listen for global status changes 
     socket.on('property_status_updated', (data) => {
-      // If the property looking at just changed status globally, update UI instantly
-      if (data.propertyId === id) {
-        setProperty((prevProperty) => ({
-          ...prevProperty,
-          status: data.status
-        }));
-      }
+      if (data.propertyId === id) setProperty((prev) => ({ ...prev, status: data.status }));
     });
 
     return () => { 
@@ -97,21 +94,51 @@ const PropertyDetails = () => {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
-  // Auto-scroll to reviews if redirected from the Purchases page
   useEffect(() => {
-    if (!loading && property && location.state?.openReview && reviewsSectionRef.current) {
-      setTimeout(() => {
-        reviewsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Add a brief highlight flash to draw the user's eye to the review box
-        reviewsSectionRef.current.style.transition = 'box-shadow 0.5s';
-        reviewsSectionRef.current.style.boxShadow = '0 0 20px var(--accent-color)';
-        setTimeout(() => {
-          reviewsSectionRef.current.style.boxShadow = 'none';
-        }, 2000);
-      }, 500); // Small delay ensures images/layout have rendered before calculating scroll math
+    if (!loading && property && location.state?.openReview && reviewsRef.current) {
+      setTimeout(() => scrollToSection(reviewsRef), 500);
     }
   }, [loading, property, location.state]);
+
+  // AUTO-SLIDE EFFECT FOR GALLERY
+  useEffect(() => {
+    // Only auto-slide if the lightbox is closed and there are multiple images
+    if (!property || !property.images || property.images.length <= 1 || lightbox.isOpen) return;
+    
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
+    }, 4500); // Changes image every 4.5 seconds
+    
+    return () => clearInterval(interval);
+  }, [property, lightbox.isOpen]);
+
+  const scrollToSection = (ref) => {
+    if (ref && ref.current) {
+      const y = ref.current.getBoundingClientRect().top + window.scrollY - 160; 
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  // GALLERY NAVIGATION HANDLERS
+  const nextImage = (e) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
+  };
+
+  const prevImage = (e) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+  };
+
+  const openLightbox = (index) => {
+    setLightbox({ isOpen: true, index });
+    setIsZoomed(false); 
+  };
+
+  const closeLightbox = () => {
+    setLightbox({ isOpen: false, index: 0 });
+    setIsZoomed(false);
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -132,11 +159,7 @@ const PropertyDetails = () => {
     setGeneratingValuation(true);
     try {
       const { data } = await api.post('/properties/predict-price', {
-        city: property.location.city,
-        type: property.type,
-        bedrooms: property.bedrooms || 0,
-        bathrooms: property.bathrooms || 0,
-        area: property.area
+        city: property.location.city, type: property.type, bedrooms: property.bedrooms || 0, bathrooms: property.bathrooms || 0, area: property.area
       });
       setBuyerAiValuation(data.estimatedPrice);
     } catch (err) {
@@ -150,7 +173,7 @@ const PropertyDetails = () => {
     e.preventDefault();
     try {
       await api.post('/visits', { propertyId: property._id, date: visitDate, timeSlot });
-      setVisitMessage('Visit requested! Check your dashboard for updates.');
+      setVisitMessage('Visit requested! Check dashboard for updates.');
       setVisitDate(''); setTimeSlot('');
     } catch (err) { setVisitMessage(err.response?.data?.message || 'Failed to schedule visit.'); }
   };
@@ -188,9 +211,9 @@ const PropertyDetails = () => {
 
   const renderStars = (rating) => [...Array(5)].map((_, i) => (<span key={i} style={{ color: i < rating ? '#f1c40f' : 'var(--border-color)', fontSize: '1.2rem' }}>★</span>));
 
-  if (loading) return <div style={{ maxWidth: '1000px', margin: '50px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading property details...</h2></div>;
-  if (error) return <h2 style={{ color: 'var(--danger-color)' }}>{error}</h2>;
-  if (!property) return <h2 style={{ color: 'var(--text-main)' }}>Property not found.</h2>;
+  if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading premium details...</h2></div>;
+  if (error) return <h2 style={{ color: 'var(--danger-color)', textAlign: 'center', marginTop: '100px' }}>{error}</h2>;
+  if (!property) return <h2 style={{ color: 'var(--text-main)', textAlign: 'center', marginTop: '100px' }}>Property not found.</h2>;
 
   const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : 0;
   const isOwner = userInfo && userInfo._id === property.sellerId._id;
@@ -198,289 +221,337 @@ const PropertyDetails = () => {
   const myExistingReview = reviews.find(r => r.buyerId._id === userInfo?._id);
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px', color: 'var(--text-main)' }}>
-      <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', marginBottom: '20px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: 0 }}>&larr; Back</button>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '30px 20px', color: 'var(--text-main)' }}>
       
-      <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <h1 style={{ margin: 0 }}>{property.title}</h1>
-            {/* LIFECYCLE BADGE */}
-            {property.status !== 'Active' && (
-              <span style={{ backgroundColor: 'var(--danger-color)', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                {property.status}
-              </span>
-            )}
-          </div>
-
-          {/* AI Valuator UI */}
-          <div style={{ textAlign: 'right' }}>
-            <h2 style={{ margin: 0, color: 'var(--accent-color)' }}>Rs. {property.price.toLocaleString()}</h2>
-            
-            {!buyerAiValuation ? (
-              <button 
-                onClick={fetchPropertyValuation} 
-                disabled={generatingValuation} 
-                style={{ marginTop: '10px', padding: '6px 12px', backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
-              >
-                {generatingValuation ? 'Analyzing Market...' : '🤖 Check AI Fair Value'}
-              </button>
-            ) : (
-              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '6px', textAlign: 'left' }}>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI Estimated Fair Market Value:</p>
-                <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--accent-color)', fontWeight: 'bold' }}>
-                  Rs. {Math.round(buyerAiValuation).toLocaleString()}
-                </p>
-              </div>
-            )}
+      {/* Header Section */}
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: 0, display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '15px', transition: 'opacity 0.2s' }} onMouseOver={e => e.currentTarget.style.opacity = '0.7'} onMouseOut={e => e.currentTarget.style.opacity = '1'}>
+          &larr; Back to search
+        </button>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+          <div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+              <span style={{ backgroundColor: 'var(--primary-color)', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', boxShadow: 'var(--shadow-sm)' }}>{property.type}</span>
+              <span style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase' }}>For {property.listingType === 'rent' ? 'Rent' : 'Sale'}</span>
+              {property.status !== 'Active' && <span style={{ backgroundColor: 'var(--danger-color)', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', boxShadow: 'var(--shadow-sm)' }}>{property.status}</span>}
+            </div>
+            <h1 style={{ margin: '0 0 10px 0', fontSize: 'clamp(2rem, 3vw, 2.5rem)', fontWeight: '800', lineHeight: '1.2' }}>{property.title}</h1>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {property.location.address}, {property.location.city}</p>
           </div>
         </div>
+      </div>
 
-        {property.images && property.images.length > 0 && (
-          <div style={{ marginTop: '20px', display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-            {property.images.map((imgUrl, index) => (
-              <img key={index} src={imgUrl} alt="Gallery" style={{ height: '300px', width: 'auto', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
-            ))}
+      {/* INTERACTIVE SLIDER & THUMBNAILS */}
+      {property.images && property.images.length > 0 ? (
+        <div style={{ marginBottom: '40px' }}>
+          {/* Main Hero Slider */}
+          <div style={{ position: 'relative', width: '100%', height: 'clamp(300px, 55vh, 600px)', borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            
+            <img 
+              src={property.images[currentImageIndex]} 
+              alt="Property Visual" 
+              onClick={() => openLightbox(currentImageIndex)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in', transition: 'opacity 0.3s ease-in-out' }} 
+            />
+
+            {/* In-Picture Navigation Arrows */}
+            {property.images.length > 1 && (
+              <>
+                <button 
+                  onClick={prevImage} 
+                  style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '50px', height: '50px', fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', transition: 'background 0.2s', backdropFilter: 'blur(5px)' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#fff'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.8)'}
+                >&#8592;</button>
+                <button 
+                  onClick={nextImage} 
+                  style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '50px', height: '50px', fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', transition: 'background 0.2s', backdropFilter: 'blur(5px)' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#fff'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.8)'}
+                >&#8594;</button>
+              </>
+            )}
+
+            {/* Picture Counter Badge */}
+            <div style={{ position: 'absolute', bottom: '20px', right: '20px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 'bold', backdropFilter: 'blur(5px)' }}>
+              {currentImageIndex + 1} / {property.images.length}
+            </div>
           </div>
-        )}
 
-        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+          {/* Thumbnail Strip */}
+          {property.images.length > 1 && (
+            <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', marginTop: '20px', paddingBottom: '10px', scrollbarWidth: 'none' }}>
+              {property.images.map((img, idx) => (
+                <div 
+                  key={idx} 
+                  onClick={() => setCurrentImageIndex(idx)}
+                  style={{ minWidth: '120px', height: '80px', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', border: currentImageIndex === idx ? '3px solid var(--primary-color)' : '3px solid transparent', opacity: currentImageIndex === idx ? 1 : 0.6, transition: 'all 0.2s ease' }}
+                >
+                  <img src={img} alt={`Thumbnail ${idx+1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ height: '300px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)', marginBottom: '40px' }}>
+          <h3 style={{ color: 'var(--text-muted)' }}>No images available</h3>
+        </div>
+      )}
+
+      {/* In-Page Sticky Navigation Bar */}
+      <div style={{ position: 'sticky', top: '70px', zIndex: 90, backgroundColor: 'rgba(var(--bg-card-rgb), 0.9)', backdropFilter: 'blur(10px)', padding: '15px 0', borderBottom: '1px solid var(--border-color)', marginBottom: '40px', display: 'flex', gap: '25px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        {[
+          { label: 'Overview', ref: overviewRef },
+          { label: 'Specifications', ref: specsRef },
+          { label: 'Reviews', ref: reviewsRef },
+          { label: 'Similar Properties', ref: similarRef }
+        ].map((item) => (
+          <button key={item.label} onClick={() => scrollToSection(item.ref)} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '700', fontSize: '1.05rem', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 2-COLUMN LAYOUT */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '50px', alignItems: 'flex-start' }}>
+        
+        {/* LEFT COLUMN */}
+        <div style={{ flex: '1 1 650px', display: 'flex', flexDirection: 'column', gap: '50px' }}>
+          <div ref={overviewRef}>
+            <div style={{ display: 'flex', gap: '20px', paddingBottom: '30px', borderBottom: '1px solid var(--border-color)', marginBottom: '30px', flexWrap: 'wrap' }}>
+              {property.type !== 'land' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ fontSize: '1.8rem', padding: '12px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px' }}>🛏️</div><div><p style={{ margin: 0, fontWeight: '800', fontSize: '1.3rem' }}>{property.bedrooms || 0}</p><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>Bedrooms</p></div></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ fontSize: '1.8rem', padding: '12px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px' }}>🛁</div><div><p style={{ margin: 0, fontWeight: '800', fontSize: '1.3rem' }}>{property.bathrooms || 0}</p><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>Bathrooms</p></div></div>
+                </>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ fontSize: '1.8rem', padding: '12px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px' }}>📐</div><div><p style={{ margin: 0, fontWeight: '800', fontSize: '1.3rem' }}>{property.area?.toLocaleString()}</p><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>{property.type === 'land' ? 'Plot Area (sqft)' : 'Square Feet'}</p></div></div>
+            </div>
+            <h3 style={{ fontSize: '1.6rem', marginBottom: '15px' }}>About this property</h3>
+            <p style={{ lineHeight: '1.8', color: 'var(--text-muted)', fontSize: '1.1rem', whiteSpace: 'pre-line' }}>{property.description}</p>
+          </div>
           
-          {/* LEFT COLUMN */}
-          <div>
-            <h3>Description</h3>
-            <p style={{ lineHeight: '1.6', color: 'var(--text-muted)' }}>{property.description}</p>
-            
-            <h3>Property Details</h3>
-            <ul style={{ listStyle: 'none', padding: 0, lineHeight: '2', color: 'var(--text-main)' }}>
-              <li><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{property.type}</span></li>
-              <li><strong>Location:</strong> {property.location.address}, {property.location.city}</li>
-              <li><strong>Size:</strong> {property.area} sqft</li>
-              <li><strong>Bedrooms:</strong> {property.bedrooms}</li>
-              <li><strong>Bathrooms:</strong> {property.bathrooms}</li>
-            </ul>
-            
+          <div ref={specsRef}>
             {property.valuationMetrics && (
               <>
-                <h3>Valuation Data</h3>
-                <ul style={{ listStyle: 'none', padding: 0, lineHeight: '2', backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  <li><strong>Year Built:</strong> {property.valuationMetrics.yearBuilt || 'N/A'}</li>
-                  <li><strong>Distance to Transport:</strong> {property.valuationMetrics.distanceToTransport ? `${property.valuationMetrics.distanceToTransport} km` : 'N/A'}</li>
-                  <li><strong>Parking Spaces:</strong> {property.valuationMetrics.parkingSpaces || 'N/A'}</li>
-                  <li><strong>Condition Score:</strong> {property.valuationMetrics.conditionScore ? `${property.valuationMetrics.conditionScore}/10` : 'N/A'}</li>
-                </ul>
+                <h3 style={{ fontSize: '1.6rem', marginBottom: '25px' }}>Property Specifications</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                  <div style={{ padding: '20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--shadow-sm)' }}><span style={{ fontSize: '1.8rem' }}>🏗️</span><div><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Year Built</p><p style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem' }}>{property.valuationMetrics.yearBuilt || 'N/A'}</p></div></div>
+                  <div style={{ padding: '20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--shadow-sm)' }}><span style={{ fontSize: '1.8rem' }}>🚆</span><div><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Transit Distance</p><p style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem' }}>{property.valuationMetrics.distanceToTransport ? `${property.valuationMetrics.distanceToTransport} km` : 'N/A'}</p></div></div>
+                  <div style={{ padding: '20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--shadow-sm)' }}><span style={{ fontSize: '1.8rem' }}>🚗</span><div><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Parking Spaces</p><p style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem' }}>{property.valuationMetrics.parkingSpaces || 'N/A'}</p></div></div>
+                  <div style={{ padding: '20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--shadow-sm)' }}><span style={{ fontSize: '1.8rem' }}>✨</span><div><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Condition Score</p><p style={{ margin: 0, fontWeight: '900', color: 'var(--primary-color)', fontSize: '1.1rem' }}>{property.valuationMetrics.conditionScore ? `${property.valuationMetrics.conditionScore}/10` : 'N/A'}</p></div></div>
+                </div>
               </>
             )}
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', height: 'fit-content' }}>
-            <h3>Seller Information</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-              {property.sellerId?.profilePhoto ? (
-                <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-color)' }} />
-              ) : (
-                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                  {property.sellerId?.name?.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div>
-                <p style={{ margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {property.sellerId?.name}
-                  {property.sellerId?.isVerified && <span style={{ backgroundColor: 'rgba(52, 152, 219, 0.1)', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold' }}>✓ Verified</span>}
-                </p>
-                <div style={{ margin: '2px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  {renderStars(Math.round(avgRating))} <span style={{ marginLeft: '5px' }}>({reviews.length === 0 ? 'No reviews' : `${avgRating} / 5`})</span>
-                </div>
-              </div>
-            </div>
-            <button onClick={handleOpenSellerProfile} style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', color: 'var(--primary-color)', border: '2px solid var(--primary-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '15px' }}>View Full Profile</button>
-            
-            {!userInfo ? (
-              <p style={{ color: 'var(--danger-color)', marginTop: '15px' }}>Please <Link to="/login" style={{ color: 'var(--primary-color)' }}>login</Link> to contact the seller.</p>
-            ) : isOwner ? (
-              <p style={{ color: 'var(--accent-color)', marginTop: '15px', fontWeight: 'bold' }}>This is your listing.</p>
-            ) : isAdmin ? (
-              <p style={{ color: '#f39c12', marginTop: '15px', fontWeight: 'bold' }}>Admin View</p>
-            ) : (
-              <div style={{ marginTop: '15px', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', padding: '10px', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Live Chat with Seller</div>
-                <div style={{ height: '250px', overflowY: 'auto', padding: '10px', backgroundColor: 'var(--bg-main)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {chatHistory.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 'auto' }}>No messages yet. Say hello!</p> : (
-                    chatHistory.map((msg, index) => {
-                      const isMe = msg.senderId._id === userInfo._id;
-                      return (
-                        <div key={index} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', backgroundColor: isMe ? 'var(--primary-color)' : 'var(--bg-hover)', color: isMe ? '#fff' : 'var(--text-main)', padding: '8px 12px', borderRadius: '15px', maxWidth: '80%', boxShadow: 'var(--shadow-sm)' }}>
-                          <p style={{ margin: 0, fontSize: '0.9rem' }}>{msg.message}</p>
-                        </div>
-                      )
-                    })
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', borderTop: '1px solid var(--border-color)' }}>
-                  <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." required style={{ flex: 1, padding: '10px', border: 'none', outline: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }} />
-                  <button type="submit" style={{ padding: '10px 15px', backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Send</button>
+          <div ref={reviewsRef} style={{ borderTop: '1px solid var(--border-color)', paddingTop: '40px' }}>
+            <h2 style={{ fontSize: '1.8rem', margin: '0 0 25px 0', color: 'var(--text-main)' }}>Seller Ratings & Reviews</h2>
+            {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)', marginBottom: '40px', boxShadow: 'var(--shadow-md)' }}>
+                <h4 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>
+                {reviewError && <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem', margin: '0 0 15px 0' }}>{reviewError}</p>}
+                <form onSubmit={handleReviewSubmit}>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontWeight: 'bold', marginRight: '15px', fontSize: '1.1rem' }}>Rating:</label>
+                    <select value={reviewFormData.rating} onChange={(e) => setReviewFormData({...reviewFormData, rating: Number(e.target.value)})} style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem', cursor: 'pointer' }}>
+                      <option value="5">5 - Excellent ★★★★★</option><option value="4">4 - Very Good ★★★★</option><option value="3">3 - Average ★★★</option><option value="2">2 - Poor ★★</option><option value="1">1 - Terrible ★</option>
+                    </select>
+                  </div>
+                  <textarea required value={reviewFormData.comment} onChange={(e) => setReviewFormData({...reviewFormData, comment: e.target.value})} placeholder="Share your experience with this seller..." style={{ width: '100%', padding: '18px', boxSizing: 'border-box', minHeight: '120px', borderRadius: '16px', marginBottom: '20px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', resize: 'vertical', fontSize: '1.05rem', fontFamily: 'inherit' }} />
+                  <div style={{ display: 'flex', gap: '15px' }}>
+                    <button type="submit" style={{ padding: '14px 28px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '1.05rem' }}>{editingReviewId ? 'Update Review' : 'Submit Review'}</button>
+                    {editingReviewId && <button type="button" onClick={() => setEditingReviewId(null)} style={{ padding: '14px 28px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '1.05rem' }}>Cancel</button>}
+                  </div>
                 </form>
               </div>
             )}
 
-            {/* Visit Scheduling UI */}
-            {userInfo && userInfo.role === 'buyer' && !isOwner && !isAdmin && property.status === 'Active' && (
-              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-                <h4 style={{ margin: '0 0 15px 0' }}>📅 Schedule a Visit</h4>
-                {visitMessage && <p style={{ fontSize: '0.85rem', color: visitMessage.includes('requested') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{visitMessage}</p>}
-                
-                <form onSubmit={handleScheduleVisit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input type="date" required min={new Date().toISOString().split('T')[0]} value={visitDate} onChange={(e) => setVisitDate(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }} />
-                  <select required value={timeSlot} onChange={(e) => setTimeSlot(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)' }}>
-                    <option value="">Select a Time Slot</option><option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option><option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option><option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option><option value="01:00 PM - 02:00 PM">01:00 PM - 02:00 PM</option><option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option><option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option><option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option>
-                  </select>
-                  <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>Request Viewing</button>
-                </form>
-              </div>
-            )}
-
-            {!isOwner && !isAdmin && (
-              <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
-                <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>Save to Favorites</button>
-                {favStatus && <p style={{ marginTop: '10px', textAlign: 'center', color: favStatus.includes('Saved') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold' }}>{favStatus}</p>}
+            {reviews.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>This seller currently has no reviews.</p> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                {reviews.map((review) => (
+                  <div key={review._id} style={{ backgroundColor: 'transparent', padding: '0', borderBottom: '1px solid var(--border-color)', paddingBottom: '30px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {review.buyerId?.profilePhoto ? (
+                          <img src={review.buyerId.profilePhoto} alt="Buyer" style={{ width: '55px', height: '55px', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.4rem' }}>{review.buyerId?.name?.charAt(0).toUpperCase()}</div>
+                        )}
+                        <div><p style={{ margin: '0 0 4px 0', fontWeight: 'bold', fontSize: '1.15rem' }}>{review.buyerId?.name}</p><div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div>{renderStars(review.rating)}</div><span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{new Date(review.createdAt).toLocaleDateString()}</span></div></div>
+                      </div>
+                      {userInfo && userInfo._id === review.buyerId?._id && (
+                        <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => handleEditClick(review)} style={{ padding: '8px 16px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>Edit</button><button onClick={() => handleDeleteReview(review._id)} style={{ padding: '8px 16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>Delete</button></div>
+                      )}
+                    </div>
+                    <p style={{ marginTop: '20px', color: 'var(--text-main)', lineHeight: '1.7', fontSize: '1.05rem' }}>{review.comment}</p>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
 
-        {/* REVIEWS SECTION */}
-        <div ref={reviewsSectionRef} style={{ marginTop: '50px', borderTop: '2px solid var(--border-color)', paddingTop: '30px' }}>
-          <h2 style={{ margin: '0 0 20px 0', color: 'var(--text-main)' }}>Seller Ratings & Reviews</h2>
-          
-          {userInfo?.role === 'buyer' && (!myExistingReview || editingReviewId) && (
-            <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
-              <h4 style={{ marginTop: 0 }}>{editingReviewId ? 'Edit Your Review' : 'Rate Your Experience'}</h4>
-              {reviewError && <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{reviewError}</p>}
-              <form onSubmit={handleReviewSubmit}>
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Rating:</label>
-                  <select value={reviewFormData.rating} onChange={(e) => setReviewFormData({...reviewFormData, rating: Number(e.target.value)})} style={{ padding: '8px', borderRadius: '4px' }}>
-                    <option value="5">5 - Excellent</option><option value="4">4 - Very Good</option><option value="3">3 - Average</option><option value="2">2 - Poor</option><option value="1">1 - Terrible</option>
-                  </select>
+        {/* RIGHT COLUMN - Sticky Conversion Card */}
+        <div style={{ flex: '1 1 380px', position: 'sticky', top: '160px' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', padding: '35px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
+            <div style={{ marginBottom: '35px' }}>
+              <div style={{ fontSize: '2.4rem', color: 'var(--accent-color)', fontWeight: '900', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Rs. {property.price.toLocaleString()}{property.listingType === 'rent' && <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: 'normal' }}> / mo</span>}</div>
+              {property.listingType !== 'rent' && (
+                <div style={{ marginTop: '20px' }}>
+                  {!buyerAiValuation ? (
+                    <button onClick={fetchPropertyValuation} disabled={generatingValuation} style={{ width: '100%', padding: '16px', backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', border: '2px solid var(--primary-color)', borderRadius: '14px', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '800' }}>{generatingValuation ? 'Analyzing Market Data...' : '🤖 Check AI Fair Value'}</button>
+                  ) : (
+                    <div style={{ padding: '18px', backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '2px solid var(--accent-color)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 0 15px rgba(16, 185, 129, 0.2)' }}><span style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '600' }}>AI Est. Value:</span><span style={{ fontSize: '1.3rem', color: 'var(--accent-color)', fontWeight: '900' }}>Rs. {Math.round(buyerAiValuation).toLocaleString()}</span></div>
+                  )}
                 </div>
-                <textarea required value={reviewFormData.comment} onChange={(e) => setReviewFormData({...reviewFormData, comment: e.target.value})} placeholder="Write your review here..." style={{ width: '100%', padding: '10px', boxSizing: 'border-box', minHeight: '80px', borderRadius: '6px', marginBottom: '10px' }} />
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{editingReviewId ? 'Update Review' : 'Submit Review'}</button>
-                  {editingReviewId && <button type="button" onClick={() => setEditingReviewId(null)} style={{ padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>}
-                </div>
-              </form>
+              )}
             </div>
-          )}
 
-          {reviews.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>This seller currently has no reviews.</p> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {reviews.map((review) => (
-                <div key={review._id} style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {review.buyerId?.profilePhoto ? (
-                        <img src={review.buyerId.profilePhoto} alt="Buyer" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{review.buyerId?.name?.charAt(0).toUpperCase()}</div>
-                      )}
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 'bold' }}>{review.buyerId?.name}</p>
-                        <div style={{ margin: '2px 0' }}>{renderStars(review.rating)}</div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(review.createdAt).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    {userInfo && userInfo._id === review.buyerId?._id && (
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={() => handleEditClick(review)} style={{ padding: '4px 10px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Edit</button>
-                        <button onClick={() => handleDeleteReview(review._id)} style={{ padding: '4px 10px', backgroundColor: 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
-                      </div>
-                    )}
-                  </div>
-                  <p style={{ marginTop: '15px', color: 'var(--text-main)', lineHeight: '1.5' }}>{review.comment}</p>
-                </div>
-              ))}
+            <div style={{ padding: '25px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', marginBottom: '30px' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Listed by</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                {property.sellerId?.profilePhoto ? (
+                  <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>{property.sellerId?.name?.charAt(0).toUpperCase()}</div>
+                )}
+                <div style={{ flex: 1 }}><p style={{ margin: 0, fontWeight: '800', fontSize: '1.2rem' }}>{property.sellerId?.name}</p><div style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>⭐ {avgRating} ({reviews.length} reviews) {property.sellerId?.isVerified && <span style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>• Verified</span>}</div></div>
+              </div>
+              <button onClick={handleOpenSellerProfile} style={{ width: '100%', padding: '12px', marginTop: '20px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>View Seller Profile</button>
             </div>
-          )}
-        </div>
 
-        {/* SIMILAR PROPERTIES SECTION */}
-        <div style={{ marginTop: '50px', paddingTop: '30px', borderTop: '2px solid var(--border-color)' }}>
-          <h2 style={{ fontSize: '1.8rem', margin: '0 0 5px 0', color: 'var(--text-main)' }}>Similar Properties You Might Like</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Based on your current viewing preferences.</p>
-          
-          {similarProperties.length === 0 ? (
-            <div style={{ padding: '30px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
-              <p style={{ color: 'var(--text-muted)', margin: 0 }}>No similar properties available on the market right now.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {similarProperties.map(prop => (
-                <div key={prop._id} 
-                  onClick={() => navigateToProperty(prop._id)}
-                  style={{ minWidth: '280px', flex: '0 0 auto', backgroundColor: 'var(--bg-main)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease' }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div style={{ height: '160px', backgroundColor: 'var(--bg-hover)' }}>
-                    {prop.images?.length > 0 ? (
-                      <img src={prop.images[0]} alt="Similar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+            {!userInfo ? (
+              <div style={{ textAlign: 'center' }}><p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '1.05rem' }}>Login to contact the seller or schedule a visit.</p><button onClick={() => navigate('/login')} style={{ width: '100%', padding: '16px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: '1.1rem', cursor: 'pointer' }}>Sign In / Register</button></div>
+            ) : isOwner ? (
+              <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'rgba(52, 152, 219, 0.1)', borderRadius: '14px', color: 'var(--primary-color)', fontWeight: '800', fontSize: '1.1rem' }}>This is your active listing.</div>
+            ) : isAdmin ? (
+              <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'rgba(243, 156, 18, 0.1)', borderRadius: '14px', color: '#f39c12', fontWeight: '800', fontSize: '1.1rem' }}>Admin Preview Mode</div>
+            ) : (
+              <>
+                <div style={{ marginBottom: '30px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: 'var(--bg-hover)', padding: '15px 20px', fontWeight: 'bold', fontSize: '1rem', borderBottom: '1px solid var(--border-color)' }}>💬 Direct Message</div>
+                  <div style={{ height: '220px', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {chatHistory.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem', margin: 'auto' }}>Send a message to start negotiating!</p> : (
+                      chatHistory.map((msg, index) => {
+                        const isMe = msg.senderId._id === userInfo._id;
+                        return (<div key={index} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', backgroundColor: isMe ? 'var(--primary-color)' : 'var(--bg-card)', color: isMe ? '#fff' : 'var(--text-main)', border: isMe ? 'none' : '1px solid var(--border-color)', padding: '12px 16px', borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', maxWidth: '85%', fontSize: '0.95rem', lineHeight: '1.5', boxShadow: 'var(--shadow-sm)' }}>{msg.message}</div>)
+                      })
                     )}
+                    <div ref={chatEndRef} />
                   </div>
-                  <div style={{ padding: '15px' }}>
-                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
-                    <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.1rem' }}>Rs.{prop.price.toLocaleString()}</p>
-                    <p style={{ margin: '5px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>📍 {prop.location.city} • {prop.bedrooms} Beds</p>
-                  </div>
+                  <form onSubmit={handleSendMessage} style={{ display: 'flex', padding: '12px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}><input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." required style={{ flex: 1, padding: '12px 18px', border: '1px solid var(--border-color)', borderRadius: '24px', outline: 'none', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem' }} /><button type="submit" style={{ marginLeft: '10px', padding: '0 20px', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '24px', cursor: 'pointer', fontWeight: 'bold' }}>Send</button></form>
                 </div>
-              ))}
-            </div>
-          )}
+                {property.status === 'Active' && (
+                  <div style={{ marginBottom: '25px' }}>
+                    <h4 style={{ margin: '0 0 15px 0', fontSize: '1.2rem' }}>📅 Schedule a Viewing</h4>
+                    {visitMessage && <p style={{ fontSize: '0.95rem', color: visitMessage.includes('requested') ? 'var(--accent-color)' : 'var(--danger-color)', margin: '0 0 15px 0', fontWeight: 'bold' }}>{visitMessage}</p>}
+                    <form onSubmit={handleScheduleVisit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}><input type="date" required min={new Date().toISOString().split('T')[0]} value={visitDate} onChange={(e) => setVisitDate(e.target.value)} style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontFamily: 'inherit', fontSize: '1rem' }} /><select required value={timeSlot} onChange={(e) => setTimeSlot(e.target.value)} style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontFamily: 'inherit', fontSize: '1rem' }}><option value="">Select a Time Slot</option><option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option><option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option><option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option><option value="01:00 PM - 02:00 PM">01:00 PM - 02:00 PM</option><option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option><option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option><option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option></select><button type="submit" style={{ width: '100%', padding: '16px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '2px solid var(--text-main)', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '1.05rem' }}>Request Viewing</button></form>
+                  </div>
+                )}
+                <button onClick={handleSaveFavorite} style={{ width: '100%', padding: '16px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '2px solid var(--danger-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '1.05rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>❤️ Save to Favorites</button>
+                {favStatus && <p style={{ marginTop: '15px', textAlign: 'center', color: favStatus.includes('Saved') ? 'var(--accent-color)' : 'var(--danger-color)', fontWeight: 'bold', fontSize: '0.95rem' }}>{favStatus}</p>}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* SELLER PROFILE MODAL */}
-      {showSellerModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)' }}>
-            
-            <div style={{ padding: '30px', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                {property.sellerId?.profilePhoto ? (
-                  <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--bg-card)', boxShadow: 'var(--shadow-sm)' }} />
-                ) : (
-                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '2.5rem', border: '3px solid var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
-                    {property.sellerId?.name?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <h2 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {property.sellerId?.name}
-                    {property.sellerId?.isVerified && <span style={{ backgroundColor: 'rgba(52, 152, 219, 0.1)', color: 'var(--primary-color)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>✓ Verified Seller</span>}
-                  </h2>
-                  <div style={{ marginBottom: '5px', fontSize: '1rem', color: 'var(--text-muted)' }}>
-                    {renderStars(Math.round(avgRating))} 
-                    <span style={{ marginLeft: '8px', fontWeight: 'bold', color: 'var(--text-main)' }}>{avgRating} / 5</span> ({reviews.length} Reviews)
-                  </div>
+      {/* SIMILAR PROPERTIES */}
+      <div ref={similarRef} style={{ marginTop: '80px', paddingTop: '50px', borderTop: '1px solid var(--border-color)' }}>
+        <h2 style={{ fontSize: '2.2rem', margin: '0 0 10px 0', color: 'var(--text-main)' }}>Similar Properties You Might Like</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.15rem' }}>Based on your current viewing preferences.</p>
+        {similarProperties.length === 0 ? (
+          <div style={{ padding: '50px', backgroundColor: 'var(--bg-card)', borderRadius: '20px', textAlign: 'center', border: '1px dashed var(--border-color)' }}><p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '1.15rem' }}>No similar properties available on the market right now.</p></div>
+        ) : (
+          <div style={{ display: 'grid', gap: '35px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+            {similarProperties.map(prop => (
+              <div key={prop._id} onClick={() => navigateToProperty(prop._id)} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease', display: 'flex', flexDirection: 'column' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px)'}} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'}}>
+                <div style={{ height: '220px', backgroundColor: 'var(--bg-hover)', position: 'relative' }}>
+                  {prop.images?.length > 0 ? <img src={prop.images[0]} alt="Similar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>}
+                  <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'rgba(255,255,255,0.95)', color: '#111', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', fontWeight: '900', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: 'var(--shadow-sm)' }}>{prop.type}</span>
+                </div>
+                <div style={{ padding: '25px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '900', marginBottom: '10px' }}>Rs. {prop.price.toLocaleString()} {prop.listingType === 'rent' ? '/ mo' : ''}</div>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '1.15rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{prop.title}</h4>
+                  <p style={{ margin: 'auto 0 0 0', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>📍 {prop.location.city} {prop.type !== 'land' && `• ${prop.bedrooms} Beds`}</p>
                 </div>
               </div>
-              <button onClick={() => setShowSellerModal(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>&times;</button>
-            </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-            <div style={{ padding: '30px' }}>
-              <h3 style={{ margin: '0 0 20px 0' }}>Active Listings ({sellerListings.length})</h3>
-              {loadingSellerListings ? <p style={{ color: 'var(--text-muted)' }}>Loading properties...</p> : sellerListings.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>This seller has no other active listings.</p> : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+      {/* LIGHTBOX MODAL WITH ZOOM */}
+      {lightbox.isOpen && property.images && property.images.length > 0 && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
+          
+          <button onClick={closeLightbox} style={{ position: 'absolute', top: '25px', right: '35px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', fontSize: '1.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s', zIndex: 10001 }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--danger-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&times;</button>
+          
+          <div style={{ position: 'relative', width: '90vw', height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: isZoomed ? 'auto' : 'hidden' }}>
+            {/* Main Lightbox Image (Click to Zoom) */}
+            <img 
+              src={property.images[lightbox.index]} 
+              alt={`View ${lightbox.index + 1}`} 
+              onClick={(e) => { e.stopPropagation(); setIsZoomed(!isZoomed); }}
+              style={{ 
+                maxWidth: isZoomed ? 'none' : '100%', 
+                maxHeight: isZoomed ? 'none' : '100%', 
+                width: isZoomed ? 'auto' : 'auto', 
+                height: isZoomed ? 'auto' : 'auto', 
+                objectFit: 'contain', 
+                cursor: isZoomed ? 'zoom-out' : 'zoom-in', 
+                transform: isZoomed ? 'scale(1.5)' : 'scale(1)', 
+                transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                borderRadius: isZoomed ? '0' : '12px',
+                boxShadow: isZoomed ? 'none' : '0 20px 50px rgba(0,0,0,0.5)'
+              }} 
+            />
+
+            {/* Navigation Arrows */}
+            {!isZoomed && property.images.length > 1 && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, index: (prev.index - 1 + property.images.length) % property.images.length })); }} style={{ position: 'absolute', left: '20px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>&#8592;</button>
+                <button onClick={(e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, index: (prev.index + 1) % property.images.length })); }} style={{ position: 'absolute', right: '20px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>&#8594;</button>
+              </>
+            )}
+          </div>
+
+          <p style={{ color: 'rgba(255,255,255,0.7)', marginTop: '20px', fontSize: '1.1rem', fontWeight: '500', letterSpacing: '1px' }}>
+            {isZoomed ? 'Click to zoom out' : `Photo ${lightbox.index + 1} of ${property.images.length} (Click to zoom)`}
+          </p>
+        </div>
+      )}
+
+      {/* SELLER PROFILE MODAL */}
+      {showSellerModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(5px)' }}>
+          <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: '24px', width: '100%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'sticky', top: 0, zIndex: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
+                {property.sellerId?.profilePhoto ? (
+                  <img src={property.sellerId.profilePhoto} alt="Seller" style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--bg-main)', boxShadow: 'var(--shadow-md)' }} />
+                ) : (
+                  <div style={{ width: '90px', height: '90px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '3rem', border: '4px solid var(--bg-main)', boxShadow: 'var(--shadow-md)' }}>{property.sellerId?.name?.charAt(0).toUpperCase()}</div>
+                )}
+                <div>
+                  <h2 style={{ margin: '0 0 8px 0', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '10px' }}>{property.sellerId?.name}{property.sellerId?.isVerified && <span style={{ backgroundColor: 'rgba(52, 152, 219, 0.1)', color: 'var(--primary-color)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold' }}>✓ Verified</span>}</h2>
+                  <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>{renderStars(Math.round(avgRating))} <span style={{ marginLeft: '10px', fontWeight: 'bold', color: 'var(--text-main)' }}>{avgRating} / 5</span> <span style={{ fontSize: '0.9rem' }}>({reviews.length} Reviews)</span></div>
+                </div>
+              </div>
+              <button onClick={() => setShowSellerModal(false)} style={{ background: 'var(--bg-hover)', border: 'none', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+            </div>
+            <div style={{ padding: '40px' }}>
+              <h3 style={{ margin: '0 0 25px 0', fontSize: '1.5rem' }}>Active Listings ({sellerListings.length})</h3>
+              {loadingSellerListings ? <p style={{ color: 'var(--text-muted)' }}>Loading portfolio...</p> : sellerListings.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>This seller has no other active listings.</p> : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '25px' }}>
                   {sellerListings.map(item => (
-                    <div key={item._id} onClick={() => navigateToProperty(item._id)} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s', backgroundColor: 'var(--bg-main)', boxShadow: 'var(--shadow-sm)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                      {item.images?.length > 0 ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '140px', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>}
-                      <div style={{ padding: '15px' }}>
-                        <h4 style={{ margin: '0 0 5px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</h4>
-                        <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: 'bold' }}>${item.price.toLocaleString()}</p>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.location.city}</p>
+                    <div key={item._id} onClick={() => navigateToProperty(item._id)} style={{ border: '1px solid var(--border-color)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
+                      {item.images?.length > 0 ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '160px', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '160px', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>}
+                      <div style={{ padding: '20px' }}>
+                        <div style={{ color: 'var(--text-main)', fontWeight: '800', fontSize: '1.2rem', marginBottom: '5px' }}>Rs. {item.price.toLocaleString()}</div>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'normal' }}>{item.title}</h4>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>📍 {item.location.city}</p>
                       </div>
                     </div>
                   ))}
