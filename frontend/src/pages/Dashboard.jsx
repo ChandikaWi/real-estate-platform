@@ -28,6 +28,10 @@ const Dashboard = () => {
   const [images, setImages] = useState([]); 
   const [imagePreviews, setImagePreviews] = useState([]);
 
+  // Search and Filter States for Listings Tab
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+
   const [formData, setFormData] = useState({
     title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
     listingType: 'buy',
@@ -176,6 +180,15 @@ const Dashboard = () => {
     return { month: date.toLocaleString('default', { month: 'short' }), day: date.getDate(), year: date.getFullYear(), isPast: date < new Date().setHours(0,0,0,0) };
   };
 
+  // Derived state for filtering properties
+  const filteredProperties = myProperties.filter(prop => {
+    const matchSearch = prop.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        prop.location.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        prop.location.address.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === 'All' ? true : prop.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
   if (!userInfo) return null;
 
   return (
@@ -290,7 +303,7 @@ const Dashboard = () => {
       {/* ACTIVE LISTINGS */}
       {currentTab === 'listings' && (
         <section>
-          <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px' }}>
             <div>
               <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Your Active Portfolio</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', margin: 0 }}>Manage and edit your published properties.</p>
@@ -301,6 +314,31 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* SMART SEARCH & FILTER UI */}
+          {myProperties.length > 0 && (
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                  <option value="All">All Properties</option>
+                  <option value="Active">Active</option>
+                  <option value="Pending Review">Pending Review</option>
+                  <option value="Sold">Sold</option>
+                </select>
+              </div>
+              <div style={{ flex: '2 1 300px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+                <input 
+                  type="text" 
+                  placeholder="Search by title, city, or address..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+                />
+              </div>
+            </div>
+          )}
+
           {myProperties.length === 0 ? (
             <div style={{ padding: '60px 20px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
               <div style={{ fontSize: '4rem', marginBottom: '20px', opacity: 0.5 }}>🏚️</div>
@@ -308,9 +346,13 @@ const Dashboard = () => {
               <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '30px' }}>You haven't published any properties to the market.</p>
               <button onClick={() => navigate('/dashboard/add')} style={{ padding: '14px 32px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer' }}>Create Listing</button>
             </div>
+          ) : filteredProperties.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+              <h3 style={{ color: 'var(--text-muted)' }}>No properties match your current search and filter.</h3>
+            </div>
           ) : (
             <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-              {myProperties.map((prop) => (
+              {filteredProperties.map((prop) => (
                 <div key={prop._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', display: 'flex', flexDirection: 'column' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
                   
                   <div onClick={() => navigate(`/property/${prop._id}`)} style={{ cursor: 'pointer' }}>
@@ -325,7 +367,9 @@ const Dashboard = () => {
                       </span>
                       {prop.status !== 'Active' && (
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-                          <span style={{ backgroundColor: prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '0.9rem' }}>{prop.status}</span>
+                          <span style={{ backgroundColor: prop.status === 'Sold' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '0.9rem' }}>
+                            {prop.status}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -338,7 +382,14 @@ const Dashboard = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', padding: '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', marginTop: 'auto' }}>
-                    <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>Edit</button>
+                    {/* IMMUTABLE SOLD LOGIC */}
+                    {prop.status === 'Sold' ? (
+                      <div style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        🔒 Sold (Locked)
+                      </div>
+                    ) : (
+                      <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>Edit</button>
+                    )}
                     
                     <button 
                       onClick={() => handleDeleteProperty(prop._id)} 
