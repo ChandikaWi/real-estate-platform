@@ -7,15 +7,17 @@ const MyPurchases = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Custom UI States
   const [cancelDialog, setCancelDialog] = useState({ isOpen: false, orderId: null });
   const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
+
+  // Filter and Search States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
 
   useEffect(() => {
     const fetchOrders = async () => {
       try { 
         const { data } = await api.get('/orders/buyer'); 
-        // Sort newest first
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setOrders(sortedData); 
       } 
@@ -48,9 +50,16 @@ const MyPurchases = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) <= 3;
   };
 
+  // Derived state for filtering and searching
+  const filteredOrders = orders.filter(order => {
+    const matchSearch = (order.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (order._id || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === 'All' ? true : order.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading your portfolio...</h2></div>;
 
-  // Calculate Portfolio Summaries
   const completedAmount = orders.filter(o => o.status === 'Completed').reduce((sum, o) => sum + o.amount, 0);
   const pendingCount = orders.filter(o => o.status === 'Pending' || o.status === 'Approved').length;
   const completedCount = orders.filter(o => o.status === 'Completed').length;
@@ -58,7 +67,6 @@ const MyPurchases = () => {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
-      {/* PREMIUM PORTFOLIO HEADER */}
       <div style={{ 
         background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
         border: '1px solid rgba(16, 185, 129, 0.2)', 
@@ -77,7 +85,6 @@ const MyPurchases = () => {
         </div>
       </div>
 
-      {/* FINANCIAL SUMMARY CARDS */}
       {orders.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '40px' }}>
           <div style={{ padding: '20px', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -95,10 +102,35 @@ const MyPurchases = () => {
         </div>
       )}
 
-      {/* Validation Banner */}
       {validationMsg.text && (
         <div style={{ padding: '15px 20px', marginBottom: '30px', borderRadius: '12px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `2px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold', display: 'flex', alignItems: 'center', boxShadow: 'var(--shadow-sm)' }}>
           {validationMsg.text}
+        </div>
+      )}
+
+      {/* SMART SEARCH & FILTER UI */}
+      {orders.length > 0 && (
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+              <option value="All">All Transactions</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div style={{ flex: '2 1 300px' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+            <input 
+              type="text" 
+              placeholder="Search by property title or Order ID..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+            />
+          </div>
         </div>
       )}
 
@@ -111,9 +143,13 @@ const MyPurchases = () => {
             Browse Properties
           </button>
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+          <h3 style={{ color: 'var(--text-muted)' }}>No transactions match your current search and filter.</h3>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {orders.map((order) => {
+          {filteredOrders.map((order) => {
             const isPending = order.status === 'Pending';
             const isCancelled = order.status === 'Cancelled';
             const isCompleted = order.status === 'Completed';
@@ -122,7 +158,6 @@ const MyPurchases = () => {
             return (
               <div key={order._id} style={{ display: 'flex', backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease, box-shadow 0.2s ease', opacity: isCancelled ? 0.7 : 1 }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
                 
-                {/* Image Thumbnail */}
                 <div style={{ width: '160px', backgroundColor: 'var(--bg-hover)', display: 'none', '@media (minWidth: 600px)': { display: 'block' } }}>
                   {order.propertyId?.images?.length > 0 ? (
                     <img src={order.propertyId.images[0]} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -131,7 +166,6 @@ const MyPurchases = () => {
                   )}
                 </div>
 
-                {/* Transaction Details */}
                 <div style={{ flex: 1, padding: '25px', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
                   
                   <div style={{ flex: '1 1 250px' }}>
@@ -143,7 +177,7 @@ const MyPurchases = () => {
                       }}>
                         {order.status}
                       </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'monospace' }}>#{order._id.substring(order._id.length - 8).toUpperCase()}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 'bold' }}>#{order._id.substring(order._id.length - 8).toUpperCase()}</span>
                     </div>
 
                     <Link to={`/property/${order.propertyId?._id}`} style={{ textDecoration: 'none' }}>
@@ -155,13 +189,11 @@ const MyPurchases = () => {
                     <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Requested on {new Date(order.createdAt).toLocaleDateString()}</p>
                   </div>
 
-                  {/* Pricing Info */}
                   <div style={{ flex: '1 1 150px' }}>
                     <p style={{ margin: '0 0 5px 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Agreed Amount</p>
                     <p style={{ margin: 0, fontWeight: '900', fontSize: '1.4rem', color: 'var(--accent-color)' }}>Rs. {order.amount.toLocaleString()}</p>
                   </div>
 
-                  {/* Actions */}
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     <button onClick={() => navigate(`/property/${order.propertyId?._id}`)} style={{ padding: '10px 20px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>
                       View Property
@@ -187,7 +219,6 @@ const MyPurchases = () => {
         </div>
       )}
 
-      {/* CONFIRMATION MODAL */}
       {cancelDialog.isOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(5px)' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid var(--border-color)', textAlign: 'center' }}>

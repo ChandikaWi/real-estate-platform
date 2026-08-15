@@ -7,16 +7,17 @@ const MyVisits = () => {
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Custom UI States
   const [cancelDialog, setCancelDialog] = useState({ isOpen: false, visitId: null });
   const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
+
+  // Filter and Search States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
 
   useEffect(() => {
     const fetchVisits = async () => {
       try {
         const { data } = await api.get('/visits/buyer');
-        
-        // Sort visits by date (Upcoming first)
         const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
         setVisits(sortedData);
       } catch (err) { 
@@ -47,7 +48,6 @@ const MyVisits = () => {
     }
   };
 
-  // Helper function to format the calendar block
   const formatCalendarDate = (dateString) => {
     const date = new Date(dateString);
     return {
@@ -58,12 +58,19 @@ const MyVisits = () => {
     };
   };
 
+  // Derived state for filtering and searching
+  const filteredVisits = visits.filter(visit => {
+    const matchSearch = (visit.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (visit.sellerId?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === 'All' ? true : visit.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading your schedule...</h2></div>;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
-      {/* HEADER */}
       <div style={{ 
         background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
         border: '1px solid rgba(245, 158, 11, 0.2)', 
@@ -86,10 +93,34 @@ const MyVisits = () => {
         </div>
       </div>
 
-      {/* Validation Banner */}
       {validationMsg.text && (
         <div style={{ padding: '15px 20px', marginBottom: '30px', borderRadius: '12px', backgroundColor: validationMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)', border: `2px solid ${validationMsg.type === 'success' ? 'var(--accent-color)' : 'var(--danger-color)'}`, fontWeight: 'bold', display: 'flex', alignItems: 'center', boxShadow: 'var(--shadow-sm)' }}>
           {validationMsg.text}
+        </div>
+      )}
+
+      {/* SMART SEARCH & FILTER UI */}
+      {visits.length > 0 && (
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+              <option value="All">All Visits</option>
+              <option value="Pending">Pending</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+          <div style={{ flex: '2 1 300px' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+            <input 
+              type="text" 
+              placeholder="Search by property title or seller name..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+            />
+          </div>
         </div>
       )}
       
@@ -102,9 +133,13 @@ const MyVisits = () => {
             Explore Properties
           </button>
         </div>
+      ) : filteredVisits.length === 0 ? (
+        <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+          <h3 style={{ color: 'var(--text-muted)' }}>No visits match your current search and filter.</h3>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {visits.map(visit => {
+          {filteredVisits.map(visit => {
             const isPending = visit.status === 'Pending';
             const isAccepted = visit.status === 'Accepted';
             const isRejected = visit.status === 'Rejected';
@@ -113,17 +148,14 @@ const MyVisits = () => {
             return (
               <div key={visit._id} style={{ display: 'flex', backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease, box-shadow 0.2s ease', opacity: calDate.isPast || isRejected ? 0.7 : 1 }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
                 
-                {/* LEFT - Calendar Block */}
                 <div style={{ width: '120px', backgroundColor: isAccepted ? 'var(--accent-color)' : isPending ? '#f39c12' : 'var(--bg-hover)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', color: isAccepted || isPending ? '#fff' : 'var(--text-muted)' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>{calDate.month}</span>
                   <span style={{ fontSize: '2.5rem', fontWeight: '900', lineHeight: '1' }}>{calDate.day}</span>
                   <span style={{ fontSize: '0.9rem', marginTop: '5px', opacity: 0.9 }}>{calDate.year}</span>
                 </div>
 
-                {/* MIDDLE & RIGHT - Details and Actions */}
                 <div style={{ flex: 1, padding: '25px', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
                   
-                  {/* Property & Time Info */}
                   <div style={{ flex: '1 1 300px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                       <span style={{ 
@@ -148,7 +180,6 @@ const MyVisits = () => {
                     </div>
                   </div>
 
-                  {/* Seller Contact Info */}
                   <div style={{ flex: '1 1 200px', backgroundColor: 'var(--bg-main)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                     <p style={{ margin: '0 0 5px 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Meeting With</p>
                     <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)' }}>{visit.sellerId?.name || 'Seller'}</p>
@@ -163,7 +194,6 @@ const MyVisits = () => {
                     )}
                   </div>
 
-                  {/* Action Column */}
                   <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <button 
                       onClick={() => triggerCancel(visit._id)} 
