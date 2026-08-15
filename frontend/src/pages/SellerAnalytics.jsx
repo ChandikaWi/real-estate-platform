@@ -36,18 +36,15 @@ const SellerAnalytics = () => {
     setIsExporting(true);
     const element = reportRef.current;
     
-    // Save the user's current theme
     const originalTheme = document.documentElement.getAttribute('data-theme');
-    
-    // Force Light Theme so the PDF has a white background and black text
     document.documentElement.setAttribute('data-theme', 'light');
     
-    // Give React 100ms to apply the light theme CSS before taking the screenshot
     setTimeout(async () => {
       const originalPadding = element.style.padding;
       element.style.padding = '40px';
+      element.style.backgroundColor = '#ffffff'; // White background for PDF
       
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
       
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -70,15 +67,15 @@ const SellerAnalytics = () => {
       
       pdf.save(`Portfolio_Performance_${new Date().toISOString().split('T')[0]}.pdf`);
       
-      // Clean up - Revert padding and restore the user's original theme
       element.style.padding = originalPadding;
+      element.style.backgroundColor = ''; 
       document.documentElement.setAttribute('data-theme', originalTheme);
       setIsExporting(false);
-    }, 100);
+    }, 150);
   };
 
-  if (loading) return <h2 style={{ color: 'var(--text-main)' }}>Loading Advanced Analytics...</h2>;
-  if (error) return <h2 style={{ color: 'var(--danger-color)' }}>{error}</h2>;
+  if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Compiling your analytics...</h2></div>;
+  if (error) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--danger-color)' }}>{error}</h2></div>;
 
   const funnelData = analytics.listings.map(item => ({
     name: item.title.length > 12 ? item.title.substring(0, 12) + '...' : item.title,
@@ -93,92 +90,126 @@ const SellerAnalytics = () => {
     { name: 'Active', value: activeCount },
     { name: 'Sold', value: soldCount }
   ];
-  const PIE_COLORS = ['#3498db', '#2ecc71'];
+  const PIE_COLORS = ['#3b82f6', '#10b981'];
 
   const conversionRate = analytics.summary.totalViews > 0 
     ? ((soldCount / analytics.summary.totalViews) * 100).toFixed(2) 
     : 0;
 
-  // Custom styles for Recharts Tooltips so they match dark mode
-  const tooltipStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px' };
+  const tooltipStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', boxShadow: 'var(--shadow-lg)' };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px', color: 'var(--text-main)' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      {/* BANNER */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)', 
+        border: '1px solid rgba(59, 130, 246, 0.2)', 
+        borderRadius: '24px', 
+        padding: '40px', 
+        marginBottom: '30px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '20px'
+      }}>
         <div>
-          <h1 style={{ margin: 0 }}>Portfolio Analytics</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Deep dive into your property performance metrics.</p>
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Portfolio Analytics</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Deep dive into your property performance metrics and market traction.</p>
         </div>
-        <button disabled={isExporting} onClick={exportPDF} style={{ padding: '10px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
-          {isExporting ? 'Generating PDF...' : '📄 Download Performance PDF'}
+        <button 
+          disabled={isExporting} 
+          onClick={exportPDF} 
+          style={{ padding: '14px 24px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: isExporting ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)', transition: 'transform 0.2s', opacity: isExporting ? 0.7 : 1 }}
+          onMouseOver={e => !isExporting && (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseOut={e => !isExporting && (e.currentTarget.style.transform = 'translateY(0)')}
+        >
+          {isExporting ? 'Generating PDF...' : '📄 Download Report'}
         </button>
       </div>
 
-      {/* The Printable Report Container */}
-      <div ref={reportRef} style={{ padding: '20px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+      {/* PDF EXPORT CONTAINER */}
+      <div ref={reportRef} style={{ padding: '30px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
         
         {/* PDF Formal Header */}
-        <div style={{ borderBottom: '3px solid var(--border-color)', paddingBottom: '15px', marginBottom: '30px' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px' }}>Real Estate Marketplace</h2>
-          <h3 style={{ margin: '5px 0', color: 'var(--text-muted)' }}>Seller Conversion & Performance Report</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '10px' }}>
+        <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '20px', marginBottom: '40px' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8rem', fontWeight: '900' }}>Real Estate Marketplace</h2>
+          <h3 style={{ margin: '8px 0', color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 'normal' }}>Seller Conversion & Performance Report</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px' }}>
             <span><strong>Generated Date:</strong> {new Date().toLocaleString()}</span>
             <span><strong>Prepared For:</strong> {userInfo?.name} (Seller)</span>
           </div>
         </div>
 
-        {/* Top KPI Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-          <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', borderLeft: '5px solid var(--text-muted)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>Total Profile Views</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)' }}>{analytics.summary.totalViews}</h2>
+        {/* KPI METRICS GRID */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '25px', marginBottom: '50px' }}>
+          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Total Profile Views</h4>
+              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>👁️</div>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)', fontWeight: '900' }}>{analytics.summary.totalViews.toLocaleString()}</h2>
           </div>
-          <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', borderLeft: '5px solid #f39c12' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>Client Inquiries</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)' }}>{analytics.summary.totalInquiries}</h2>
+
+          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Client Inquiries</h4>
+              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>💬</div>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)', fontWeight: '900' }}>{analytics.summary.totalInquiries.toLocaleString()}</h2>
           </div>
-          <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', borderLeft: '5px solid #1abc9c' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>View-to-Sale Ratio</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: '#16a085' }}>{conversionRate}%</h2>
+
+          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>View-to-Sale Ratio</h4>
+              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>📈</div>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '2.5rem', color: '#10b981', fontWeight: '900' }}>{conversionRate}%</h2>
           </div>
-          <div style={{ backgroundColor: 'var(--bg-hover)', padding: '20px', borderRadius: '8px', borderLeft: '5px solid var(--accent-color)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.8rem' }}>Capital Generated</h4>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--accent-color)' }}>Rs.{analytics.summary.totalSalesRevenue.toLocaleString()}</h2>
+
+          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Capital Generated</h4>
+              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>💰</div>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '2rem', color: '#8b5cf6', fontWeight: '900' }}>
+              Rs. {analytics.summary.totalSalesRevenue > 0 ? (analytics.summary.totalSalesRevenue / 1000000).toFixed(1) + 'M' : '0'}
+            </h2>
           </div>
         </div>
 
-        {/* Advanced Charts Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', marginBottom: '40px' }}>
+        {/* CHARTS SECTION */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', marginBottom: '50px' }}>
           
-          <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginTop: 0 }}>Engagement Funnel Overlay</h3>
-            <div style={{ height: '350px', marginTop: '20px' }}>
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>Engagement Funnel Overlay</h3>
+            <div style={{ height: '320px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={funnelData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <ComposedChart data={funnelData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" />
-                  <YAxis stroke="var(--text-muted)" />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend />
-                  <Area type="monotone" dataKey="Views" fill="var(--bg-hover)" stroke="var(--primary-color)" />
-                  <Bar dataKey="Inquiries" barSize={30} fill="#f39c12" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="Orders" stroke="var(--accent-color)" strokeWidth={4} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} dy={10} />
+                  <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} dx={-10} />
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={{ fontWeight: 'bold' }} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Area type="monotone" dataKey="Views" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth={2} />
+                  <Bar dataKey="Inquiries" barSize={40} fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                  <Line type="monotone" dataKey="Orders" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 2 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginTop: 0 }}>Portfolio Status</h3>
-            <div style={{ height: '350px' }}>
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>Portfolio Status Breakdown</h3>
+            <div style={{ height: '320px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusPieData} cx="50%" cy="50%" innerRadius={80} outerRadius={120} paddingAngle={5} dataKey="value" label>
+                  <Pie data={statusPieData} cx="50%" cy="50%" innerRadius={80} outerRadius={120} paddingAngle={8} dataKey="value" stroke="none">
                     {statusPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [value, 'Properties']} />
-                  <Legend verticalAlign="bottom" />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [value, 'Properties']} itemStyle={{ fontWeight: 'bold' }} />
+                  <Legend verticalAlign="bottom" iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -186,41 +217,45 @@ const SellerAnalytics = () => {
 
         </div>
 
-        {/* Data Table */}
-        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-          <div style={{ padding: '20px', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: 0 }}>Granular Listing Metrics</h3>
+        {/* DATA TABLE */}
+        <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+          <div style={{ padding: '25px', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Granular Listing Metrics</h3>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '15px' }}>Property Title</th>
-                  <th style={{ padding: '15px' }}>Status</th>
-                  <th style={{ padding: '15px' }}>Views (Traffic)</th>
-                  <th style={{ padding: '15px' }}>Msgs (Leads)</th>
-                  <th style={{ padding: '15px' }}>Orders (Sales)</th>
-                  <th style={{ padding: '15px' }}>Revenue Yield</th>
+                <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Property Title</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Status</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Traffic (Views)</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Leads (Msgs)</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Sales (Deals)</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '1px' }}>Revenue Yield</th>
                 </tr>
               </thead>
               <tbody>
                 {analytics.listings.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No listings to analyze.</td>
+                    <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No listings to analyze.</td>
                   </tr>
                 ) : (
                   analytics.listings.map(item => (
-                    <tr key={item._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '15px', fontWeight: 'bold' }}>{item.title}</td>
-                      <td style={{ padding: '15px' }}>
-                        <span style={{ backgroundColor: item.status === 'Sold' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(52, 152, 219, 0.1)', color: item.status === 'Sold' ? 'var(--accent-color)' : 'var(--primary-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', border: `1px solid ${item.status === 'Sold' ? 'var(--accent-color)' : 'var(--primary-color)'}` }}>
+                    <tr key={item._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '20px', fontWeight: 'bold', fontSize: '1.05rem', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</td>
+                      <td style={{ padding: '20px' }}>
+                        <span style={{ 
+                          backgroundColor: item.status === 'Sold' ? 'rgba(16, 185, 129, 0.1)' : item.status === 'Active' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)', 
+                          color: item.status === 'Sold' ? '#10b981' : item.status === 'Active' ? '#3b82f6' : '#f59e0b', 
+                          padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' 
+                        }}>
                           {item.status}
                         </span>
                       </td>
-                      <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--text-main)' }}>{item.views}</td>
-                      <td style={{ padding: '15px', fontWeight: 'bold', color: '#f39c12' }}>{item.inquiries}</td>
-                      <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--accent-color)' }}>{item.orders}</td>
-                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{item.revenue.toLocaleString()}</td>
+                      <td style={{ padding: '20px', fontWeight: 'bold', color: 'var(--text-main)', fontSize: '1.1rem' }}>{item.views.toLocaleString()}</td>
+                      <td style={{ padding: '20px', fontWeight: 'bold', color: '#f59e0b', fontSize: '1.1rem' }}>{item.inquiries.toLocaleString()}</td>
+                      <td style={{ padding: '20px', fontWeight: 'bold', color: '#10b981', fontSize: '1.1rem' }}>{item.orders.toLocaleString()}</td>
+                      <td style={{ padding: '20px', color: '#8b5cf6', fontWeight: '900', fontSize: '1.1rem' }}>Rs. {item.revenue.toLocaleString()}</td>
                     </tr>
                   ))
                 )}
