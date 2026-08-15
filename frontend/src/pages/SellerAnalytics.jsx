@@ -12,6 +12,11 @@ const SellerAnalytics = () => {
   const [error, setError] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef();
+  
+  // Filter States for the Data Table
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   useEffect(() => {
@@ -42,7 +47,7 @@ const SellerAnalytics = () => {
     setTimeout(async () => {
       const originalPadding = element.style.padding;
       element.style.padding = '40px';
-      element.style.backgroundColor = '#ffffff'; // White background for PDF
+      element.style.backgroundColor = '#ffffff'; 
       
       const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
@@ -73,6 +78,13 @@ const SellerAnalytics = () => {
       setIsExporting(false);
     }, 150);
   };
+
+  // Derived State for Filtering the Analytics Table
+  const filteredListings = analytics ? analytics.listings.filter(item => {
+    const matchSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = filterStatus === 'All' ? true : item.status === filterStatus;
+    return matchSearch && matchStatus;
+  }) : [];
 
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Compiling your analytics...</h2></div>;
   if (error) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--danger-color)' }}>{error}</h2></div>;
@@ -219,9 +231,36 @@ const SellerAnalytics = () => {
 
         {/* DATA TABLE */}
         <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+          
           <div style={{ padding: '25px', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Granular Listing Metrics</h3>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>Granular Listing Metrics</h3>
+            
+            {/* SMART SEARCH & FILTER UI FOR ANALYTICS TABLE */}
+            {analytics.listings.length > 0 && (
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                    <option value="All">All Properties</option>
+                    <option value="Active">Active</option>
+                    <option value="Pending Review">Pending Review</option>
+                    <option value="Sold">Sold</option>
+                  </select>
+                </div>
+                <div style={{ flex: '2 1 300px' }}>
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+                  <input 
+                    type="text" 
+                    placeholder="Search by property title..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
+
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
@@ -239,8 +278,12 @@ const SellerAnalytics = () => {
                   <tr>
                     <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No listings to analyze.</td>
                   </tr>
+                ) : filteredListings.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No metrics match your current search and filter.</td>
+                  </tr>
                 ) : (
-                  analytics.listings.map(item => (
+                  filteredListings.map(item => (
                     <tr key={item._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '20px', fontWeight: 'bold', fontSize: '1.05rem', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</td>
                       <td style={{ padding: '20px' }}>

@@ -28,9 +28,17 @@ const Dashboard = () => {
   const [images, setImages] = useState([]); 
   const [imagePreviews, setImagePreviews] = useState([]);
 
-  // Search and Filter States for Listings Tab
+  // Filter States for Listings Tab
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+
+  // Filter States for Sales Tab
+  const [searchSalesQuery, setSearchSalesQuery] = useState('');
+  const [filterSalesStatus, setFilterSalesStatus] = useState('All');
+
+  // Filter States for Visits Tab
+  const [searchVisitsQuery, setSearchVisitsQuery] = useState('');
+  const [filterVisitsStatus, setFilterVisitsStatus] = useState('All');
 
   const [formData, setFormData] = useState({
     title: '', description: '', price: '', previousPrice: '', city: '', address: '', type: 'house',
@@ -180,12 +188,26 @@ const Dashboard = () => {
     return { month: date.toLocaleString('default', { month: 'short' }), day: date.getDate(), year: date.getFullYear(), isPast: date < new Date().setHours(0,0,0,0) };
   };
 
-  // Derived state for filtering properties
+  // Derived Filter States
   const filteredProperties = myProperties.filter(prop => {
     const matchSearch = prop.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         prop.location.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         prop.location.address.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = filterStatus === 'All' ? true : prop.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  const filteredSales = sales.filter(sale => {
+    const matchSearch = (sale.propertyId?.title || '').toLowerCase().includes(searchSalesQuery.toLowerCase()) || 
+                        (sale.buyerId?.name || '').toLowerCase().includes(searchSalesQuery.toLowerCase());
+    const matchStatus = filterSalesStatus === 'All' ? true : sale.status === filterSalesStatus;
+    return matchSearch && matchStatus;
+  });
+
+  const filteredVisits = visits.filter(visit => {
+    const matchSearch = (visit.propertyId?.title || '').toLowerCase().includes(searchVisitsQuery.toLowerCase()) || 
+                        (visit.buyerId?.name || '').toLowerCase().includes(searchVisitsQuery.toLowerCase());
+    const matchStatus = filterVisitsStatus === 'All' ? true : visit.status === filterVisitsStatus;
     return matchSearch && matchStatus;
   });
 
@@ -263,7 +285,6 @@ const Dashboard = () => {
           <input type="number" placeholder="Parking Spaces" value={formData.parkingSpaces} onChange={e => setFormData({...formData, parkingSpaces: e.target.value})} style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} />
           <input type="number" placeholder="Condition Score (1-10)" value={formData.conditionScore} onChange={e => setFormData({...formData, conditionScore: e.target.value})} style={{ padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} />
 
-          {/* Image Manager */}
           <div style={{ gridColumn: '1 / -1', marginTop: '20px', backgroundColor: 'var(--bg-hover)', padding: '25px', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '1.4rem' }}>4. Property Gallery</h3>
@@ -314,7 +335,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* SMART SEARCH & FILTER UI */}
+          {/* ACTIVE LISTINGS SMART SEARCH & FILTER UI */}
           {myProperties.length > 0 && (
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
               <div style={{ flex: '1 1 200px' }}>
@@ -382,7 +403,6 @@ const Dashboard = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', padding: '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', marginTop: 'auto' }}>
-                    {/* IMMUTABLE SOLD LOGIC */}
                     {prop.status === 'Sold' ? (
                       <div style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         🔒 Sold (Locked)
@@ -463,19 +483,51 @@ const Dashboard = () => {
       {/* SALES PIPELINE */}
       {currentTab === 'sales' && (
         <section>
-          <div style={{ marginBottom: '30px' }}>
-            <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Deal Pipeline</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', margin: 0 }}>Review and approve purchase requests from buyers.</p>
+          <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Deal Pipeline</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', margin: 0 }}>Review and approve purchase requests from buyers.</p>
+            </div>
           </div>
+
+          {/* SALES SMART SEARCH & FILTER UI */}
+          {sales.length > 0 && (
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+                <select value={filterSalesStatus} onChange={(e) => setFilterSalesStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                  <option value="All">All Requests</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div style={{ flex: '2 1 300px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+                <input 
+                  type="text" 
+                  placeholder="Search by property title or buyer name..." 
+                  value={searchSalesQuery}
+                  onChange={(e) => setSearchSalesQuery(e.target.value)}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+                />
+              </div>
+            </div>
+          )}
 
           {sales.length === 0 ? (
             <div style={{ padding: '60px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
               <div style={{ fontSize: '4rem', marginBottom: '20px', opacity: 0.5 }}>🤝</div>
               <h2 style={{ color: 'var(--text-main)' }}>No purchase requests yet</h2>
             </div>
+          ) : filteredSales.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+              <h3 style={{ color: 'var(--text-muted)' }}>No requests match your current search and filter.</h3>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {sales.map(sale => {
+              {filteredSales.map(sale => {
                 const isPending = sale.status === 'Pending';
                 const isApproved = sale.status === 'Approved';
                 const isCompleted = sale.status === 'Completed';
@@ -532,14 +584,43 @@ const Dashboard = () => {
             <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', margin: 0 }}>Manage calendar requests from potential buyers.</p>
           </div>
 
+          {/* VISITS SMART SEARCH & FILTER UI */}
+          {visits.length > 0 && (
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+                <select value={filterVisitsStatus} onChange={(e) => setFilterVisitsStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                  <option value="All">All Visits</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Accepted">Accepted</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <div style={{ flex: '2 1 300px' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+                <input 
+                  type="text" 
+                  placeholder="Search by property title or buyer name..." 
+                  value={searchVisitsQuery}
+                  onChange={(e) => setSearchVisitsQuery(e.target.value)}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+                />
+              </div>
+            </div>
+          )}
+
           {visits.length === 0 ? (
             <div style={{ padding: '60px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', textAlign: 'center', border: '1px dashed var(--border-color)' }}>
               <div style={{ fontSize: '4rem', marginBottom: '20px', opacity: 0.5 }}>📅</div>
               <h2 style={{ color: 'var(--text-main)' }}>No viewing requests yet</h2>
             </div>
+          ) : filteredVisits.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+              <h3 style={{ color: 'var(--text-muted)' }}>No visits match your current search and filter.</h3>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {visits.map(visit => {
+              {filteredVisits.map(visit => {
                 const isPending = visit.status === 'Pending';
                 const isAccepted = visit.status === 'Accepted';
                 const isRejected = visit.status === 'Rejected';
