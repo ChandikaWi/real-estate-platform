@@ -14,6 +14,16 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
+  // Filter and Search States for Users Tab
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('All');
+  const [userStatusFilter, setUserStatusFilter] = useState('All');
+
+  // Filter and Search States for Properties Tab
+  const [propSearch, setPropSearch] = useState('');
+  const [propStatusFilter, setPropStatusFilter] = useState('All');
+  const [marketAuditFilter, setMarketAuditFilter] = useState('All');
+
   useEffect(() => {
     const userInfo = JSON.parse(localStorage.getItem('userInfo'));
     if (!userInfo || userInfo.role !== 'admin') {
@@ -28,7 +38,6 @@ const AdminDashboard = () => {
           api.get('/admin/properties')
         ]);
         
-        // Fetch AI valuation for each property to compare
         const propertiesWithValuation = await Promise.all(
           propertiesRes.data.map(async (p) => {
             try {
@@ -41,7 +50,7 @@ const AdminDashboard = () => {
               });
               return { ...p, aiPrice: res.data.estimatedPrice };
             } catch {
-              return { ...p, aiPrice: null }; // Fallback if AI engine fails for a specific row
+              return { ...p, aiPrice: null }; 
             }
           })
         );
@@ -78,184 +87,363 @@ const AdminDashboard = () => {
     } catch (error) { alert('Failed'); }
   };
 
-  if (loading) return <h2 style={{ color: 'var(--text-main)' }}>Loading System Analysis...</h2>;
-  if (error) return <h2 style={{ color: 'var(--danger-color)' }}>{error}</h2>;
+  // Filtering for Users
+  const filteredUsers = users.filter(user => {
+    const matchSearch = user.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                        user.email.toLowerCase().includes(userSearch.toLowerCase());
+    const matchRole = userRoleFilter === 'All' ? true : user.role === userRoleFilter;
+    const matchStatus = userStatusFilter === 'All' ? true :
+                        userStatusFilter === 'Active' ? !user.isBanned :
+                        userStatusFilter === 'Banned' ? user.isBanned :
+                        userStatusFilter === 'Verified' ? user.isVerified : true;
+    return matchSearch && matchRole && matchStatus;
+  });
 
-  const overlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
-  const modalStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '30px', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto', border: '1px solid var(--border-color)' };
+  // Filtering for Properties
+  const filteredProperties = properties.filter(prop => {
+    const matchSearch = prop.title.toLowerCase().includes(propSearch.toLowerCase()) || 
+                        prop.location.city.toLowerCase().includes(propSearch.toLowerCase()) ||
+                        (prop.sellerId?.name || '').toLowerCase().includes(propSearch.toLowerCase());
+    const matchStatus = propStatusFilter === 'All' ? true : prop.status === propStatusFilter;
+    
+    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15;
+    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85;
+    const auditStatus = isOverpriced ? 'Overpriced' : isUnderpriced ? 'Underpriced' : 'Fair Value';
+    
+    const matchAudit = marketAuditFilter === 'All' ? true : auditStatus === marketAuditFilter;
+
+    return matchSearch && matchStatus && matchAudit;
+  });
+
+  if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading System Analysis...</h2></div>;
+  if (error) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--danger-color)' }}>{error}</h2></div>;
+
+  const overlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' };
+  const modalStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '40px', borderRadius: '24px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' };
 
   return (
-    <div style={{ color: 'var(--text-main)' }}>
+    <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
+      
+      {/* ADMIN BANNER */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
+        border: '1px solid rgba(243, 156, 18, 0.2)', 
+        borderRadius: '24px', 
+        padding: '40px', 
+        marginBottom: '30px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        <div>
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>System Administration</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage marketplace users, moderate listings, and run market AI audits.</p>
+        </div>
+      </div>
+
+      {/* USERS MANAGEMENT */}
       {currentTab === 'users' && (
         <section>
-          <h1 style={{ margin: '0 0 5px 0' }}>Manage Users</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Click a row to view details.</p>
-          <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', cursor: 'pointer' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '15px' }}>Name</th><th style={{ padding: '15px' }}>Role</th><th style={{ padding: '15px' }}>Status</th><th style={{ padding: '15px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(user => (
-                  <tr key={user._id} onClick={() => setSelectedUser(user)} style={{ borderBottom: '1px solid var(--border-color)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <td style={{ padding: '15px' }}>{user.name}</td><td style={{ padding: '15px', textTransform: 'capitalize' }}>{user.role}</td>
-                    <td style={{ padding: '15px' }}>
-                      {user.isBanned ? <span style={{ color: 'var(--danger-color)', fontWeight: 'bold' }}>Banned</span> : <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>Active</span>}
-                      {user.isVerified && <span style={{ color: 'var(--primary-color)', marginLeft: '10px', fontWeight: 'bold' }}>✓ Verified</span>}
-                    </td>
-                    <td style={{ padding: '15px' }}>
-                      <button onClick={(e) => handleDeleteUser(user._id, e)} style={{ backgroundColor: 'var(--danger-color)', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px' }}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Manage Users</h2>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Click any user row to view details and moderation options.</p>
           </div>
-        </section>
-      )}
 
-      {currentTab === 'properties' && (
-        <section>
-          <h1 style={{ margin: '0 0 5px 0' }}>Manage Properties & Market Audit</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Compare Listed Prices against the AI Valuation model.</p>
-          <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          {/* Smart Search & Filtering UI for Users */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Role</label>
+              <select value={userRoleFilter} onChange={(e) => setUserRoleFilter(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Roles</option>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+              <select value={userStatusFilter} onChange={(e) => setUserStatusFilter(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Banned">Banned</option>
+                <option value="Verified">Verified Sellers</option>
+              </select>
+            </div>
+            <div style={{ flex: '2 1 300px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+              <input 
+                type="text" 
+                placeholder="Search by name or email..." 
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '20px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', cursor: 'pointer' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '15px' }}>Title</th>
-                  <th style={{ padding: '15px' }}>Seller</th>
-                  <th style={{ padding: '15px' }}>Listed Price</th>
-                  <th style={{ padding: '15px' }}>AI Valuation</th>
-                  <th style={{ padding: '15px' }}>Market Audit</th>
-                  <th style={{ padding: '15px' }}>System Action</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Name & Email</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Role</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Status</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {properties.map(prop => {
-                  // Calculate Variance
-                  const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15; // 15% above market
-                  const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85; // 15% below market
-                  
-                  return (
-                    <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                      <td style={{ padding: '15px' }}>{prop.title}</td>
-                      <td style={{ padding: '15px' }}>{prop.sellerId?.name || 'Unknown'}</td>
-                      
-                      <td style={{ padding: '15px', color: 'var(--accent-color)', fontWeight: 'bold' }}>Rs.{prop.price.toLocaleString()}</td>
-                      
-                      {/* AI Price Column */}
-                      <td style={{ padding: '15px', fontWeight: 'bold', color: 'var(--text-main)' }}>
-                        {prop.aiPrice ? `Rs. ${Math.round(prop.aiPrice).toLocaleString()}` : 'N/A'}
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No users match your criteria.</td>
+                  </tr>
+                ) : (
+                  filteredUsers.map(user => (
+                    <tr key={user._id} onClick={() => setSelectedUser(user)} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '20px' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '4px' }}>{user.name}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{user.email}</div>
                       </td>
-                      
-                      {/* Market Audit Status */}
-                      <td style={{ padding: '15px' }}>
-                        {prop.aiPrice && (
-                          <span style={{ 
-                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold',
-                            backgroundColor: isOverpriced ? 'rgba(239, 68, 68, 0.1)' : isUnderpriced ? 'rgba(243, 156, 18, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                            color: isOverpriced ? 'var(--danger-color)' : isUnderpriced ? '#f39c12' : 'var(--accent-color)'
-                          }}>
-                            {isOverpriced ? '⚠️ Overpriced' : isUnderpriced ? '📉 Underpriced' : '✅ Fair Value'}
-                          </span>
-                        )}
+                      <td style={{ padding: '20px', textTransform: 'capitalize', fontWeight: '600' }}>{user.role}</td>
+                      <td style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {user.isBanned ? <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>BANNED</span> : <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>ACTIVE</span>}
+                          {user.isVerified && <span style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>✓ VERIFIED</span>}
+                        </div>
                       </td>
-
-                      <td style={{ padding: '15px' }}>
-                        <span style={{ 
-                            backgroundColor: prop.status === 'Active' ? 'rgba(39, 174, 96, 0.1)' : prop.status === 'Pending Review' ? 'rgba(243, 156, 18, 0.1)' : 'rgba(231, 76, 60, 0.1)', 
-                            color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f39c12' : 'var(--danger-color)', 
-                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', display: 'block', width: 'fit-content'
-                        }}>
-                            {prop.status}
-                        </span>
-                        
-                        {prop.status === 'Pending Review' && (
-                            <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
-                            <button 
-                                onClick={async (e) => {
-                                e.stopPropagation(); 
-                                try {
-                                    await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
-                                    setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
-                                } catch (err) { alert('Failed to approve property.'); }
-                                }} 
-                                style={{ padding: '4px 8px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                            >Approve</button>
-                            
-                            <button 
-                                onClick={async (e) => {
-                                e.stopPropagation(); 
-                                try {
-                                    await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
-                                    setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
-                                } catch (err) { alert('Failed to reject property.'); }
-                                }} 
-                                style={{ padding: '4px 8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                            >Reject</button>
-                            </div>
-                        )}
+                      <td style={{ padding: '20px' }}>
+                        <button onClick={(e) => handleDeleteUser(user._id, e)} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--danger-color)'; e.currentTarget.style.color = '#fff'; }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; }}>Delete</button>
                       </td>
                     </tr>
-                  )
-                })}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </section>
       )}
 
+      {/* PROPERTIES & MARKET AUDIT */}
+      {currentTab === 'properties' && (
+        <section>
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Properties & AI Market Audit</h2>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Compare Listed Prices against the XGBoost AI Valuation model.</p>
+          </div>
+
+          {/* Smart Search & Filtering UI for Properties */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+              <select value={propStatusFilter} onChange={(e) => setPropStatusFilter(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Pending Review">Pending Review</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Sold">Sold</option>
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Market Audit</label>
+              <select value={marketAuditFilter} onChange={(e) => setMarketAuditFilter(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Audits</option>
+                <option value="Fair Value">Fair Value</option>
+                <option value="Overpriced">Overpriced</option>
+                <option value="Underpriced">Underpriced</option>
+              </select>
+            </div>
+            <div style={{ flex: '2 1 300px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+              <input 
+                type="text" 
+                placeholder="Search by title, city, or seller..." 
+                value={propSearch}
+                onChange={(e) => setPropSearch(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '20px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', cursor: 'pointer' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Property Title</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Seller</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Listed Price</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>AI Valuation</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Market Audit</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>System Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProperties.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No properties match your criteria.</td>
+                  </tr>
+                ) : (
+                  filteredProperties.map(prop => {
+                    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15; 
+                    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85; 
+                    
+                    return (
+                      <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        <td style={{ padding: '20px', fontWeight: 'bold', fontSize: '1.05rem' }}>{prop.title}</td>
+                        <td style={{ padding: '20px', color: 'var(--text-muted)' }}>{prop.sellerId?.name || 'Unknown'}</td>
+                        <td style={{ padding: '20px', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.1rem' }}>Rs.{prop.price.toLocaleString()}</td>
+                        
+                        <td style={{ padding: '20px', fontWeight: '900', color: 'var(--text-main)', fontSize: '1.1rem' }}>
+                          {prop.aiPrice ? `Rs. ${Math.round(prop.aiPrice).toLocaleString()}` : 'N/A'}
+                        </td>
+                        
+                        <td style={{ padding: '20px' }}>
+                          {prop.aiPrice && (
+                            <span style={{ 
+                              padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase',
+                              backgroundColor: isOverpriced ? 'rgba(239, 68, 68, 0.1)' : isUnderpriced ? 'rgba(243, 156, 18, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                              color: isOverpriced ? 'var(--danger-color)' : isUnderpriced ? '#f39c12' : 'var(--accent-color)'
+                            }}>
+                              {isOverpriced ? '⚠️ Overpriced' : isUnderpriced ? '📉 Underpriced' : '✅ Fair Value'}
+                            </span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: '20px' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                            <span style={{ 
+                              backgroundColor: prop.status === 'Active' ? 'rgba(16, 185, 129, 0.1)' : prop.status === 'Pending Review' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                              color: prop.status === 'Active' ? 'var(--accent-color)' : prop.status === 'Pending Review' ? '#f59e0b' : 'var(--danger-color)', 
+                              padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase'
+                            }}>
+                              {prop.status}
+                            </span>
+                            
+                            {prop.status === 'Pending Review' && (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  onClick={async (e) => {
+                                    e.stopPropagation(); 
+                                    try {
+                                      await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
+                                      setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
+                                    } catch (err) { alert('Failed to approve property.'); }
+                                  }} 
+                                  style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                                >Approve</button>
+                                
+                                <button 
+                                  onClick={async (e) => {
+                                    e.stopPropagation(); 
+                                    try {
+                                      await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
+                                      setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
+                                    } catch (err) { alert('Failed to reject property.'); }
+                                  }} 
+                                  style={{ padding: '6px 12px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                                >Reject</button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* USER DETAILS MODAL */}
       {selectedUser && (
         <div style={overlayStyle} onClick={() => setSelectedUser(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>User Details</h2>
-            <p><strong>Name:</strong> {selectedUser.name}</p><p><strong>Email:</strong> {selectedUser.email}</p><p style={{ textTransform: 'capitalize' }}><strong>Role:</strong> {selectedUser.role}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '25px' }}>
+              <div style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '2rem', fontWeight: 'bold', flexShrink: 0 }}>
+                {selectedUser.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>{selectedUser.name}</h2>
+                <p style={{ margin: 0, color: 'var(--text-muted)' }}>{selectedUser.email}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Role</span>
+                <p style={{ margin: '5px 0 0 0', textTransform: 'capitalize', fontWeight: 'bold', fontSize: '1.1rem' }}>{selectedUser.role}</p>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Account Status</span>
+                <p style={{ margin: '5px 0 0 0', fontWeight: 'bold', fontSize: '1.1rem', color: selectedUser.isBanned ? 'var(--danger-color)' : 'var(--accent-color)' }}>
+                  {selectedUser.isBanned ? 'Banned' : 'Active'}
+                </p>
+              </div>
+            </div>
+
             {selectedUser.role === 'seller' && (
-              <div style={{ marginTop: '20px', padding: '20px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-hover)' }}>
-                <h3 style={{ marginTop: 0 }}>Moderation</h3>
-                <div style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
-                  <button onClick={() => handleUserStatusToggle(selectedUser._id, selectedUser.isVerified ? 'unverify' : 'verify')} style={{ padding: '10px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', flex: 1 }}>{selectedUser.isVerified ? 'Remove Verification' : 'Verify Seller'}</button>
-                </div>
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <button onClick={() => handleUserStatusToggle(selectedUser._id, selectedUser.isBanned ? 'unban' : 'ban')} style={{ padding: '10px', backgroundColor: selectedUser.isBanned ? 'var(--accent-color)' : 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '6px', flex: 1 }}>{selectedUser.isBanned ? 'Undo Ban' : 'Ban Seller'}</button>
+              <div style={{ marginBottom: '25px', padding: '20px', border: '1px solid var(--border-color)', borderRadius: '16px', backgroundColor: 'var(--bg-hover)' }}>
+                <h3 style={{ margin: '0 0 15px 0', fontSize: '1.2rem' }}>Seller Moderation Controls</h3>
+                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                  <button onClick={() => handleUserStatusToggle(selectedUser._id, selectedUser.isVerified ? 'unverify' : 'verify')} style={{ padding: '12px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', flex: 1, cursor: 'pointer', fontWeight: 'bold' }}>{selectedUser.isVerified ? 'Remove Verification' : 'Verify Seller'}</button>
+                  <button onClick={() => handleUserStatusToggle(selectedUser._id, selectedUser.isBanned ? 'unban' : 'ban')} style={{ padding: '12px 20px', backgroundColor: selectedUser.isBanned ? 'var(--accent-color)' : 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '10px', flex: 1, cursor: 'pointer', fontWeight: 'bold' }}>{selectedUser.isBanned ? 'Undo Ban' : 'Ban Seller'}</button>
                 </div>
               </div>
             )}
-            <button onClick={() => setSelectedUser(null)} style={{ marginTop: '20px', padding: '12px', width: '100%', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>Close</button>
+
+            <button onClick={() => setSelectedUser(null)} style={{ padding: '14px', width: '100%', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem' }}>Close Details</button>
           </div>
         </div>
       )}
 
+      {/* PROPERTY DETAILS MODAL */}
       {selectedProperty && (
         <div style={overlayStyle} onClick={() => setSelectedProperty(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>Property Details</h2>
-            {selectedProperty.images?.length > 0 ? <img src={selectedProperty.images[0]} alt="Prop" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '15px' }} /> : <div style={{ width: '100%', height: '200px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Property Audit Details</h2>
+              <button onClick={() => setSelectedProperty(null)} style={{ background: 'none', border: 'none', fontSize: '1.8rem', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
+            </div>
+
+            <div style={{ height: '220px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', position: 'relative' }}>
+              {selectedProperty.images?.length > 0 ? (
+                <img src={selectedProperty.images[0]} alt="Prop" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+              )}
+              <span style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(255,255,255,0.9)', color: '#111', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase' }}>
+                {selectedProperty.type}
+              </span>
+            </div>
             
-            <h3 style={{ margin: '0 0 10px 0' }}>{selectedProperty.title}</h3>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.3rem' }}>{selectedProperty.title}</h3>
             
-            <div style={{ backgroundColor: 'var(--bg-hover)', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-              <p style={{ color: 'var(--accent-color)', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 0 5px 0' }}>Listed: Rs.{selectedProperty.price.toLocaleString()}</p>
+            <div style={{ display: 'flex', gap: '15px', backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Listed Price</span>
+                <p style={{ margin: '5px 0 0 0', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.3rem' }}>Rs.{selectedProperty.price.toLocaleString()}</p>
+              </div>
               {selectedProperty.aiPrice && (
-                <p style={{ color: 'var(--text-main)', fontWeight: 'bold', fontSize: '1rem', margin: 0 }}>
-                  AI Est: Rs.{Math.round(selectedProperty.aiPrice).toLocaleString()}
-                </p>
+                <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '15px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>AI Valuation</span>
+                  <p style={{ margin: '5px 0 0 0', color: 'var(--text-main)', fontWeight: '900', fontSize: '1.3rem' }}>Rs.{Math.round(selectedProperty.aiPrice).toLocaleString()}</p>
+                </div>
               )}
             </div>
 
-            <p><strong>Seller:</strong> {selectedProperty.sellerId?.name || 'Unknown'}</p>
-            <p><strong>Description:</strong> {selectedProperty.description}</p>
-            <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>
-              <li style={{ textTransform: 'capitalize' }}><strong>Type:</strong> {selectedProperty.type}</li>
-              <li><strong>Location:</strong> {selectedProperty.location.address}, {selectedProperty.location.city}</li>
-              <li><strong>Specs:</strong> {selectedProperty.bedrooms} Beds | {selectedProperty.bathrooms} Baths | {selectedProperty.area} sqft</li>
-            </ul>
-            <button onClick={() => setSelectedProperty(null)} style={{ marginTop: '20px', padding: '12px', width: '100%', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>Close</button>
+            <p style={{ margin: '0 0 10px 0' }}><strong>Seller:</strong> {selectedProperty.sellerId?.name || 'Unknown'}</p>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--text-muted)', lineHeight: '1.6' }}><strong>Description:</strong> {selectedProperty.description}</p>
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setSelectedProperty(null); navigate(`/property/${selectedProperty._id}`); }} style={{ flex: 1, padding: '14px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>View Live Page</button>
+              <button onClick={() => setSelectedProperty(null)} style={{ flex: 1, padding: '14px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>Close</button>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };
