@@ -9,20 +9,24 @@ const AdminDashboard = () => {
 
   const [users, setUsers] = useState([]);
   const [properties, setProperties] = useState([]);
+  const [payments, setPayments] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
-  // Filter and Search States for Users Tab
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('All');
   const [userStatusFilter, setUserStatusFilter] = useState('All');
 
-  // Filter and Search States for Properties Tab
   const [propSearch, setPropSearch] = useState('');
   const [propStatusFilter, setPropStatusFilter] = useState('All');
   const [marketAuditFilter, setMarketAuditFilter] = useState('All');
+
+  // STATES FOR PAYMENTS FILTERING
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('All');
 
   useEffect(() => {
     const userInfo = JSON.parse(localStorage.getItem('userInfo'));
@@ -33,20 +37,18 @@ const AdminDashboard = () => {
 
     const fetchAdminData = async () => {
       try {
-        const [usersRes, propertiesRes] = await Promise.all([
+        // Fetch all 3 endpoints concurrently
+        const [usersRes, propertiesRes, paymentsRes] = await Promise.all([
           api.get('/admin/users'), 
-          api.get('/admin/properties')
+          api.get('/admin/properties'),
+          api.get('/admin/payments').catch(() => ({ data: [] })) // Safe fallback if route missing
         ]);
         
         const propertiesWithValuation = await Promise.all(
           propertiesRes.data.map(async (p) => {
             try {
               const res = await api.post('/properties/predict-price', {
-                city: p.location.city,
-                type: p.type,
-                bedrooms: p.bedrooms || 0,
-                bathrooms: p.bathrooms || 0,
-                area: p.area
+                city: p.location.city, type: p.type, bedrooms: p.bedrooms || 0, bathrooms: p.bathrooms || 0, area: p.area
               });
               return { ...p, aiPrice: res.data.estimatedPrice };
             } catch {
@@ -57,6 +59,7 @@ const AdminDashboard = () => {
 
         setUsers(usersRes.data); 
         setProperties(propertiesWithValuation); 
+        setPayments(paymentsRes.data);
         setLoading(false);
       } catch (err) { 
         setError(err.response?.data?.message || 'Failed to load data'); 
@@ -87,7 +90,6 @@ const AdminDashboard = () => {
     } catch (error) { alert('Failed'); }
   };
 
-  // Filtering for Users
   const filteredUsers = users.filter(user => {
     const matchSearch = user.name.toLowerCase().includes(userSearch.toLowerCase()) || 
                         user.email.toLowerCase().includes(userSearch.toLowerCase());
@@ -99,7 +101,6 @@ const AdminDashboard = () => {
     return matchSearch && matchRole && matchStatus;
   });
 
-  // Filtering for Properties
   const filteredProperties = properties.filter(prop => {
     const matchSearch = prop.title.toLowerCase().includes(propSearch.toLowerCase()) || 
                         prop.location.city.toLowerCase().includes(propSearch.toLowerCase()) ||
@@ -115,6 +116,15 @@ const AdminDashboard = () => {
     return matchSearch && matchStatus && matchAudit;
   });
 
+  // Filtering for Payments
+  const filteredPayments = payments.filter(pay => {
+    const matchSearch = (pay.sellerId?.name || '').toLowerCase().includes(paymentSearch.toLowerCase()) || 
+                        (pay.propertyId?.title || '').toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                        pay._id.toLowerCase().includes(paymentSearch.toLowerCase());
+    const matchStatus = paymentStatusFilter === 'All' ? true : pay.status === paymentStatusFilter;
+    return matchSearch && matchStatus;
+  });
+
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading System Analysis...</h2></div>;
   if (error) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--danger-color)' }}>{error}</h2></div>;
 
@@ -124,7 +134,6 @@ const AdminDashboard = () => {
   return (
     <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
-      {/* ADMIN BANNER */}
       <div style={{ 
         background: 'linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
         border: '1px solid rgba(243, 156, 18, 0.2)', 
@@ -139,11 +148,10 @@ const AdminDashboard = () => {
       }}>
         <div>
           <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>System Administration</h1>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage marketplace users, moderate listings, and run market AI audits.</p>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage marketplace users, moderate listings, and track platform revenue.</p>
         </div>
       </div>
 
-      {/* USERS MANAGEMENT */}
       {currentTab === 'users' && (
         <section>
           <div style={{ marginBottom: '20px' }}>
@@ -151,7 +159,6 @@ const AdminDashboard = () => {
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>Click any user row to view details and moderation options.</p>
           </div>
 
-          {/* Smart Search & Filtering UI for Users */}
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ flex: '1 1 180px' }}>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Role</label>
@@ -224,7 +231,6 @@ const AdminDashboard = () => {
         </section>
       )}
 
-      {/* PROPERTIES & MARKET AUDIT */}
       {currentTab === 'properties' && (
         <section>
           <div style={{ marginBottom: '20px' }}>
@@ -232,7 +238,6 @@ const AdminDashboard = () => {
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>Compare Listed Prices against the XGBoost AI Valuation model.</p>
           </div>
 
-          {/* Smart Search & Filtering UI for Properties */}
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ flex: '1 1 180px' }}>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
@@ -356,7 +361,90 @@ const AdminDashboard = () => {
         </section>
       )}
 
-      {/* USER DETAILS MODAL */}
+      {/* REVENUE & BOOSTS */}
+      {currentTab === 'boosts' && (
+        <section>
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Revenue & Boosts Ledger</h2>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Track platform monetization, property boosts, and seller payments.</p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+              <select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Transactions</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+            <div style={{ flex: '2 1 300px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+              <input 
+                type="text" 
+                placeholder="Search by Seller Name, Property Title, or Transaction ID..." 
+                value={paymentSearch}
+                onChange={(e) => setPaymentSearch(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '20px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Transaction Date</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Seller</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Property & Plan</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Amount</th>
+                  <th style={{ padding: '20px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No payment records found.</td>
+                  </tr>
+                ) : (
+                  filteredPayments.map(pay => (
+                    <tr key={pay._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '20px', color: 'var(--text-main)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                        {new Date(pay.createdAt).toLocaleString()}
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>ID: {pay._id.slice(-8).toUpperCase()}</div>
+                      </td>
+                      <td style={{ padding: '20px' }}>
+                        <div style={{ fontWeight: 'bold' }}>{pay.sellerId?.name || 'Unknown'}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pay.sellerId?.email}</div>
+                      </td>
+                      <td style={{ padding: '20px' }}>
+                        <div style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>{pay.propertyId?.title || 'Unknown Property'}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          {pay.planType.split('_')[0]} Days Boost
+                        </div>
+                      </td>
+                      <td style={{ padding: '20px', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.05rem' }}>
+                        Rs. {pay.amount.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '20px' }}>
+                        <span style={{ 
+                          backgroundColor: pay.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : pay.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                          color: pay.status === 'Completed' ? 'var(--accent-color)' : pay.status === 'Pending' ? '#f59e0b' : 'var(--danger-color)', 
+                          padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase'
+                        }}>
+                          {pay.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {selectedUser && (
         <div style={overlayStyle} onClick={() => setSelectedUser(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -398,7 +486,6 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* PROPERTY DETAILS MODAL */}
       {selectedProperty && (
         <div style={overlayStyle} onClick={() => setSelectedProperty(null)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>

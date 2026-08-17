@@ -6,6 +6,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import connectDB from './config/db.js';
+import cron from 'node-cron';
+import paymentRoutes from './routes/paymentRoutes.js';
+import Property from './models/Property.js';
 
 import authRoutes from './routes/authRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
@@ -69,6 +72,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
@@ -76,6 +80,22 @@ app.use((err, req, res, next) => {
     message: err.message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack,
   });
+});
+
+// AUTOMATED CRON JOB: Runs every hour to check for expired boosts
+cron.schedule('0 * * * *', async () => {
+  console.log("🧹 Running Boost Cleanup Job...");
+  try {
+    const result = await Property.updateMany(
+      { isBoosted: true, boostExpiresAt: { $lte: new Date() } },
+      { $set: { isBoosted: false, boostExpiresAt: null } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`Removed boost from ${result.modifiedCount} expired properties.`);
+    }
+  } catch (err) {
+    console.error("Cron Job Error:", err);
+  }
 });
 
 const PORT = process.env.PORT || 5000;

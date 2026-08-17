@@ -50,6 +50,7 @@ const SidebarLayout = ({ children }) => {
     links = [
       { path: '/admin/users', label: 'Manage Users', icon: Icons.users },
       { path: '/admin/properties', label: 'Manage Properties', icon: Icons.building },
+      { path: '/admin/boosts', label: 'Revenue & Boosts', icon: Icons.dollar },
       { path: '/admin/analytics', label: 'Global Analytics', icon: Icons.globe },
       { path: '/profile', label: 'Account Settings', icon: Icons.user },
     ];

@@ -25,6 +25,7 @@ import SidebarLayout from './components/SidebarLayout';
 import AIChatBot from './components/AIChatBot';
 import api from './api/axiosConfig';
 import socket from './api/socket';
+import MockStripeCheckout from './pages/MockStripeCheckout';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -260,6 +261,7 @@ function App() {
               <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
               <Route path="/dashboard/:tab?" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
               <Route path="/visits" element={<SidebarLayout><MyVisits /></SidebarLayout>} />
+              <Route path="/checkout/:paymentId" element={<MockStripeCheckout />} />
             </Routes>
           </main>
         </div>

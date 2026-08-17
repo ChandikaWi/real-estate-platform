@@ -28,6 +28,8 @@ const Dashboard = () => {
   const [images, setImages] = useState([]); 
   const [imagePreviews, setImagePreviews] = useState([]);
 
+  const [boostModal, setBoostModal] = useState({ isOpen: false, property: null, selectedPlan: '7_days' });
+
   // Filter States for Listings Tab
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -402,23 +404,27 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', padding: '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', marginTop: 'auto' }}>
+                  <div style={{ display: 'flex', gap: '10px', padding: '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', marginTop: 'auto', flexWrap: 'wrap' }}>
                     {prop.status === 'Sold' ? (
                       <div style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         🔒 Sold (Locked)
                       </div>
                     ) : (
-                      <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>Edit</button>
+                      <>
+                        {/* BOOST BUTTON */}
+                        {prop.status === 'Active' && (
+                          <button 
+                            onClick={() => setBoostModal({ isOpen: true, property: prop, selectedPlan: '7_days' })}
+                            style={{ flex: '1 1 100%', padding: '12px', background: prop.isBoosted ? 'linear-gradient(135deg, #f59e0b, #e67e22)' : 'linear-gradient(135deg, #8b5cf6, #3b82f6)', color: '#fff', border: 'none', borderRadius: '10px', cursor: prop.isBoosted ? 'default' : 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: prop.isBoosted ? 'none' : '0 4px 15px rgba(139, 92, 246, 0.4)' }}
+                          >
+                            {prop.isBoosted ? '🔥 Boosted Status Active' : '🚀 Boost Listing'}
+                          </button>
+                        )}
+                        
+                        <button onClick={() => navigate(`/edit-property/${prop._id}`)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>Edit</button>
+                        <button onClick={() => handleDeleteProperty(prop._id)} style={{ flex: 1, padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--danger-color)'; e.currentTarget.style.color = '#fff'; }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; }}>Delete</button>
+                      </>
                     )}
-                    
-                    <button 
-                      onClick={() => handleDeleteProperty(prop._id)} 
-                      style={{ flex: 1, padding: '12px 18px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} 
-                      onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--danger-color)'; e.currentTarget.style.color = '#fff'; }} 
-                      onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; }}
-                    >
-                      Delete
-                    </button>
                   </div>
                 </div>
               ))}
@@ -682,6 +688,56 @@ const Dashboard = () => {
         </div>
       )}
 
+    {/* THE BOOST PRICING MODAL */}
+    {boostModal.isOpen && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(5px)' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.6rem', display: 'flex', alignItems: 'center', gap: '10px' }}>🚀 Upgrade Listing</h2>
+            <button onClick={() => setBoostModal({ isOpen: false, property: null, selectedPlan: '7_days' })} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer' }}>&times;</button>
+          </div>
+          
+          <p style={{ color: 'var(--text-muted)', margin: '0 0 25px 0', lineHeight: '1.5' }}>Push your property to the top of search results. Boosted listings receive up to <strong>400% more views</strong>.</p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px' }}>
+            {/* Duration Options (Lifetime Removed) */}
+            {[ 
+              { id: '7_days', label: '7 Days Priority Boost', price: 3500 },
+              { id: '14_days', label: '14 Days Priority Boost', price: 6000 },
+              { id: '30_days', label: '30 Days Priority Boost', price: 12000 }
+            ].map(plan => (
+              <div 
+                key={plan.id}
+                onClick={() => setBoostModal({ ...boostModal, selectedPlan: plan.id })}
+                style={{ padding: '20px', borderRadius: '12px', border: boostModal.selectedPlan === plan.id ? '2px solid var(--primary-color)' : '1px solid var(--border-color)', backgroundColor: boostModal.selectedPlan === plan.id ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontWeight: 'bold', color: 'var(--text-main)', fontSize: '1.05rem' }}>{plan.label}</p>
+                </div>
+                <p style={{ margin: 0, fontWeight: '900', color: 'var(--accent-color)', fontSize: '1.1rem' }}>Rs. {plan.price.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+
+          <button 
+            onClick={async () => {
+              try {
+                setUploading(true);
+                const { data } = await api.post('/payments/create-session', { propertyId: boostModal.property._id, planType: boostModal.selectedPlan });
+                window.location.href = `/checkout/${data.paymentId}`; // Redirect to Mock Stripe
+              } catch (err) {
+                showMessage("Failed to initiate checkout.", "error");
+                setUploading(false);
+              }
+            }} 
+            disabled={uploading}
+            style={{ width: '100%', padding: '16px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: uploading ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 10px 20px rgba(37, 99, 235, 0.3)' }}
+          >
+            {uploading ? 'Connecting to PaySecure...' : 'Proceed to Checkout 🔒'}
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   );
 };

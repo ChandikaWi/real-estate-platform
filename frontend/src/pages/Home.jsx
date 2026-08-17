@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import Realstatevideo from "../assets/Realstatevideo.mp4";
 
 const Home = () => {
   const [properties, setProperties] = useState([]);
@@ -75,7 +76,7 @@ const Home = () => {
       };
       fetchRecommendations();
     }
-  }, []); 
+  }, [userInfo]); 
 
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
@@ -126,7 +127,7 @@ const Home = () => {
       <div style={{ position: 'relative', width: '100%', height: '80vh', minHeight: '650px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         
         <video autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}>
-          <source src="https://cdn.pixabay.com/video/2020/02/16/32463-392186835_large.mp4" type="video/mp4" />
+          <source src={Realstatevideo} type="video/mp4" />
         </video>
         
         {/* Dynamic Dark Overlay for Text Readability */}
@@ -221,7 +222,7 @@ const Home = () => {
           <>
             <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
               {properties.map((property) => (
-                <div key={property._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}>
+                <div key={property._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', border: property.isBoosted ? '2px solid #f59e0b' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}>
                   
                   {/* Image Container with Badges */}
                   <div style={{ position: 'relative', height: '240px', cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--bg-hover)' }} onClick={() => navigate(`/property/${property._id}`)}>
@@ -231,7 +232,7 @@ const Home = () => {
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
                     )}
                     
-                    {/* Glass Badges */}
+                    {/* Glass Badges (Left) */}
                     <div style={{ position: 'absolute', top: '15px', left: '15px', display: 'flex', gap: '8px' }}>
                       <span style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#111', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
                         {property.type}
@@ -242,6 +243,28 @@ const Home = () => {
                         </span>
                       )}
                     </div>
+
+                    {/* FEATURED BADGE (Right) */}
+                    {property.isBoosted && (
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '15px', 
+                        right: '15px', 
+                        background: 'linear-gradient(135deg, #f59e0b, #e67e22)', 
+                        color: '#fff', 
+                        padding: '6px 12px', 
+                        borderRadius: '20px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: '900', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '1px',
+                        boxShadow: '0 4px 10px rgba(245, 158, 11, 0.4)',
+                        zIndex: 10 
+                      }}>
+                        🔥 Featured
+                      </span>
+                    )}
+
                   </div>
 
                   {/* Card Content */}
@@ -266,7 +289,7 @@ const Home = () => {
                       </p>
                     </div>
 
-                    {/* Specs Footer */}
+                    {/* Specs Footer - Dynamically Adapts for Land vs. Built Properties */}
                     <div style={{ 
                       display: 'flex', 
                       justifyContent: property.type === 'land' ? 'center' : 'space-between', 
@@ -311,7 +334,7 @@ const Home = () => {
 
         {/* ROLE-BASED DYNAMIC SECTIONS */}
 
-        {/* If user is NOT logged in or is a Guest */}
+        {/*  If user is NOT logged in or is a Guest */}
         {!userInfo && (
           <div style={{ marginTop: '80px', marginBottom: '80px', padding: '60px', backgroundColor: 'var(--primary-color)', borderRadius: '24px', textAlign: 'center', color: '#fff', boxShadow: '0 20px 40px rgba(37, 99, 235, 0.2)' }}>
             <h2 style={{ fontSize: '2.5rem', margin: '0 0 15px 0' }}>Unlock AI Lifestyle Matching</h2>
@@ -331,7 +354,7 @@ const Home = () => {
           </div>
         )}
 
-        {/* If user is a BUYER (Recommendations & Quiz) */}
+        {/* If user is a BUYER (Original Recommendations & Quiz) */}
         {userInfo?.role === 'buyer' && (
           <>
             {/* Recommendations */}
@@ -386,7 +409,7 @@ const Home = () => {
                     <h3 style={{ margin: '0 0 20px 0', color: 'var(--text-main)', fontSize: '1.3rem' }}>1. What is your ideal neighborhood vibe?</h3>
                     <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                       <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'urban'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.vibe === 'urban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'urban' ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🏙️ Busy & Urban</button>
-                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, vibe: 'suburban'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.vibe === 'suburban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'suburban' ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🏡 Quiet & Suburban</button>
+                      <button onClick={() => setLifestyleAnswers({...lifestyleAnswers, suburban: 'suburban'})} style={{ flex: 1, padding: '20px', borderRadius: '12px', border: `2px solid ${lifestyleAnswers.vibe === 'suburban' ? 'var(--primary-color)' : 'var(--border-color)'}`, backgroundColor: lifestyleAnswers.vibe === 'suburban' ? 'rgba(37, 99, 235, 0.05)' : 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'all 0.2s' }}>🏡 Quiet & Suburban</button>
                     </div>
                   </div>
 

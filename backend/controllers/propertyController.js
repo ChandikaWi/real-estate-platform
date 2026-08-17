@@ -14,15 +14,15 @@ export const getProperties = async (req, res) => {
     const { keyword, minPrice, maxPrice, type, bedrooms, listingType, page = 1, limit = 10, sort } = req.query;
 
     let query = { status: 'Active' };
-    let andConditions = []; // Use array to safely combine multiple or queries
+    let andConditions = []; // Use array to safely combine multiple $or queries
 
     //  Apply Listing Type Filter (Buy vs Rent)
     if (listingType) {
       if (listingType === 'buy') {
-        // Safe Fallback - Includes explicitly 'buy' OR legacy properties where the field doesn't exist yet
+        // Safe Fallback: Includes explicitly 'buy' OR legacy properties where the field doesn't exist yet
         andConditions.push({ $or: [{ listingType: 'buy' }, { listingType: { $exists: false } }] });
       } else {
-        query.listingType = listingType;
+        query.listingType = listingType; // E.g., 'rent'
       }
     }
 
@@ -36,6 +36,7 @@ export const getProperties = async (req, res) => {
       });
     }
 
+    // If we have bundled conditions, apply them to the main query
     if (andConditions.length > 0) {
       query.$and = andConditions;
     }
@@ -49,10 +50,16 @@ export const getProperties = async (req, res) => {
     if (type) query.type = type;
     if (bedrooms) query.bedrooms = Number(bedrooms);
 
-    // Sorting
-    let sortOption = { createdAt: -1 }; // default newest
-    if (sort === 'price_low') sortOption = { price: 1 };
-    if (sort === 'price_high') sortOption = { price: -1 };
+    // GLOBAL SORTING FOR BOOSTED PROPERTIES
+    let sortOption = {};
+    if (sort === 'price_low') {
+      sortOption = { isBoosted: -1, price: 1 };
+    } else if (sort === 'price_high') {
+      sortOption = { isBoosted: -1, price: -1 };
+    } else {
+      // Default 'newest' sort
+      sortOption = { isBoosted: -1, createdAt: -1 }; 
+    }
 
     // Pagination
     const skip = (Number(page) - 1) * Number(limit);
@@ -110,7 +117,7 @@ export const createProperty = async (req, res) => {
     const property = new Property({ ...req.body, sellerId: req.user._id });
     const createdProperty = await property.save();
 
-    // SMART ALERT - Notify all Admins of new inventory
+    // Notify all Admins of new inventory
     const admins = await User.find({ role: 'admin' });
     const adminNotifs = admins.map(admin => ({
       userId: admin._id,
@@ -178,7 +185,7 @@ export const updateProperty = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this property' });
     }
 
-    // SMART ALERT - Check for Price Drop before saving
+    // Check for Price Drop before saving
     if (req.body.price && Number(req.body.price) < property.price) {
       const priceDropPercentage = Math.round(((property.price - req.body.price) / property.price) * 100);
       
@@ -242,7 +249,7 @@ export const getSellerAnalytics = async (req, res) => {
     const orders = await Order.find({ sellerId: req.user._id });
     const messages = await Message.find({ receiverId: req.user._id });
 
-    // Calculate Summary Totals (Safely fallback to 0 if 'views' is missing on old properties)
+    // Calculate Summary Totals
     const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
     const totalSalesRevenue = orders
@@ -251,7 +258,6 @@ export const getSellerAnalytics = async (req, res) => {
 
     // Calculate Individual Listing Performance
     const listingPerformance = properties.map(prop => {
-      // Safely filter orders/messages using optional chaining (?.) so null propertyIds don't crash
       const propOrders = orders.filter(o => o.propertyId?.toString() === prop._id.toString());
       const propMessages = messages.filter(m => m.propertyId?.toString() === prop._id.toString());
       
@@ -280,7 +286,7 @@ export const getSellerAnalytics = async (req, res) => {
       listings: listingPerformance
     });
   } catch (error) {
-    console.error("Analytics Error:", error); // Logs exact reason to terminal if it ever fails again
+    console.error("Analytics Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -290,7 +296,7 @@ export const getSellerAnalytics = async (req, res) => {
 export const getPropertiesBySellerId = async (req, res) => {
   try {
     const properties = await Property.find({ sellerId: req.params.sellerId })
-      .sort({ createdAt: -1 }); // Newest first
+      .sort({ isBoosted: -1, createdAt: -1 });
     res.json(properties);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -315,7 +321,7 @@ export const getRecommendations = async (req, res) => {
 
     // Fallback - If the user is brand new and has no history, return Trending properties
     if (allInteractions.length === 0) {
-      const trending = await Property.find().sort({ views: -1, 'valuationMetrics.conditionScore': -1 }).limit(8);
+      const trending = await Property.find().sort({ isBoosted: -1, views: -1, 'valuationMetrics.conditionScore': -1 }).limit(8);
       return res.json(trending);
     }
 
@@ -343,14 +349,14 @@ export const getRecommendations = async (req, res) => {
         { price: { $gte: minBudget, $lte: maxBudget } }
       ]
     })
-    .sort({ views: -1 }) // Sort the matches by popularity
+    .sort({ isBoosted: -1, views: -1 }) // Pinned Boosted properties to the top of Recs
     .limit(8);
 
     // Pad with trending properties if the algorithm found fewer than 4 matches
     if (recommendations.length < 4) {
        const pad = await Property.find({ 
          _id: { $nin: [...interactedIds, ...recommendations.map(p => p._id)] } 
-       }).sort({ views: -1 }).limit(8 - recommendations.length);
+       }).sort({ isBoosted: -1, views: -1 }).limit(8 - recommendations.length);
        recommendations.push(...pad);
     }
 
@@ -379,7 +385,7 @@ export const getSimilarProperties = async (req, res) => {
       'location.city': property.location.city,
       price: { $gte: minPrice, $lte: maxPrice }
     })
-    .sort({ views: -1 }) // Show most popular first
+    .sort({ isBoosted: -1, views: -1 }) // Pinned Boosted properties to top of Similar list
     .limit(4);
 
     // Broad Match Fallback - If strict matches < 4, ignore the city to fill the remaining slots
@@ -390,7 +396,7 @@ export const getSimilarProperties = async (req, res) => {
         type: property.type,
         price: { $gte: minPrice, $lte: maxPrice }
       })
-      .sort({ views: -1 })
+      .sort({ isBoosted: -1, views: -1 })
       .limit(4 - similarProperties.length);
       
       similarProperties = [...similarProperties, ...fallbackProperties];
@@ -409,14 +415,12 @@ export const getLifestyleMatches = async (req, res) => {
   try {
     const { vibe, priority, commute } = req.body;
     
-    // Start with a base query
     let query = {};
-    let sortOption = { views: -1 }; // Default to popular
+    let sortOption = { isBoosted: -1, views: -1 }; 
 
     // Vibe Mapping
     if (vibe === 'urban') {
       query.type = { $in: ['apartment', 'house'] };
-      // Assuming urban means closer to transport/city center
       query['valuationMetrics.distanceToTransport'] = { $lte: 5 }; 
     } else if (vibe === 'suburban') {
       query.type = 'house';
@@ -425,11 +429,11 @@ export const getLifestyleMatches = async (req, res) => {
 
     // Priority Mapping
     if (priority === 'family') {
-      query.bedrooms = { $gte: 3 }; // Need space for a family
+      query.bedrooms = { $gte: 3 }; 
     } else if (priority === 'nightlife') {
-      query.type = 'apartment'; // Typically closer to action
+      query.type = 'apartment'; 
     } else if (priority === 'budget') {
-      sortOption = { price: 1 }; // Sort by cheapest first
+      sortOption = { isBoosted: -1, price: 1 }; 
     }
 
     // Commute Mapping
@@ -472,7 +476,7 @@ export const updatePropertyStatus = async (req, res) => {
     
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    const io = req.app.get('io'); // Access Socket.io
+    const io = req.app.get('io');
 
     // Alert the seller that their listing was approved/rejected
     if (status === 'Active' || status === 'Rejected') {
