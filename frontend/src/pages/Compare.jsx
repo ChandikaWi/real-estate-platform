@@ -44,7 +44,7 @@ const Compare = () => {
   return (
     <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
-      {/* PREMIUM HEADER */}
+      {/* HEADER */}
       <div style={{ 
         background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
         border: '1px solid rgba(139, 92, 246, 0.2)', 

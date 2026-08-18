@@ -40,7 +40,7 @@ const PropertyDetails = () => {
 
   const [similarProperties, setSimilarProperties] = useState([]);
 
-  // INTERACTIVE GALLERY STATES
+  // GALLERY STATES
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightbox, setLightbox] = useState({ isOpen: false, index: 0 });
   const [isZoomed, setIsZoomed] = useState(false); // Controls click-to-zoom in lightbox
@@ -132,7 +132,7 @@ const PropertyDetails = () => {
 
   const openLightbox = (index) => {
     setLightbox({ isOpen: true, index });
-    setIsZoomed(false); 
+    setIsZoomed(false); // Reset zoom state when opening
   };
 
   const closeLightbox = () => {
@@ -242,7 +242,7 @@ const PropertyDetails = () => {
         </div>
       </div>
 
-      {/* INTERACTIVE SLIDER & THUMBNAILS */}
+      {/* SLIDER & THUMBNAILS */}
       {property.images && property.images.length > 0 ? (
         <div style={{ marginBottom: '40px' }}>
           {/* Main Hero Slider */}
@@ -298,7 +298,7 @@ const PropertyDetails = () => {
         </div>
       )}
 
-      {/* In-Page Sticky Navigation Bar */}
+      {/* Navigation Bar */}
       <div style={{ position: 'sticky', top: '70px', zIndex: 90, backgroundColor: 'rgba(var(--bg-card-rgb), 0.9)', backdropFilter: 'blur(10px)', padding: '15px 0', borderBottom: '1px solid var(--border-color)', marginBottom: '40px', display: 'flex', gap: '25px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         {[
           { label: 'Overview', ref: overviewRef },
@@ -392,7 +392,7 @@ const PropertyDetails = () => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN - Sticky Conversion Card */}
+        {/* RIGHT COLUMN - Conversion Card */}
         <div style={{ flex: '1 1 380px', position: 'sticky', top: '160px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '35px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
             <div style={{ marginBottom: '35px' }}>
@@ -508,7 +508,7 @@ const PropertyDetails = () => {
               }} 
             />
 
-            {/* Navigation Arrows */}
+            {/* Lightbox Navigation Arrows (Hide when zoomed) */}
             {!isZoomed && property.images.length > 1 && (
               <>
                 <button onClick={(e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, index: (prev.index - 1 + property.images.length) % property.images.length })); }} style={{ position: 'absolute', left: '20px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer', fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}>&#8592;</button>

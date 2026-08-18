@@ -79,7 +79,7 @@ const SellerAnalytics = () => {
     }, 150);
   };
 
-  // Derived State for Filtering the Analytics Table
+  // State for Filtering the Analytics Table
   const filteredListings = analytics ? analytics.listings.filter(item => {
     const matchSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = filterStatus === 'All' ? true : item.status === filterStatus;

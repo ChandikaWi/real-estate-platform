@@ -14,7 +14,7 @@ export const createMockCheckoutSession = async (req, res) => {
     if (planType === '7_days') amount = 3500;
     else if (planType === '14_days') amount = 6000;
     else if (planType === '30_days') amount = 12000;
-    else if (planType === 'lifetime') amount = property.price * 0.002; // 0.2% of value
+    else if (planType === 'lifetime') amount = property.price * 0.002;
 
     const payment = await Payment.create({
       sellerId: req.user._id,

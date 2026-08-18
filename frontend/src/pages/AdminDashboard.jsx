@@ -9,7 +9,7 @@ const AdminDashboard = () => {
 
   const [users, setUsers] = useState([]);
   const [properties, setProperties] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [payments, setPayments] = useState([]); 
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

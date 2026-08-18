@@ -50,7 +50,7 @@ const MyPurchases = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) <= 3;
   };
 
-  // Derived state for filtering and searching
+  // State for filtering and searching
   const filteredOrders = orders.filter(order => {
     const matchSearch = (order.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                         (order._id || '').toLowerCase().includes(searchQuery.toLowerCase());

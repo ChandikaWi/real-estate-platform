@@ -3,7 +3,6 @@ import { createVisit, getBuyerVisits, getSellerVisits, updateVisitStatus, delete
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
 router.post('/', protect, authorize('buyer'), createVisit);
 router.get('/buyer', protect, authorize('buyer'), getBuyerVisits);
 router.get('/seller', protect, authorize('seller'), getSellerVisits);

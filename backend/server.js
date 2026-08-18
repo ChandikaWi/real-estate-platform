@@ -6,9 +6,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import connectDB from './config/db.js';
-import cron from 'node-cron';
-import paymentRoutes from './routes/paymentRoutes.js';
-import Property from './models/Property.js';
 
 import authRoutes from './routes/authRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
@@ -22,24 +19,28 @@ import visitRoutes from './routes/visitRoutes.js';
 import chatbotRoutes from './routes/chatbotRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 
+import cron from 'node-cron';
+import paymentRoutes from './routes/paymentRoutes.js';
+import Property from './models/Property.js';
+
 dotenv.config();
 connectDB();
 
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO
+// 1. Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // React frontend URL
+    origin: "http://localhost:5173", // Your React frontend URL
     methods: ["GET", "POST"]
   }
 });
 
-// Make 'io' globally accessible to my API controllers
+// 2. Make 'io' globally accessible to your API controllers
 app.set('io', io);
 
-// Socket Connection Logic
+// 3. Socket Connection Logic
 io.on('connection', (socket) => {
   console.log(`Connected to Socket: ${socket.id}`);
 

@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Property from '../models/Property.js';
 import Order from '../models/Order.js';
+import Payment from '../models/Payment.js';
 
 // @desc    Get all users
 // @route   GET /api/admin/users
@@ -110,5 +111,19 @@ export const getAdminAnalytics = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @route   GET /api/admin/payments
+// @desc    Get all boost transactions
+export const getPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find()
+      .populate('sellerId', 'name email')
+      .populate('propertyId', 'title isBoosted boostExpiresAt')
+      .sort({ createdAt: -1 });
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch payment records.' });
   }
 };

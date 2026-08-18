@@ -77,7 +77,7 @@ const Register = () => {
               <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>Join us and experience real estate like never before.</p>
             </div>
             
-            {/* Enhanced Error UI */}
+            {/* Error UI */}
             {error && (
               <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger-color)', padding: '12px 15px', borderRadius: '4px', marginBottom: '20px' }}>
                 <p style={{ color: 'var(--danger-color)', margin: 0, fontWeight: 'bold', fontSize: '0.9rem' }}>{error}</p>

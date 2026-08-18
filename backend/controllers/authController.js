@@ -117,7 +117,7 @@ export const updateUserProfile = async (req, res) => {
       email: updatedUser.email,
       role: updatedUser.role,
       profilePhoto: updatedUser.profilePhoto,
-      token: req.headers.authorization.split(' ')[1] 
+      token: req.headers.authorization.split(' ')[1] // keep the same token
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -166,7 +166,7 @@ export const forgotPassword = async (req, res) => {
     // Create reset URL
     const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
 
-    // Configure Nodemailer 
+    // Configure Nodemailer
     const transporter = nodemailer.createTransport({
       service: 'Gmail', 
       auth: {
@@ -218,7 +218,7 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired token' });
     }
 
-    // Set new password 
+    // Set new password
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;

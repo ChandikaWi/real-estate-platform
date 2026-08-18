@@ -16,7 +16,7 @@ const sendEmail = (to, subject, html) => {
   transporter.sendMail({ from: '"Real Estate Platform" <noreply@demo.com>', to, subject, html }).catch(console.error);
 };
 
-// @desc    Submit a Purchase Request 
+// @desc    Submit a Purchase Request (Marketplace Flow)
 // @route   POST /api/orders/checkout
 export const processCheckout = async (req, res) => {
   try {

@@ -16,10 +16,10 @@ export const getProperties = async (req, res) => {
     let query = { status: 'Active' };
     let andConditions = []; // Use array to safely combine multiple $or queries
 
-    //  Apply Listing Type Filter (Buy vs Rent)
+    // Apply Listing Type Filter (Buy vs Rent)
     if (listingType) {
       if (listingType === 'buy') {
-        // Safe Fallback: Includes explicitly 'buy' OR legacy properties where the field doesn't exist yet
+        // Safe Fallback - Includes explicitly 'buy' OR legacy properties where the field doesn't exist yet
         andConditions.push({ $or: [{ listingType: 'buy' }, { listingType: { $exists: false } }] });
       } else {
         query.listingType = listingType; // E.g., 'rent'
@@ -117,7 +117,7 @@ export const createProperty = async (req, res) => {
     const property = new Property({ ...req.body, sellerId: req.user._id });
     const createdProperty = await property.save();
 
-    // Notify all Admins of new inventory
+    // SMART ALERT - Notify all Admins of new inventory
     const admins = await User.find({ role: 'admin' });
     const adminNotifs = admins.map(admin => ({
       userId: admin._id,
@@ -185,7 +185,7 @@ export const updateProperty = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this property' });
     }
 
-    // Check for Price Drop before saving
+    // SMART ALERT - Check for Price Drop before saving
     if (req.body.price && Number(req.body.price) < property.price) {
       const priceDropPercentage = Math.round(((property.price - req.body.price) / property.price) * 100);
       
@@ -416,7 +416,7 @@ export const getLifestyleMatches = async (req, res) => {
     const { vibe, priority, commute } = req.body;
     
     let query = {};
-    let sortOption = { isBoosted: -1, views: -1 }; 
+    let sortOption = { isBoosted: -1, views: -1 }; // Pinned Boosted properties to Lifestyle defaults
 
     // Vibe Mapping
     if (vibe === 'urban') {
@@ -433,7 +433,7 @@ export const getLifestyleMatches = async (req, res) => {
     } else if (priority === 'nightlife') {
       query.type = 'apartment'; 
     } else if (priority === 'budget') {
-      sortOption = { isBoosted: -1, price: 1 }; 
+      sortOption = { isBoosted: -1, price: 1 }; // Keep Boosted properties pinned even on cheap searches
     }
 
     // Commute Mapping

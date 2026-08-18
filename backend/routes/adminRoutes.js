@@ -5,7 +5,6 @@ import { getPayments } from '../controllers/adminController.js';
 
 const router = express.Router();
 router.use(protect, authorize('admin'));
-
 router.route('/analytics').get(getAdminAnalytics);
 router.route('/users').get(getUsers);
 router.route('/users/:id').delete(deleteUser);

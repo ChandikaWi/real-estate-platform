@@ -58,14 +58,16 @@ const Home = () => {
 
   useEffect(() => {
     fetchProperties(page);
-  }, [page, sort, listingType]); // listingType to auto-fetch when switching Buy/Rent
+  }, [page, sort, listingType]); // Added listingType to auto-fetch when switching Buy/Rent
 
   useEffect(() => {
-    if (userInfo && userInfo.role === 'buyer') {
+    const storedUser = JSON.parse(localStorage.getItem('userInfo'));
+    
+    if (storedUser && storedUser.role === 'buyer') {
       const fetchRecommendations = async () => {
         setLoadingRecs(true);
         try {
-          const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+          const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
           const { data } = await api.get('/properties/recommendations', config);
           setRecommendations(data);
         } catch (err) {
@@ -76,7 +78,7 @@ const Home = () => {
       };
       fetchRecommendations();
     }
-  }, [userInfo]); 
+  }, []); 
 
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
@@ -209,7 +211,7 @@ const Home = () => {
           </select>
         </div>
 
-        {/* PREMIUM PROPERTY GRID */}
+        {/* PROPERTY GRID */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '100px 0' }}><h2 style={{ color: 'var(--text-muted)' }}>Loading premium listings...</h2></div>
         ) : properties.length === 0 ? (
@@ -334,7 +336,7 @@ const Home = () => {
 
         {/* ROLE-BASED DYNAMIC SECTIONS */}
 
-        {/*  If user is NOT logged in or is a Guest */}
+        {/* If user is NOT logged in or is a Guest */}
         {!userInfo && (
           <div style={{ marginTop: '80px', marginBottom: '80px', padding: '60px', backgroundColor: 'var(--primary-color)', borderRadius: '24px', textAlign: 'center', color: '#fff', boxShadow: '0 20px 40px rgba(37, 99, 235, 0.2)' }}>
             <h2 style={{ fontSize: '2.5rem', margin: '0 0 15px 0' }}>Unlock AI Lifestyle Matching</h2>

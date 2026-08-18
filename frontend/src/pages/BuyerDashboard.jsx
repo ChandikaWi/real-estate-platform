@@ -83,7 +83,7 @@ const BuyerDashboard = () => {
         </button>
       </div>
       
-      {/* PROFESSIONAL QUICK NAVIGATION */}
+      {/* QUICK NAVIGATION */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '50px' }}>
         
         <Link to="/favorites" style={{ textDecoration: 'none', padding: '25px', backgroundColor: 'var(--bg-card)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', transition: 'all 0.3s ease' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--danger-color)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}>

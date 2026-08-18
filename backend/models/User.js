@@ -5,8 +5,6 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
   role: { 
     type: String, 
     enum: ['buyer', 'seller', 'admin'], 
@@ -15,6 +13,8 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false },
   profilePhoto: { type: String, default: '' },
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
   phoneNumber: { type: String, default: '' }
 }, { timestamps: true });
 

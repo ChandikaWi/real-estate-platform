@@ -58,7 +58,7 @@ const MyVisits = () => {
     };
   };
 
-  // Derived state for filtering and searching
+  // 🌟 State for filtering and searching
   const filteredVisits = visits.filter(visit => {
     const matchSearch = (visit.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                         (visit.sellerId?.name || '').toLowerCase().includes(searchQuery.toLowerCase());

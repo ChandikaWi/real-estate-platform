@@ -3,17 +3,16 @@ import mongoose from 'mongoose';
 const propertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  isBoosted: { type: Boolean, default: false },
-  boostExpiresAt: { type: Date, default: null },
   price: { type: Number, required: true },
   previousPrice: { type: Number },
+  isBoosted: { type: Boolean, default: false },
+  boostExpiresAt: { type: Date, default: null },
   location: {
     address: { type: String, required: true },
     city: { type: String, required: true }
   },
   type: { type: String, required: true, enum: ['house', 'apartment', 'land'] },
   
-  // Differentiates between Sale and Rent
   listingType: { type: String, enum: ['buy', 'rent'], default: 'buy' }, 
   
   bedrooms: { type: Number },

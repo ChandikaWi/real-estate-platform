@@ -3,7 +3,6 @@ import { getSellerReviews, addReview, updateReview, deleteReview } from '../cont
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
 router.get('/seller/:sellerId', getSellerReviews);
 router.post('/', protect, authorize('buyer'), addReview);
 router.put('/:id', protect, authorize('buyer'), updateReview);

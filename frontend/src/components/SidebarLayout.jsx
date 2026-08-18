@@ -149,7 +149,7 @@ const SidebarLayout = ({ children }) => {
           })}
         </div>
 
-        {/* MINI PROFILE ANCHOR */}
+        {/* MINI PROFILE ANCHOR (Bottom) */}
         <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => navigate('/profile')} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
           {userInfo.profilePhoto ? (
             <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-color)' }} />

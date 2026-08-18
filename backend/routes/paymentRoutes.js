@@ -3,7 +3,6 @@ import { createMockCheckoutSession, getSessionDetails, confirmMockPayment } from
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
 router.post('/create-session', protect, authorize('seller'), createMockCheckoutSession);
 router.get('/session/:id', protect, authorize('seller'), getSessionDetails);
 router.post('/confirm', protect, authorize('seller'), confirmMockPayment);
