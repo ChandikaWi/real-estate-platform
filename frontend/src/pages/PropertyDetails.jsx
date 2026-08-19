@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import socket from '../api/socket';
+import { useUI } from '../context/UIContext';
 
 const PropertyDetails = () => {
   const { id } = useParams();
@@ -11,6 +12,7 @@ const PropertyDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [favStatus, setFavStatus] = useState('');
+  const { showAlert, showConfirm } = useUI();
   
   // Refs for In-Page Navigation
   const overviewRef = useRef(null);
@@ -39,6 +41,11 @@ const PropertyDetails = () => {
   const [generatingValuation, setGeneratingValuation] = useState(false);
 
   const [similarProperties, setSimilarProperties] = useState([]);
+
+  // REPORT MODAL STATES
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportStatus, setReportStatus] = useState('');
 
   // GALLERY STATES
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -146,7 +153,7 @@ const PropertyDetails = () => {
     try {
       const { data } = await api.post('/messages', { receiverId: property.sellerId._id, propertyId: property._id, message: messageText });
       setChatHistory((prev) => [...prev, data]); setMessageText('');
-    } catch (err) { alert('Failed to send message'); }
+    } catch (err) { showAlert('Failed to send message', 'error'); }
   };
 
   const handleSaveFavorite = async () => { 
@@ -163,7 +170,7 @@ const PropertyDetails = () => {
       });
       setBuyerAiValuation(data.estimatedPrice);
     } catch (err) {
-      alert("AI Valuation engine is currently unavailable.");
+      showAlert("AI Valuation engine is currently unavailable.", "error");
     } finally {
       setGeneratingValuation(false);
     }
@@ -193,10 +200,14 @@ const PropertyDetails = () => {
   };
 
   const handleDeleteReview = async (reviewId) => {
-    if (window.confirm('Are you sure you want to delete your review?')) {
-      try { await api.delete(`/reviews/${reviewId}`); setReviews(reviews.filter(r => r._id !== reviewId)); } 
-      catch (err) { alert('Failed to delete review'); }
-    }
+    showConfirm('Are you sure you want to delete your review?', async () => {
+      try { 
+        await api.delete(`/reviews/${reviewId}`); 
+        setReviews(reviews.filter(r => r._id !== reviewId)); 
+      } catch (err) { 
+        showAlert('Failed to delete review', 'error'); 
+      }
+    });
   };
 
   const handleEditClick = (review) => { setEditingReviewId(review._id); setReviewFormData({ rating: review.rating, comment: review.comment }); };
@@ -210,6 +221,18 @@ const PropertyDetails = () => {
   const navigateToProperty = (propId) => { setShowSellerModal(false); navigate(`/property/${propId}`); window.scrollTo(0, 0); };
 
   const renderStars = (rating) => [...Array(5)].map((_, i) => (<span key={i} style={{ color: i < rating ? '#f1c40f' : 'var(--border-color)', fontSize: '1.2rem' }}>★</span>));
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!reportReason.trim()) return;
+    try {
+      await api.post('/reports', { targetType: 'Property', targetId: id, reason: reportReason });
+      setReportStatus('Report submitted successfully. Admins will review it.');
+      setTimeout(() => { setShowReportModal(false); setReportStatus(''); setReportReason(''); }, 3000);
+    } catch (err) {
+      setReportStatus('Failed to submit report. Please try again.');
+    }
+  };
 
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading premium details...</h2></div>;
   if (error) return <h2 style={{ color: 'var(--danger-color)', textAlign: 'center', marginTop: '100px' }}>{error}</h2>;
@@ -239,6 +262,11 @@ const PropertyDetails = () => {
             <h1 style={{ margin: '0 0 10px 0', fontSize: 'clamp(2rem, 3vw, 2.5rem)', fontWeight: '800', lineHeight: '1.2' }}>{property.title}</h1>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {property.location.address}, {property.location.city}</p>
           </div>
+          {userInfo && !isOwner && !isAdmin && (
+            <button onClick={() => setShowReportModal(true)} style={{ padding: '8px 16px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              ⚠️ Report Listing
+            </button>
+          )}
         </div>
       </div>
 
@@ -558,6 +586,30 @@ const PropertyDetails = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT MODAL */}
+      {showReportModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(5px)' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '24px', width: '100%', maxWidth: '500px', padding: '30px', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <h2 style={{ marginTop: 0, fontSize: '1.5rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>⚠️ Report Listing</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Please describe why you are reporting this property. False reports may lead to account suspension.</p>
+            {reportStatus && <p style={{ color: reportStatus.includes('success') ? 'var(--success-color)' : 'var(--danger-color)', marginBottom: '15px', fontWeight: 'bold' }}>{reportStatus}</p>}
+            <form onSubmit={handleReportSubmit}>
+              <textarea 
+                required 
+                value={reportReason} 
+                onChange={(e) => setReportReason(e.target.value)} 
+                placeholder="E.g., Misleading images, inappropriate content, fake listing..." 
+                style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', minHeight: '120px', resize: 'vertical', marginBottom: '20px', fontSize: '1rem', fontFamily: 'inherit' }}
+              />
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowReportModal(false)} style={{ padding: '12px 20px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+                <button type="submit" style={{ padding: '12px 20px', backgroundColor: 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Submit Report</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

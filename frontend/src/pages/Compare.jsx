@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 
 const Compare = () => {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ const Compare = () => {
   const [category, setCategory] = useState('house');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const { showAlert } = useUI();
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -29,7 +31,7 @@ const Compare = () => {
     if (selectedProps.find(p => p._id === property._id)) {
       setSelectedProps(selectedProps.filter(p => p._id !== property._id));
     } else {
-      if (selectedProps.length >= 3) return alert("You can only compare up to 3 properties at a time.");
+      if (selectedProps.length >= 3) return showAlert("You can only compare up to 3 properties at a time.", "warning");
       setSelectedProps([...selectedProps, property]);
     }
   };

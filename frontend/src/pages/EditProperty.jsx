@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 
 const EditProperty = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showAlert } = useUI();
   const [loading, setLoading] = useState(true);
   
   // AI Valuation States
@@ -47,7 +49,7 @@ const EditProperty = () => {
         setExistingImages(data.images || []);
         setLoading(false);
       } catch (err) { 
-        alert('Failed to load property'); 
+        showAlert('Failed to load property', 'error'); 
         navigate('/dashboard/listings'); 
       }
     };
@@ -56,7 +58,7 @@ const EditProperty = () => {
 
   const handleGenerateValuation = async () => {
     if (!formData.city || !formData.area) {
-      alert("Please fill in City, Property Type, and Sqft first.");
+      showAlert("Please fill in City, Property Type, and Sqft first.", "warning");
       return;
     }
     setGeneratingPrice(true);
@@ -66,7 +68,7 @@ const EditProperty = () => {
       });
       setAiEstimatedPrice(Math.round(data.estimatedPrice));
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to generate AI valuation.");
+      showAlert(err.response?.data?.message || "Failed to generate AI valuation.", "error");
     } finally {
       setGeneratingPrice(false);
     }
@@ -87,7 +89,7 @@ const EditProperty = () => {
     const slotsAvailable = 5 - totalCurrentImages;
 
     if (files.length > slotsAvailable) {
-      alert(`You can only add ${slotsAvailable} more image(s). Maximum 5 allowed in total.`);
+      showAlert(`You can only add ${slotsAvailable} more image(s). Maximum 5 allowed in total.`, "warning");
     }
 
     // Only take the files that fit within the 5 image limit
@@ -112,7 +114,7 @@ const EditProperty = () => {
       }
 
       if (finalImageUrls.length === 0) {
-        alert("Please include at least 1 image for your property.");
+        showAlert("Please include at least 1 image for your property.", "warning");
         setUploading(false);
         return;
       }
@@ -128,10 +130,10 @@ const EditProperty = () => {
       };
       
       await api.put(`/properties/${id}`, payload);
-      alert('Property updated successfully! It has been submitted to the Admin for review before going live.');
+      showAlert('Property updated successfully! It has been submitted to the Admin for review before going live.', 'success');
       navigate('/dashboard/listings');
     } catch (err) { 
-      alert('Update failed. Please try again.'); 
+      showAlert('Update failed. Please try again.', 'error'); 
       setUploading(false);
     }
   };

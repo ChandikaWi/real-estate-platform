@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Settings from '../models/Settings.js';
 import Property from '../models/Property.js';
 import Favorite from '../models/Favorite.js';
 import Message from '../models/Message.js';
@@ -7,6 +8,7 @@ import Notification from '../models/Notification.js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';
+import { logEvent } from '../utils/logger.js';
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -19,11 +21,14 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Not allow regular users to register as admin via this endpoint
+    const finalRole = (role === 'admin') ? 'buyer' : (role || 'buyer');
+
     const user = await User.create({
       name,
       email,
       password,
-      role
+      role: finalRole
     });
 
     // SMART ALERT - Notify all Admins of a new user
@@ -44,6 +49,7 @@ export const registerUser = async (req, res) => {
         role: user.role,
         token: generateToken(user._id),
       });
+      await logEvent('auth', 'register', user._id, user._id, { role: user.role, email: user.email });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
     }
@@ -60,8 +66,16 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+      // Fetch settings to check maintenance mode
+      const settings = await Settings.findOne();
+      
+      // Block login if maintenance mode is active AND user is not an admin
+      if (settings && settings.maintenanceMode && user.role !== 'admin') {
+        return res.status(503).json({ message: 'The platform is currently under maintenance. Please try again later.' });
+      }
       // Block login if the user is banned by Admin
       if (user.isBanned) {
+        await logEvent('auth', 'login_blocked', user._id, user._id, { reason: 'banned' });
         return res.status(403).json({ message: 'Your account has been restricted by the administrator.' });
       }
 
@@ -73,6 +87,7 @@ export const loginUser = async (req, res) => {
         profilePhoto: user.profilePhoto,
         token: generateToken(user._id),
       });
+      await logEvent('auth', 'login', user._id, user._id, { email: user.email });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -139,6 +154,7 @@ export const deleteUserProfile = async (req, res) => {
     await Message.deleteMany({ $or: [{ senderId: user._id }, { receiverId: user._id }] });
 
     await user.deleteOne();
+    await logEvent('auth', 'delete_account', user._id, user._id, { email: user.email });
     res.json({ message: 'Account successfully deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

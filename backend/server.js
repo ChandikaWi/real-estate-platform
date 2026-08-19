@@ -18,6 +18,9 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import visitRoutes from './routes/visitRoutes.js';
 import chatbotRoutes from './routes/chatbotRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import logRoutes from './routes/logRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 
 import cron from 'node-cron';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -74,6 +77,9 @@ app.use('/api/visits', visitRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/logs', logRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { ThemeProvider, ThemeContext } from './context/ThemeContext';
+import { UIProvider, useUI } from './context/UIContext';
 import MyVisits from './pages/MyVisits';
 import { useState, useEffect, useRef } from 'react';
 import MockStripeCheckout from './pages/MockStripeCheckout';
@@ -22,6 +23,9 @@ import Profile from './pages/Profile';
 import SellerAnalytics from './pages/SellerAnalytics';
 import AdminAnalytics from './pages/AdminAnalytics';
 import BuyerDashboard from './pages/BuyerDashboard';
+import SystemLogs from './pages/SystemLogs';
+import Disputes from './pages/Disputes';
+import PlatformSettings from './pages/PlatformSettings';
 import SidebarLayout from './components/SidebarLayout';
 import AIChatBot from './components/AIChatBot';
 import api from './api/axiosConfig';
@@ -231,12 +235,40 @@ const Navigation = () => {
 };
 
 function App() {
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const { data } = await api.get('/settings');
+        if (data && data.maintenanceMode) {
+          setMaintenanceMode(true);
+        }
+      } catch (err) {
+        console.error('Failed to check maintenance mode');
+      }
+    };
+    checkMaintenance();
+    
+    // Check periodically every 5 minutes
+    const interval = setInterval(checkMaintenance, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ThemeProvider>
-      <Router>
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <UIProvider>
+        <Router>
+          <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Navigation />
-          {/* AI Chatbot Widget */}
+          
+          {maintenanceMode && (
+            <div style={{ backgroundColor: 'var(--danger-color)', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: 'bold', zIndex: 9999 }}>
+              🚧 Platform Maintenance Mode is Active. Some features may be temporarily restricted. 🚧
+            </div>
+          )}
+          
+          {/* Chatbot Widget */}
           <AIChatBot /> 
           
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -253,6 +285,9 @@ function App() {
               <Route path="/purchases" element={<SidebarLayout><MyPurchases /></SidebarLayout>} />
               <Route path="/compare" element={<SidebarLayout><Compare /></SidebarLayout>} />
               <Route path="/admin/analytics" element={<SidebarLayout><AdminAnalytics /></SidebarLayout>} />
+              <Route path="/admin/logs" element={<SidebarLayout><SystemLogs /></SidebarLayout>} />
+              <Route path="/admin/disputes" element={<SidebarLayout><Disputes /></SidebarLayout>} />
+              <Route path="/admin/settings" element={<SidebarLayout><PlatformSettings /></SidebarLayout>} />
               <Route path="/admin/:tab?" element={<SidebarLayout><AdminDashboard /></SidebarLayout>} />
               <Route path="/analytics" element={<SidebarLayout><SellerAnalytics /></SidebarLayout>} />
               <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
@@ -263,6 +298,7 @@ function App() {
           </main>
         </div>
       </Router>
+      </UIProvider>
     </ThemeProvider>
   );
 }

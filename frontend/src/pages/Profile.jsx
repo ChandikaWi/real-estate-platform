@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { showAlert } = useUI();
   const [formData, setFormData] = useState({ name: '', email: '', password: '', phoneNumber: '' });
   const [profilePhoto, setProfilePhoto] = useState('');
   const [imageFile, setImageFile] = useState(null);
@@ -70,15 +72,15 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') return alert('Please type DELETE to confirm.');
+    if (deleteConfirmText !== 'DELETE') return showAlert('Please type DELETE to confirm.', 'warning');
     try {
       await api.delete('/auth/profile'); 
       localStorage.removeItem('userInfo');
-      alert('Your account has been deleted.'); 
+      showAlert('Your account has been deleted.', 'success'); 
       navigate('/'); 
       window.location.reload();
     } catch (err) { 
-      alert('Failed to delete account.'); 
+      showAlert('Failed to delete account.', 'error'); 
       setShowDeleteModal(false); 
     }
   };

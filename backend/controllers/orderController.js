@@ -2,6 +2,7 @@ import Order from '../models/Order.js';
 import Property from '../models/Property.js';
 import nodemailer from 'nodemailer';
 import Notification from '../models/Notification.js';
+import { logEvent } from '../utils/logger.js';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail', 
@@ -40,6 +41,8 @@ export const processCheckout = async (req, res) => {
       status: 'Pending' 
     });
     const savedOrder = await order.save();
+
+    await logEvent('transaction', 'create_order', req.user._id, savedOrder._id, { propertyId, amount: property.price });
 
     // REAL-TIME NOTIFICATIONS
     const newNotif = await Notification.create({
@@ -115,6 +118,8 @@ export const updateOrderStatus = async (req, res) => {
       buyerMessage = `🚫 The purchase request for a property was cancelled.`;
       emailSubjectBuyer = 'Purchase Request Cancelled';
       emailHtmlBuyer = `<p>The transaction for the property has been officially cancelled, and it is back on the market.</p>`;
+      
+      await logEvent('transaction', 'cancel_order', req.user._id, order._id, { propertyId: order.propertyId });
     } 
     
     // APPROVE ACTION
@@ -124,6 +129,8 @@ export const updateOrderStatus = async (req, res) => {
       buyerMessage = `✅ Your request was APPROVED! The seller is ready to proceed.`;
       emailSubjectBuyer = 'Your Purchase Request was Approved! 🤝';
       emailHtmlBuyer = `<p>The seller has approved your purchase request! Please contact them to arrange offline payment and legal documentation.</p>`;
+      
+      await logEvent('transaction', 'approve_order', req.user._id, order._id, { propertyId: order.propertyId });
     }
 
     // COMPLETE ACTION
@@ -148,6 +155,8 @@ export const updateOrderStatus = async (req, res) => {
           </div>
         </div>
       `);
+      
+      await logEvent('transaction', 'complete_order', req.user._id, order._id, { propertyId: order.propertyId });
     }
 
     const updatedOrder = await order.save();

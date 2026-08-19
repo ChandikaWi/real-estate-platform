@@ -4,6 +4,7 @@ import Order from '../models/Order.js';
 import Favorite from '../models/Favorite.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import Settings from '../models/Settings.js';
 import axios from 'axios';
 
 // @desc    Get all properties (with search, filter, pagination)
@@ -114,6 +115,11 @@ export const getAIValuation = async (req, res) => {
 // @route   POST /api/properties
 export const createProperty = async (req, res) => {
   try {
+    const settings = await Settings.findOne();
+    if (settings && settings.maintenanceMode) {
+      return res.status(503).json({ message: 'The platform is currently under maintenance. New listings cannot be created at this time.' });
+    }
+
     const property = new Property({ ...req.body, sellerId: req.user._id });
     const createdProperty = await property.save();
 

@@ -1,4 +1,5 @@
 import Property from '../models/Property.js';
+import { logEvent } from '../utils/logger.js';
 
 // @desc    Process natural language chat queries and return properties
 // @route   POST /api/chatbot
@@ -65,10 +66,13 @@ export const handleChatQuery = async (req, res) => {
       reply = `I found ${properties.length} propert${properties.length === 1 ? 'y' : 'ies'} perfectly matching your request for ${queryExplanation.join(' ')}. Here is what I found:`;
     }
 
+    await logEvent('system', 'ai_chatbot_used', req.user?._id || null, null, { query: message, resultsFound: properties.length });
+
     res.json({ reply, properties });
 
   } catch (error) {
     console.error("Chatbot Engine Error:", error);
+    await logEvent('system', 'ai_chatbot_error', req.user?._id || null, null, { error: error.message });
     res.status(500).json({ reply: "Oops, my AI circuits got crossed. Please try asking again.", properties: [] });
   }
 };

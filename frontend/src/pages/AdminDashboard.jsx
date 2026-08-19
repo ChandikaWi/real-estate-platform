@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { tab } = useParams();
   const currentTab = tab || 'users';
+  const { showAlert, showConfirm } = useUI();
 
   const [users, setUsers] = useState([]);
   const [properties, setProperties] = useState([]);
@@ -15,6 +17,9 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '' });
 
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('All');
@@ -37,11 +42,12 @@ const AdminDashboard = () => {
 
     const fetchAdminData = async () => {
       try {
-        // Fetch all 3 endpoints concurrently
-        const [usersRes, propertiesRes, paymentsRes] = await Promise.all([
+        // Fetch all endpoints concurrently
+        const [usersRes, propertiesRes, paymentsRes, settingsRes] = await Promise.all([
           api.get('/admin/users'), 
           api.get('/admin/properties'),
-          api.get('/admin/payments').catch(() => ({ data: [] })) // Safe fallback if route missing
+          api.get('/admin/payments').catch(() => ({ data: [] })), // Safe fallback if route missing
+          api.get('/settings').catch(() => ({ data: { aiValuationThreshold: 15 } }))
         ]);
         
         const propertiesWithValuation = await Promise.all(
@@ -60,6 +66,7 @@ const AdminDashboard = () => {
         setUsers(usersRes.data); 
         setProperties(propertiesWithValuation); 
         setPayments(paymentsRes.data);
+        setSettings(settingsRes.data);
         setLoading(false);
       } catch (err) { 
         setError(err.response?.data?.message || 'Failed to load data'); 
@@ -71,23 +78,35 @@ const AdminDashboard = () => {
 
   const handleDeleteUser = async (id, e) => {
     e.stopPropagation(); 
-    if (window.confirm('Delete this user?')) {
-      try { await api.delete(`/admin/users/${id}`); setUsers(users.filter(u => u._id !== id)); setSelectedUser(null); } catch (err) { alert('Failed'); }
-    }
+    showConfirm('Delete this user?', async () => {
+      try { 
+        await api.delete(`/admin/users/${id}`); 
+        setUsers(users.filter(u => u._id !== id)); 
+        setSelectedUser(null); 
+      } catch (err) { 
+        showAlert('Failed', 'error'); 
+      }
+    });
   };
 
   const handleDeleteProperty = async (id, e) => {
     e.stopPropagation(); 
-    if (window.confirm('Delete this property?')) {
-      try { await api.delete(`/admin/properties/${id}`); setProperties(properties.filter(p => p._id !== id)); setSelectedProperty(null); } catch (err) { alert('Failed'); }
-    }
+    showConfirm('Delete this property?', async () => {
+      try { 
+        await api.delete(`/admin/properties/${id}`); 
+        setProperties(properties.filter(p => p._id !== id)); 
+        setSelectedProperty(null); 
+      } catch (err) { 
+        showAlert('Failed', 'error'); 
+      }
+    });
   };
 
   const handleUserStatusToggle = async (id, action) => {
     try {
       const { data } = await api.put(`/admin/users/${id}/status`, { action });
       setUsers(users.map(u => u._id === id ? data : u)); setSelectedUser(data);
-    } catch (error) { alert('Failed'); }
+    } catch (error) { showAlert('Failed', 'error'); }
   };
 
   const filteredUsers = users.filter(user => {
@@ -107,8 +126,9 @@ const AdminDashboard = () => {
                         (prop.sellerId?.name || '').toLowerCase().includes(propSearch.toLowerCase());
     const matchStatus = propStatusFilter === 'All' ? true : prop.status === propStatusFilter;
     
-    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15;
-    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85;
+    const threshold = settings?.aiValuationThreshold || 15;
+    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * (1 + threshold / 100);
+    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * (1 - threshold / 100);
     const auditStatus = isOverpriced ? 'Overpriced' : isUnderpriced ? 'Underpriced' : 'Fair Value';
     
     const matchAudit = marketAuditFilter === 'All' ? true : auditStatus === marketAuditFilter;
@@ -154,9 +174,17 @@ const AdminDashboard = () => {
 
       {currentTab === 'users' && (
         <section>
-          <div style={{ marginBottom: '20px' }}>
-            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Manage Users</h2>
-            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Click any user row to view details and moderation options.</p>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Manage Users</h2>
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>Click any user row to view details and moderation options.</p>
+            </div>
+            <button 
+              onClick={() => setShowCreateAdmin(true)}
+              style={{ padding: '10px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              + Create Admin
+            </button>
           </div>
 
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -289,8 +317,9 @@ const AdminDashboard = () => {
                   </tr>
                 ) : (
                   filteredProperties.map(prop => {
-                    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * 1.15; 
-                    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * 0.85; 
+                    const threshold = settings?.aiValuationThreshold || 15;
+                    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * (1 + threshold / 100); 
+                    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * (1 - threshold / 100); 
                     
                     return (
                       <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -332,7 +361,7 @@ const AdminDashboard = () => {
                                     try {
                                       await api.put(`/properties/${prop._id}/status`, { status: 'Active' });
                                       setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Active' } : p));
-                                    } catch (err) { alert('Failed to approve property.'); }
+                                    } catch (err) { showAlert('Failed to approve property.', 'error'); }
                                   }} 
                                   style={{ padding: '6px 12px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
                                 >Approve</button>
@@ -343,7 +372,7 @@ const AdminDashboard = () => {
                                     try {
                                       await api.put(`/properties/${prop._id}/status`, { status: 'Rejected' });
                                       setProperties(properties.map(p => p._id === prop._id ? { ...p, status: 'Rejected' } : p));
-                                    } catch (err) { alert('Failed to reject property.'); }
+                                    } catch (err) { showAlert('Failed to reject property.', 'error'); }
                                   }} 
                                   style={{ padding: '6px 12px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
                                 >Reject</button>
@@ -482,6 +511,43 @@ const AdminDashboard = () => {
             )}
 
             <button onClick={() => setSelectedUser(null)} style={{ padding: '14px', width: '100%', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem' }}>Close Details</button>
+          </div>
+        </div>
+      )}
+
+      {showCreateAdmin && (
+        <div style={overlayStyle} onClick={() => setShowCreateAdmin(false)}>
+          <div style={{ ...modalStyle, maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0, marginBottom: '20px' }}>Create Master Admin</h2>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const { data } = await api.post('/admin/users', newAdmin);
+                setUsers([...users, data]);
+                setShowCreateAdmin(false);
+                setNewAdmin({ name: '', email: '', password: '' });
+                showAlert('Admin created successfully', 'success');
+              } catch (err) {
+                showAlert(err.response?.data?.message || 'Failed to create admin', 'error');
+              }
+            }}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Name</label>
+                <input required type="text" value={newAdmin.name} onChange={e => setNewAdmin({...newAdmin, name: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+              </div>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Email</label>
+                <input required type="email" value={newAdmin.email} onChange={e => setNewAdmin({...newAdmin, email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Password</label>
+                <input required type="password" value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Create Admin</button>
+                <button type="button" onClick={() => setShowCreateAdmin(false)} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

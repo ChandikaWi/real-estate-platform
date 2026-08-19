@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 
 const MockStripeCheckout = () => {
   const { paymentId } = useParams();
   const navigate = useNavigate();
+  const { showAlert } = useUI();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -22,7 +24,7 @@ const MockStripeCheckout = () => {
         if (data.status === 'Completed') navigate('/dashboard/listings');
         else setSession(data);
       } catch (err) {
-        alert("Session invalid or expired.");
+        showAlert("Session invalid or expired.", "error");
         navigate('/dashboard/listings');
       } finally {
         setLoading(false);
@@ -64,7 +66,7 @@ const MockStripeCheckout = () => {
         await api.post('/payments/confirm', { paymentId });
         navigate('/dashboard/listings', { state: { message: "🔥 Payment successful! Your property is now boosted." } });
       } catch (err) {
-        alert("Payment failed.");
+        showAlert("Payment failed.", "error");
         setProcessing(false);
       }
     }, 2000);

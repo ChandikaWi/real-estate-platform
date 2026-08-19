@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useUI } from '../context/UIContext';
 import Realstatevideo from "../assets/Realstatevideo.mp4";
 
 const Home = () => {
@@ -8,6 +9,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { showAlert } = useUI();
 
   // Search & Filter States
   const [listingType, setListingType] = useState('buy'); // 'buy' or 'rent'
@@ -82,7 +84,7 @@ const Home = () => {
 
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
-      alert("Please answer all 3 questions to get your match!");
+      showAlert("Please answer all 3 questions to get your match!", "warning");
       return;
     }
     setLoadingLifestyle(true);
