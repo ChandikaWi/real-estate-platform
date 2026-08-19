@@ -5,6 +5,7 @@ import Payment from '../models/Payment.js';
 import Review from '../models/Review.js';
 import { logEvent } from '../utils/logger.js';
 import generateToken from '../utils/generateToken.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get all users
 // @route   GET /api/admin/users
@@ -57,6 +58,25 @@ export const createAdminUser = async (req, res) => {
 
     await logEvent('system', 'create_admin', req.user._id, adminUser._id, { newAdminEmail: adminUser.email });
     
+    // SMART ALERT - Notify all other admins
+    const otherAdmins = await User.find({ role: 'admin', _id: { $ne: adminUser._id } });
+    const adminNotifs = otherAdmins.map(admin => ({
+      userId: admin._id,
+      type: 'system',
+      message: `🛡️ New Admin Account created: ${adminUser.name} (${adminUser.email})`,
+      link: '/admin/users'
+    }));
+    
+    if (adminNotifs.length > 0) {
+      const insertedNotifs = await Notification.insertMany(adminNotifs);
+      const io = req.app.get('io');
+      if (io) {
+        insertedNotifs.forEach(notif => {
+          io.to(notif.userId.toString()).emit('new_notification', notif);
+        });
+      }
+    }
+
     res.status(201).json({
       _id: adminUser._id,
       name: adminUser.name,
@@ -207,6 +227,30 @@ export const forceCancelOrder = async (req, res) => {
     
     await logEvent('moderation', 'force_cancel_order', req.user._id, order._id, { propertyId: order.propertyId });
     
+    const io = req.app.get('io');
+    if (io) {
+      // Notify Buyer
+      const buyerNotif = await Notification.create({
+        userId: order.buyerId,
+        type: 'alert',
+        message: `🚨 Your purchase request was FORCE CANCELLED by an administrator.`,
+        link: '/purchases'
+      });
+      io.to(order.buyerId.toString()).emit('new_notification', buyerNotif);
+      
+      // Notify Seller
+      const sellerNotif = await Notification.create({
+        userId: order.sellerId,
+        type: 'alert',
+        message: `🚨 A pending order for your property was FORCE CANCELLED by an administrator.`,
+        link: '/dashboard/sales'
+      });
+      io.to(order.sellerId.toString()).emit('new_notification', sellerNotif);
+      
+      // Broadcast property status change
+      io.emit('property_status_updated', { propertyId: order.propertyId, status: 'Active' });
+    }
+
     res.json({ message: 'Order forcefully cancelled and property restored to active.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -242,6 +286,18 @@ export const deleteReview = async (req, res) => {
       rating: review.rating
     });
     
+    // Notify the Buyer whose review was wiped
+    const io = req.app.get('io');
+    if (io) {
+      const buyerNotif = await Notification.create({
+        userId: review.buyerId,
+        type: 'alert',
+        message: `🚨 Your review was removed by an administrator for violating community guidelines.`,
+        link: '/'
+      });
+      io.to(review.buyerId.toString()).emit('new_notification', buyerNotif);
+    }
+
     res.json({ message: 'Review wiped successfully.' });
   } catch (error) {
     res.status(500).json({ message: error.message });

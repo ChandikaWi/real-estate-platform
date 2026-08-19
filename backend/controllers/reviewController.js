@@ -38,12 +38,17 @@ export const addReview = async (req, res) => {
     const populatedReview = await Review.findById(review._id).populate('buyerId', 'name profilePhoto');
     
     // SMART ALERT - Notify Seller of a new review
-    await Notification.create({
+    const newNotif = await Notification.create({
       userId: sellerId,
       type: 'review',
       message: `⭐ You received a new ${rating}-star review from ${req.user.name}!`,
       link: '/analytics' // Sends them to their performance matrix
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(sellerId.toString()).emit('new_notification', newNotif);
+    }
     
     res.status(201).json(populatedReview);
   } catch (error) {

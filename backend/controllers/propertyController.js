@@ -131,7 +131,15 @@ export const createProperty = async (req, res) => {
       message: `🏢 New property listed: "${property.title}" by ${req.user.name}.`,
       link: '/admin/properties'
     }));
-    if (adminNotifs.length > 0) await Notification.insertMany(adminNotifs);
+    if (adminNotifs.length > 0) {
+      const insertedNotifs = await Notification.insertMany(adminNotifs);
+      const io = req.app.get('io');
+      if (io) {
+        insertedNotifs.forEach(notif => {
+          io.to(notif.userId.toString()).emit('new_notification', notif);
+        });
+      }
+    }
 
     res.status(201).json(createdProperty);
   } catch (error) {
@@ -205,7 +213,15 @@ export const updateProperty = async (req, res) => {
         message: `🔥 Price dropped by ${priceDropPercentage}% on "${property.title}"! It is now Rs.${req.body.price.toLocaleString()}.`,
         link: `/property/${property._id}`
       }));
-      if (notifications.length > 0) await Notification.insertMany(notifications);
+      if (notifications.length > 0) {
+        const insertedNotifs = await Notification.insertMany(notifications);
+        const io = req.app.get('io');
+        if (io) {
+          insertedNotifs.forEach(notif => {
+            io.to(notif.userId.toString()).emit('new_notification', notif);
+          });
+        }
+      }
     }
     
     // Force status back to 'Pending Review' upon any edit

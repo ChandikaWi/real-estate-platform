@@ -1,4 +1,6 @@
 import Report from '../models/Report.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import { logEvent } from '../utils/logger.js';
 
 // @desc    Submit a new report
@@ -16,6 +18,25 @@ export const createReport = async (req, res) => {
     await report.save();
     await logEvent('moderation', 'report_submitted', req.user._id, targetId, { targetType, reason });
     
+    // Notify Admins
+    const admins = await User.find({ role: 'admin' });
+    const adminNotifs = admins.map(admin => ({
+      userId: admin._id,
+      type: 'alert',
+      message: `🚩 A new report was filed regarding a ${targetType}.`,
+      link: '/admin/disputes'
+    }));
+
+    if (adminNotifs.length > 0) {
+      const insertedNotifs = await Notification.insertMany(adminNotifs);
+      const io = req.app.get('io');
+      if (io) {
+        insertedNotifs.forEach(notif => {
+          io.to(notif.userId.toString()).emit('new_notification', notif);
+        });
+      }
+    }
+
     res.status(201).json(report);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -52,6 +73,18 @@ export const updateReportStatus = async (req, res) => {
     
     await logEvent('moderation', `report_${status.toLowerCase()}`, req.user._id, report._id, { targetId: report.targetId });
     
+    // Notify the user who filed the report
+    const io = req.app.get('io');
+    if (io) {
+      const userNotif = await Notification.create({
+        userId: report.reporterId,
+        type: 'alert',
+        message: `🛡️ Your report regarding a ${report.targetType} has been marked as ${status}.`,
+        link: '/'
+      });
+      io.to(report.reporterId.toString()).emit('new_notification', userNotif);
+    }
+
     res.json(updatedReport);
   } catch (error) {
     res.status(500).json({ message: error.message });
