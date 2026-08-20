@@ -267,16 +267,57 @@ export const getSellerProperties = async (req, res) => {
 // @route   GET /api/properties/seller/analytics
 export const getSellerAnalytics = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+
     const properties = await Property.find({ sellerId: req.user._id });
-    const orders = await Order.find({ sellerId: req.user._id });
-    const messages = await Message.find({ receiverId: req.user._id });
+    
+    // Geo-Distribution
+    const geoMap = {};
+    properties.forEach(p => {
+      if (p.location && p.location.city) {
+        geoMap[p.location.city] = (geoMap[p.location.city] || 0) + 1;
+      }
+    });
+    const geoDistribution = Object.keys(geoMap).map(city => ({ name: city, count: geoMap[city] }));
+
+    let dateQuery = { sellerId: req.user._id };
+    let msgDateQuery = { receiverId: req.user._id };
+
+    if (startDate || endDate) {
+      dateQuery.createdAt = {};
+      msgDateQuery.createdAt = {};
+      if (startDate) {
+        dateQuery.createdAt.$gte = new Date(startDate);
+        msgDateQuery.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        dateQuery.createdAt.$lte = new Date(endDate);
+        msgDateQuery.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    const orders = await Order.find(dateQuery);
+    const messages = await Message.find(msgDateQuery);
 
     // Calculate Summary Totals
     const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
-    const totalSalesRevenue = orders
-      .filter(o => o.status === 'Completed')
-      .reduce((sum, o) => sum + (o.amount || 0), 0);
+    const completedOrders = orders.filter(o => o.status === 'Completed');
+    const totalSalesRevenue = completedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+
+    // Calculate Average DOM (Days on Market)
+    let totalDOM = 0;
+    let domCount = 0;
+    properties.forEach(prop => {
+      const propOrder = completedOrders.find(o => o.propertyId?.toString() === prop._id.toString());
+      const startDate = new Date(prop.createdAt);
+      const endDate = propOrder ? new Date(propOrder.updatedAt || propOrder.createdAt) : new Date();
+      const diffTime = Math.abs(endDate - startDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      totalDOM += diffDays;
+      domCount++;
+    });
+    const averageDOM = domCount > 0 ? Math.round(totalDOM / domCount) : 0;
 
     // Calculate Individual Listing Performance
     const listingPerformance = properties.map(prop => {
@@ -298,13 +339,42 @@ export const getSellerAnalytics = async (req, res) => {
       };
     });
 
+    // 12-Month Revenue Trend (Ignoring date filter for the trend chart so it's always full 12 months)
+    const allCompletedOrders = await Order.find({ sellerId: req.user._id, status: 'Completed' });
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const now = new Date();
+    const revenueTrendMap = {};
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      revenueTrendMap[`${monthNames[d.getMonth()]} ${d.getFullYear()}`] = 0;
+    }
+    allCompletedOrders.forEach(o => {
+      const d = new Date(o.updatedAt || o.createdAt);
+      const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      if (revenueTrendMap[key] !== undefined) {
+        revenueTrendMap[key] += (o.amount || 0);
+      }
+    });
+    const revenueTrend = Object.keys(revenueTrendMap).map(key => ({ name: key, revenue: revenueTrendMap[key] }));
+
+    // Recent Transactions Ledger
+    const recentOrders = await Order.find(dateQuery)
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('buyerId', 'name email')
+      .populate('propertyId', 'title');
+
     res.json({
       summary: {
         activeListings: properties.length,
         totalViews,
         totalInquiries,
-        totalSalesRevenue
+        totalSalesRevenue,
+        averageDOM
       },
+      geoDistribution,
+      revenueTrend,
+      recentOrders,
       listings: listingPerformance
     });
   } catch (error) {

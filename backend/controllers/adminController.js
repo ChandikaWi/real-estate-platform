@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
 import Review from '../models/Review.js';
+import Report from '../models/Report.js';
 import { logEvent } from '../utils/logger.js';
 import generateToken from '../utils/generateToken.js';
 import Notification from '../models/Notification.js';
@@ -142,36 +143,115 @@ export const updateUserStatus = async (req, res) => {
 // @route   GET /api/admin/analytics
 export const getAdminAnalytics = async (req, res) => {
   try {
+    const { startDate, endDate } = req.query;
+
     const totalUsers = await User.countDocuments();
     const buyers = await User.countDocuments({ role: 'buyer' });
     const sellers = await User.countDocuments({ role: 'seller' });
 
     const properties = await Property.find();
     const totalProperties = properties.length;
+    
+    // Property Status Distribution
+    const propertyStatus = {
+      active: properties.filter(p => p.status === 'Active').length,
+      pending: properties.filter(p => p.status === 'Pending Review').length,
+      reserved: properties.filter(p => p.status === 'Reserved').length,
+      sold: properties.filter(p => p.status === 'Sold').length
+    };
+
+    // Property Type Distribution
     const houses = properties.filter(p => p.type === 'house').length;
     const apartments = properties.filter(p => p.type === 'apartment').length;
     const lands = properties.filter(p => p.type === 'land').length;
 
-    const orders = await Order.find();
+    // Geo-Distribution (Top Cities)
+    const geoMap = {};
+    properties.forEach(p => {
+      if (p.location && p.location.city) {
+        geoMap[p.location.city] = (geoMap[p.location.city] || 0) + 1;
+      }
+    });
+    const geoDistribution = Object.keys(geoMap).map(city => ({ name: city, count: geoMap[city] }));
+
+    // Date Filtering for Orders
+    let orderQuery = {};
+    if (startDate || endDate) {
+      orderQuery.createdAt = {};
+      if (startDate) orderQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) orderQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    // Order Aggregations
+    const orders = await Order.find(orderQuery).populate('sellerId', 'name email').populate('buyerId', 'name email').populate('propertyId', 'title');
+    const totalOrders = orders.length;
     const completedOrders = orders.filter(o => o.status === 'Completed');
     const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
-    const totalOrders = orders.length;
 
-    // Generate a basic 6-point trend for the chart based on recent revenue
-    const revenueTrend = [
-      { name: 'Point 1', revenue: totalRevenue * 0.05 },
-      { name: 'Point 2', revenue: totalRevenue * 0.10 },
-      { name: 'Point 3', revenue: totalRevenue * 0.15 },
-      { name: 'Point 4', revenue: totalRevenue * 0.20 },
-      { name: 'Point 5', revenue: totalRevenue * 0.25 },
-      { name: 'Current', revenue: totalRevenue * 0.25 },
-    ];
+    // Order Status Distribution
+    const orderStatus = {
+      pending: orders.filter(o => o.status === 'Pending').length,
+      approved: orders.filter(o => o.status === 'Approved').length,
+      completed: completedOrders.length,
+      cancelled: orders.filter(o => o.status === 'Cancelled').length
+    };
+
+    // Real Revenue Trend (Last 12 Months - ignoring date filter for the trend so the chart stays full)
+    const allCompletedOrders = await Order.find({ status: 'Completed' });
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const now = new Date();
+    const revenueTrendMap = {};
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      revenueTrendMap[`${monthNames[d.getMonth()]} ${d.getFullYear()}`] = 0;
+    }
+    allCompletedOrders.forEach(o => {
+      const d = new Date(o.updatedAt || o.createdAt);
+      const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      if (revenueTrendMap[key] !== undefined) {
+        revenueTrendMap[key] += (o.amount || 0);
+      }
+    });
+    const revenueTrend = Object.keys(revenueTrendMap).map(key => ({ name: key, revenue: revenueTrendMap[key] }));
+
+    // Top Performers (Top Sellers by Revenue in the date range)
+    const sellerRevenue = {};
+    completedOrders.forEach(o => {
+      if (!o.sellerId) return;
+      const sId = o.sellerId._id.toString();
+      if (!sellerRevenue[sId]) {
+        sellerRevenue[sId] = { _id: sId, name: o.sellerId.name, email: o.sellerId.email, revenue: 0, salesCount: 0 };
+      }
+      sellerRevenue[sId].revenue += (o.amount || 0);
+      sellerRevenue[sId].salesCount += 1;
+    });
+    const topSellers = Object.values(sellerRevenue)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10); // get top 10 for better data richness
+
+    // Recent Transactions (Last 10 Orders in date range)
+    const recentOrders = await Order.find(orderQuery)
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('sellerId', 'name email')
+      .populate('buyerId', 'name email')
+      .populate('propertyId', 'title');
+
+    // Disputes
+    const openDisputes = await Report.countDocuments({ status: 'Pending' });
+
+    // Live Traffic Metrics
+    const io = req.app.get('io');
+    const onlineUsers = io ? io.engine.clientsCount : 0;
 
     res.json({
-      users: { total: totalUsers, buyers, sellers },
-      properties: { total: totalProperties, houses, apartments, lands },
-      sales: { totalRevenue, totalOrders, completed: completedOrders.length },
-      revenueTrend
+      users: { total: totalUsers, buyers, sellers, online: onlineUsers },
+      properties: { total: totalProperties, houses, apartments, lands, statusDistribution: propertyStatus, geoDistribution },
+      sales: { totalRevenue, totalOrders, completed: completedOrders.length, statusDistribution: orderStatus },
+      revenueTrend,
+      topSellers,
+      recentOrders,
+      openDisputes
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

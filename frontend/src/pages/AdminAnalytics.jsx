@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Line, AreaChart, Area, ComposedChart } from 'recharts';
 import html2canvas from 'html2canvas';
@@ -12,28 +12,47 @@ const AdminAnalytics = () => {
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef();
   
-  // Filter State for the Trend Chart
+  // Filter States
   const [timeFilter, setTimeFilter] = useState('All');
+  const [searchSeller, setSearchSeller] = useState('');
+  const [searchOrder, setSearchOrder] = useState('');
   
-  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-
+  // Date Range Filters
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
   useEffect(() => {
-    if (!userInfo || userInfo.role !== 'admin') {
+    const user = JSON.parse(localStorage.getItem('userInfo'));
+    if (!user || user.role !== 'admin') {
       navigate('/login');
       return;
     }
     const fetchAdminData = async () => {
       try {
-        const response = await api.get('/admin/analytics');
+        setLoading(true);
+        let url = '/admin/analytics';
+        if (startDate || endDate) {
+          url += `?startDate=${startDate}&endDate=${endDate}`;
+        }
+        const response = await api.get(url);
         setData(response.data);
-        setLoading(false);
       } catch (err) {
         console.error("Failed to load admin analytics");
+      } finally {
         setLoading(false);
       }
     };
-    fetchAdminData();
-  }, [navigate, userInfo]);
+    
+    // Small debounce for dates to avoid spamming if typing
+    const timeout = setTimeout(() => {
+      fetchAdminData();
+    }, 500);
+    return () => clearTimeout(timeout);
+    
+  }, [navigate, startDate, endDate]);
+
+  const userInfo = JSON.parse(localStorage.getItem('userInfo')); 
+
 
   const exportPDF = async () => {
     setIsExporting(true);
@@ -77,16 +96,52 @@ const AdminAnalytics = () => {
     }, 150);
   };
 
+  const exportCSV = (type) => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    
+    if (type === 'sellers' && data?.topSellers) {
+      csvContent += "Seller Name,Email,Total Deals,Gross Revenue\n";
+      data.topSellers.forEach(s => {
+        csvContent += `"${s.name}","${s.email}",${s.salesCount},${s.revenue}\n`;
+      });
+    } else if (type === 'orders' && data?.recentOrders) {
+      csvContent += "Order ID,Buyer Name,Property,Status,Value\n";
+      data.recentOrders.forEach(o => {
+        csvContent += `"${o._id}","${o.buyerId?.name || 'Unknown'}","${o.propertyId?.title || 'Unknown'}","${o.status}",${o.amount || 0}\n`;
+      });
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${type}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // FILTERING LOGIC
   const trendData = data?.revenueTrend || [];
-  
   const displayTrendData = useMemo(() => {
     if (timeFilter === 'All') return trendData;
-    // Returns the last N elements of the array
     return trendData.slice(-Number(timeFilter));
   }, [trendData, timeFilter]);
 
-  if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Compiling Global Analytics...</h2></div>;
+  const filteredSellers = useMemo(() => {
+    if (!data?.topSellers) return [];
+    return data.topSellers.filter(s => s.name.toLowerCase().includes(searchSeller.toLowerCase()) || s.email.toLowerCase().includes(searchSeller.toLowerCase()));
+  }, [data?.topSellers, searchSeller]);
+
+  const filteredOrders = useMemo(() => {
+    if (!data?.recentOrders) return [];
+    return data.recentOrders.filter(o => 
+      o._id.toLowerCase().includes(searchOrder.toLowerCase()) || 
+      (o.buyerId?.name || '').toLowerCase().includes(searchOrder.toLowerCase()) ||
+      (o.propertyId?.title || '').toLowerCase().includes(searchOrder.toLowerCase())
+    );
+  }, [data?.recentOrders, searchOrder]);
+
+  if (loading && !data) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Compiling Global Analytics...</h2></div>;
   if (!data) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--danger-color)' }}>Error loading system data.</h2></div>;
 
   const userPieData = [
@@ -94,17 +149,29 @@ const AdminAnalytics = () => {
     { name: 'Sellers', value: data.users.sellers },
   ];
   
-  const propertyBarData = [
-    { name: 'Houses', count: data.properties.houses },
-    { name: 'Apartments', count: data.properties.apartments },
-    { name: 'Land', count: data.properties.lands },
+  const geoData = data.properties.geoDistribution || [];
+  const propertyStatusData = [
+    { name: 'Active', value: data.properties.statusDistribution?.active || 0 },
+    { name: 'Reserved', value: data.properties.statusDistribution?.reserved || 0 },
+    { name: 'Sold', value: data.properties.statusDistribution?.sold || 0 },
+    { name: 'Pending', value: data.properties.statusDistribution?.pending || 0 },
+  ];
+
+  const orderStatusData = [
+    { name: 'Pending', count: data.sales.statusDistribution?.pending || 0 },
+    { name: 'Approved', count: data.sales.statusDistribution?.approved || 0 },
+    { name: 'Completed', count: data.sales.statusDistribution?.completed || 0 },
+    { name: 'Cancelled', count: data.sales.statusDistribution?.cancelled || 0 },
   ];
   
-  const PIE_COLORS = ['#3b82f6', '#10b981'];
+  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const STATUS_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#ef4444'];
   const tooltipStyle = { backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', boxShadow: 'var(--shadow-lg)' };
 
+  const avgDealSize = data.sales.completed > 0 ? (data.sales.totalRevenue / data.sales.completed) : 0;
+
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
       {/* ADMIN BANNER */}
       <div style={{ 
@@ -120,8 +187,8 @@ const AdminAnalytics = () => {
         gap: '20px'
       }}>
         <div>
-          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Platform Overview</h1>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Global statistics, demographic distribution, and system health.</p>
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.5rem', fontWeight: '800' }}>Executive Command Center</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Global real-time analytics, revenue tracking, and network health.</p>
         </div>
         <button 
           disabled={isExporting} 
@@ -135,23 +202,42 @@ const AdminAnalytics = () => {
       </div>
 
       {/* SMART FILTER UI */}
-      {trendData.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '20px', marginBottom: '20px' }}>
+        
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Transactions Date Range:</label>
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={(e) => setStartDate(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
+          />
+          <span style={{ color: 'var(--text-muted)' }}>to</span>
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={(e) => setEndDate(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
+          />
+        </div>
+
+        {trendData.length > 0 && (
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Trend Data:</label>
+            <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Revenue Trend Window:</label>
             <select 
               value={timeFilter} 
               onChange={(e) => setTimeFilter(e.target.value)} 
               style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}
             >
-              <option value="All">All Time ({trendData.length})</option>
-              <option value="30">Last 30 Records</option>
-              <option value="10">Last 10 Records</option>
-              <option value="5">Last 5 Records</option>
+              <option value="All">12 Months</option>
+              <option value="6">Last 6 Months</option>
+              <option value="3">Last 3 Months</option>
             </select>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {loading && <div style={{ color: 'var(--primary-color)', fontWeight: 'bold', marginBottom: '20px' }}>Refreshing data...</div>}
 
       {/* PRINTABLE REPORT CONTAINER */}
       <div ref={reportRef} style={{ padding: '30px', backgroundColor: 'var(--bg-card)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -166,93 +252,79 @@ const AdminAnalytics = () => {
           </div>
         </div>
 
-        {/* KPI CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '25px', marginBottom: '50px' }}>
+        {/* KPI CARDS (7 grid) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '50px' }}>
           
-          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Total Network Users</h4>
-              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Live Online Users</h4>
+              <div style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block', animation: 'pulse 2s infinite' }}></span>
+                🟢
               </div>
             </div>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.users.total.toLocaleString()}</h2>
+            <h2 style={{ margin: 0, fontSize: '2.2rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.users.online.toLocaleString()}</h2>
           </div>
 
-          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Market Properties</h4>
-              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path></svg>
-              </div>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Total Network Users</h4>
+              <div style={{ color: '#3b82f6' }}>👥</div>
             </div>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.properties.total.toLocaleString()}</h2>
+            <h2 style={{ margin: 0, fontSize: '2.2rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.users.total.toLocaleString()}</h2>
           </div>
 
-          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Completed Orders</h4>
-              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" x2="21" y1="6" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-              </div>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Market Properties</h4>
+              <div style={{ color: '#10b981' }}>🏢</div>
             </div>
-            <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.sales.completed.toLocaleString()}</h2>
+            <h2 style={{ margin: 0, fontSize: '2.2rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.properties.total.toLocaleString()}</h2>
           </div>
 
-          <div style={{ padding: '25px', backgroundColor: 'var(--bg-main)', borderRadius: '20px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', fontWeight: 'bold' }}>Gross Revenue</h4>
-              <div style={{ width: '35px', height: '35px', borderRadius: '8px', backgroundColor: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-              </div>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Completed Orders</h4>
+              <div style={{ color: '#f59e0b' }}>📦</div>
+            </div>
+            <h2 style={{ margin: 0, fontSize: '2.2rem', color: 'var(--text-main)', fontWeight: '900' }}>{data.sales.completed.toLocaleString()}</h2>
+          </div>
+
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Gross Revenue</h4>
+              <div style={{ color: '#8b5cf6' }}>💰</div>
             </div>
             <h2 style={{ margin: 0, fontSize: '2rem', color: '#8b5cf6', fontWeight: '900' }}>
-              Rs. {data.sales.totalRevenue > 0 ? (data.sales.totalRevenue / 1000000).toFixed(1) + 'M' : '0'}
+              Rs. {data.sales.totalRevenue >= 1000000 ? (data.sales.totalRevenue / 1000000).toFixed(1) + 'M' : data.sales.totalRevenue.toLocaleString()}
             </h2>
           </div>
-        </div>
 
-        {/* CHARTS ROW 1 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', marginBottom: '40px' }}>
-          
-          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>User Demographics Matrix</h3>
-            <div style={{ height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={userPieData} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={8} dataKey="value" stroke="none">
-                    {userPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} Users`, 'Count']} itemStyle={{ fontWeight: 'bold' }} />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                </PieChart>
-              </ResponsiveContainer>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Avg Deal Size</h4>
+              <div style={{ color: '#ec4899' }}>📈</div>
             </div>
+            <h2 style={{ margin: 0, fontSize: '2rem', color: 'var(--text-main)', fontWeight: '900' }}>
+              Rs. {avgDealSize >= 1000000 ? (avgDealSize / 1000000).toFixed(1) + 'M' : avgDealSize.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </h2>
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem' }}>Inventory Distribution</h3>
-            <div style={{ height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={propertyBarData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} dy={10} />
-                  <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} dx={-10} />
-                  <Tooltip contentStyle={tooltipStyle} itemStyle={{ fontWeight: 'bold' }} />
-                  <Bar dataKey="count" fill="var(--accent-color)" barSize={50} radius={[6, 6, 0, 0]} />
-                  <Line type="monotone" dataKey="count" stroke="var(--primary-color)" strokeWidth={4} dot={{ r: 6, strokeWidth: 2 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
+          <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold' }}>Open Disputes</h4>
+              <div style={{ color: '#ef4444' }}>🚨</div>
             </div>
+            <h2 style={{ margin: 0, fontSize: '2.2rem', color: data.openDisputes > 0 ? '#ef4444' : 'var(--text-main)', fontWeight: '900' }}>{data.openDisputes || 0}</h2>
           </div>
         </div>
 
         {/* AREA CHART WITH FORCED ANIMATION */}
-        <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+        <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)', marginBottom: '40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Fiscal Growth & Revenue Trajectory</h3>
+            <h3 style={{ margin: 0, fontSize: '1.4rem' }}>Real-Time Revenue Trajectory</h3>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-card)', padding: '6px 12px', borderRadius: '12px', fontWeight: 'bold' }}>
-              Showing {displayTrendData.length} Points
+              {displayTrendData.length} Months Displayed
             </span>
           </div>
           
@@ -263,7 +335,6 @@ const AdminAnalytics = () => {
           ) : (
             <div style={{ height: '350px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                {/* Adding key={timeFilter} forces Recharts to re-animate when the filter changes */}
                 <AreaChart key={timeFilter} data={displayTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -281,6 +352,183 @@ const AdminAnalytics = () => {
             </div>
           )}
         </div>
+
+        {/* CHARTS ROW */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '30px', marginBottom: '40px' }}>
+          
+          {/* Geo Distribution */}
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Regional Distribution</h3>
+            <div style={{ height: '280px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={geoData} cx="50%" cy="45%" innerRadius={50} outerRadius={90} paddingAngle={2} dataKey="count" stroke="none">
+                    {geoData.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} Properties`, 'Count']} itemStyle={{ fontWeight: 'bold' }} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={80} 
+                    iconType="circle" 
+                    wrapperStyle={{ maxHeight: '80px', overflowY: 'auto', fontSize: '12px' }} 
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Order Pipeline</h3>
+            <div style={{ height: '250px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orderStatusData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                  <XAxis type="number" stroke="var(--text-muted)" />
+                  <YAxis dataKey="name" type="category" stroke="var(--text-muted)" axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={{ fontWeight: 'bold' }} />
+                  <Bar dataKey="count" barSize={20} radius={[0, 4, 4, 0]}>
+                    {orderStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Property Funnel</h3>
+            <div style={{ height: '250px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={propertyStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none">
+                    {propertyStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} Properties`, 'Count']} itemStyle={{ fontWeight: 'bold' }} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+        </div>
+
+        {/* DATA TABLES ROW */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '30px' }}>
+          
+          {/* Top Sellers Table */}
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Top Performers</h3>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search sellers..." 
+                  value={searchSeller}
+                  onChange={(e) => setSearchSeller(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}
+                />
+                <button 
+                  onClick={() => exportCSV('sellers')}
+                  style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  📥 CSV
+                </button>
+              </div>
+            </div>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 10px' }}>Seller</th>
+                    <th style={{ padding: '12px 10px' }}>Deals</th>
+                    <th style={{ padding: '12px 10px' }}>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSellers.length > 0 ? filteredSellers.map((seller, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(139, 92, 246, 0.1)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor='rgba(139, 92, 246, 0.05)'} onMouseOut={e => e.currentTarget.style.backgroundColor='transparent'}>
+                      <td style={{ padding: '15px 10px' }}>
+                        <div style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>{seller.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{seller.email}</div>
+                      </td>
+                      <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{seller.salesCount}</td>
+                      <td style={{ padding: '15px 10px', fontWeight: 'bold', color: 'var(--primary-color)' }}>Rs. {seller.revenue.toLocaleString()}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No sellers found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Recent Transactions Table */}
+          <div style={{ backgroundColor: 'var(--bg-main)', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Recent Ledger</h3>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search orders..." 
+                  value={searchOrder}
+                  onChange={(e) => setSearchOrder(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}
+                />
+                <button 
+                  onClick={() => exportCSV('orders')}
+                  style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  📥 CSV
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 10px' }}>Order & Property</th>
+                    <th style={{ padding: '12px 10px' }}>Buyer</th>
+                    <th style={{ padding: '12px 10px' }}>Status</th>
+                    <th style={{ padding: '12px 10px' }}>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.length > 0 ? filteredOrders.map((order) => (
+                    <tr key={order._id} style={{ borderBottom: '1px solid rgba(139, 92, 246, 0.1)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor='rgba(139, 92, 246, 0.05)'} onMouseOut={e => e.currentTarget.style.backgroundColor='transparent'}>
+                      <td style={{ padding: '15px 10px' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>#{order._id.substring(order._id.length - 6).toUpperCase()}</div>
+                        <Link to={`/property/${order.propertyId?._id}`} style={{ textDecoration: 'none' }}>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.propertyId?.title || 'Unknown Property'}</div>
+                        </Link>
+                      </td>
+                      <td style={{ padding: '15px 10px', fontSize: '0.9rem', fontWeight: '500' }}>
+                        {order.buyerId?.name || 'Unknown'}
+                      </td>
+                      <td style={{ padding: '15px 10px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          backgroundColor: order.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : order.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                          color: order.status === 'Completed' ? '#10b981' : order.status === 'Cancelled' ? '#ef4444' : '#3b82f6'
+                        }}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>Rs. {(order.amount || 0).toLocaleString()}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No orders found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );
