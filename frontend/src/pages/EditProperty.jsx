@@ -9,7 +9,7 @@ const EditProperty = () => {
   const { showAlert } = useUI();
   const [loading, setLoading] = useState(true);
   
-  // AI Valuation States
+  // Valuation States
   const [generatingPrice, setGeneratingPrice] = useState(false);
   const [aiEstimatedPrice, setAiEstimatedPrice] = useState(null);
 
@@ -142,10 +142,46 @@ const EditProperty = () => {
 
   const totalImages = existingImages.length + newImages.length;
 
+  const calculateCompleteness = () => {
+    const baseFields = ['title', 'description', 'price', 'city', 'address', 'area'];
+    const totalFields = formData.type === 'land' ? 7 : 9;
+    let filled = baseFields.filter(f => formData[f] !== '' && formData[f] !== 0 && formData[f] !== null).length;
+    if (formData.type !== 'land') {
+      if (formData.bedrooms !== '' && formData.bedrooms !== 0) filled++;
+      if (formData.bathrooms !== '' && formData.bathrooms !== 0) filled++;
+    }
+    if (totalImages > 0) filled++;
+    return Math.min(100, Math.round((filled / totalFields) * 100));
+  };
+  const completeness = calculateCompleteness();
+
+  const getPriceVariance = () => {
+    if (!formData.price || !formData.previousPrice) return null;
+    const current = Number(formData.price);
+    const prev = Number(formData.previousPrice);
+    if (prev === 0 || current === prev) return null;
+    const diff = current - prev;
+    const percentage = Math.abs((diff / prev) * 100).toFixed(1);
+    if (diff < 0) return { text: `📉 Dropped by ${percentage}%`, color: '#10b981', bg: 'rgba(16,185,129,0.1)' };
+    return { text: `📈 Hiked by ${percentage}%`, color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
+  };
+  const variance = getPriceVariance();
+
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', color: 'var(--text-main)' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px 20px 100px 20px', color: 'var(--text-main)', position: 'relative' }}>
       <h1 style={{ marginBottom: '5px' }}>Edit Property</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Note: Saving changes will temporarily hide your listing until an admin approves the updates.</p>
+      
+      {/* Completeness Tracker */}
+      <div style={{ marginBottom: '25px', backgroundColor: 'var(--bg-card)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <strong style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>Listing Completeness</strong>
+          <span style={{ color: completeness === 100 ? '#10b981' : 'var(--primary-color)', fontWeight: 'bold' }}>{completeness}%</span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness === 100 ? '#10b981' : 'var(--primary-color)', transition: 'width 0.4s ease-out', borderRadius: '4px' }}></div>
+        </div>
+      </div>
       
       <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
         
@@ -162,32 +198,49 @@ const EditProperty = () => {
           </select>
         </div>
         
-        {/* AI Valuator UI */}
-        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input 
-            type="number" 
-            placeholder={formData.listingType === 'rent' ? "Monthly Rent (Rs.)" : "Selling Price (Rs.)"} 
-            value={formData.price} 
-            onChange={e => setFormData({...formData, price: e.target.value})} 
-            required 
-            style={{ flex: 1, minWidth: '200px', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} 
-          />
+        {/* Price & Variance */}
+        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+            <input 
+              type="number" 
+              placeholder={formData.listingType === 'rent' ? "Monthly Rent (Rs.)" : "Selling Price (Rs.)"} 
+              value={formData.price} 
+              onChange={e => setFormData({...formData, price: e.target.value})} 
+              required 
+              style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} 
+            />
+          </div>
           
-          {formData.listingType === 'buy' && (
-            <>
-              <button type="button" onClick={handleGenerateValuation} disabled={generatingPrice} style={{ padding: '14px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap', transition: 'opacity 0.2s' }} onMouseOver={e => e.currentTarget.style.opacity = '0.9'} onMouseOut={e => e.currentTarget.style.opacity = '1'}>
-                {generatingPrice ? 'Calculating...' : '✨ Check AI Value'}
-              </button>
-              {aiEstimatedPrice && (
-                <div style={{ padding: '12px 15px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '8px', color: 'var(--accent-color)', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                  AI Suggests: Rs. {aiEstimatedPrice.toLocaleString()}
-                </div>
-              )}
-            </>
-          )}
+          <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+            <input 
+              type="number" 
+              placeholder="Previous Price (Optional)" 
+              value={formData.previousPrice} 
+              onChange={e => setFormData({...formData, previousPrice: e.target.value})} 
+              style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} 
+            />
+            {variance && (
+              <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', backgroundColor: variance.bg, color: variance.color, padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', pointerEvents: 'none' }}>
+                {variance.text}
+              </div>
+            )}
+          </div>
         </div>
 
-        <input type="number" placeholder="Previous Price (Optional)" value={formData.previousPrice} onChange={e => setFormData({...formData, previousPrice: e.target.value})} style={{ padding: '14px', gridColumn: '1 / -1', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }} />
+        {/* Valuator UI */}
+        {formData.listingType === 'buy' && (
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.3)', boxShadow: 'inset 0 0 20px rgba(139, 92, 246, 0.05)' }}>
+            <button type="button" onClick={handleGenerateValuation} disabled={generatingPrice} style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap', transition: 'transform 0.2s, box-shadow 0.2s', boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)', transform: generatingPrice ? 'scale(0.95)' : 'scale(1)' }} onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.6)'} onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 15px rgba(139, 92, 246, 0.4)'}>
+              {generatingPrice ? '🧠 Analyzing Market Data...' : '✨ Generate AI Valuation'}
+            </button>
+            {aiEstimatedPrice && (
+              <div style={{ padding: '12px 20px', backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', borderRadius: '8px', color: '#10b981', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px', animation: 'pulse 2s infinite' }}>
+                🎯 AI Value: Rs. {aiEstimatedPrice.toLocaleString()}
+              </div>
+            )}
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>*Powered by 10k+ local real estate data points.</span>
+          </div>
+        )}
         <textarea placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '14px', gridColumn: '1 / -1', minHeight: '120px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', resize: 'vertical' }} />
 
         {/* Details */}
@@ -247,9 +300,17 @@ const EditProperty = () => {
           />
         </div>
 
-        <button type="submit" disabled={uploading} style={{ gridColumn: '1 / -1', padding: '16px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: uploading ? 'wait' : 'pointer', fontWeight: '800', fontSize: '1.1rem', marginTop: '10px', transition: 'transform 0.2s' }} onMouseOver={e => !uploading && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={e => !uploading && (e.currentTarget.style.transform = 'translateY(0)')}>
-          {uploading ? 'Uploading securely...' : 'Submit Updates for Review'}
-        </button>
+        {/* Sticky Action Bar */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', padding: '15px 20px', display: 'flex', justifyContent: 'center', boxShadow: '0 -4px 15px rgba(0,0,0,0.1)', zIndex: 100 }}>
+          <div style={{ width: '100%', maxWidth: '800px', display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
+            <button type="button" onClick={() => navigate('/dashboard/listings')} style={{ padding: '14px 24px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={uploading} style={{ padding: '14px 30px', backgroundColor: uploading ? 'var(--bg-hover)' : 'var(--primary-color)', color: uploading ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '8px', cursor: uploading ? 'wait' : 'pointer', fontWeight: '800', fontSize: '1.1rem', transition: 'transform 0.2s, box-shadow 0.2s', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }} onMouseOver={e => !uploading && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={e => !uploading && (e.currentTarget.style.transform = 'translateY(0)')}>
+              {uploading ? 'Uploading securely...' : 'Submit Updates for Review'}
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );

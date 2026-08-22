@@ -186,7 +186,7 @@ export const getAdminAnalytics = async (req, res) => {
     const orders = await Order.find(orderQuery).populate('sellerId', 'name email').populate('buyerId', 'name email').populate('propertyId', 'title');
     const totalOrders = orders.length;
     const completedOrders = orders.filter(o => o.status === 'Completed');
-    const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+    const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.finalSoldPrice || o.amount || 0), 0);
 
     // Order Status Distribution
     const orderStatus = {
@@ -209,7 +209,7 @@ export const getAdminAnalytics = async (req, res) => {
       const d = new Date(o.updatedAt || o.createdAt);
       const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
       if (revenueTrendMap[key] !== undefined) {
-        revenueTrendMap[key] += (o.amount || 0);
+        revenueTrendMap[key] += (o.finalSoldPrice || o.amount || 0);
       }
     });
     const revenueTrend = Object.keys(revenueTrendMap).map(key => ({ name: key, revenue: revenueTrendMap[key] }));
@@ -222,7 +222,7 @@ export const getAdminAnalytics = async (req, res) => {
       if (!sellerRevenue[sId]) {
         sellerRevenue[sId] = { _id: sId, name: o.sellerId.name, email: o.sellerId.email, revenue: 0, salesCount: 0 };
       }
-      sellerRevenue[sId].revenue += (o.amount || 0);
+      sellerRevenue[sId].revenue += (o.finalSoldPrice || o.amount || 0);
       sellerRevenue[sId].salesCount += 1;
     });
     const topSellers = Object.values(sellerRevenue)

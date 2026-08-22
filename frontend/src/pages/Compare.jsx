@@ -135,7 +135,7 @@ const Compare = () => {
                   {/* Details */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: '0.95rem', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{prop.title}</p>
-                    <p style={{ margin: '0 0 5px 0', color: 'var(--accent-color)', fontSize: '1rem', fontWeight: '900' }}>Rs. {prop.price.toLocaleString()}</p>
+                    <p style={{ margin: '0 0 5px 0', color: 'var(--accent-color)', fontSize: '1rem', fontWeight: '900' }}>Rs. {(prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice.toLocaleString() : prop.price.toLocaleString()}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>📍 {prop.location.city}</p>
                       
@@ -171,8 +171,11 @@ const Compare = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', minWidth: '600px' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                    <th style={{ padding: '20px', width: '20%', backgroundColor: 'var(--bg-hover)', borderRight: '1px solid var(--border-color)' }}>
-                      <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.9rem', fontWeight: '800' }}>Features</div>
+                    <th style={{ padding: '20px', width: '20%', backgroundColor: 'var(--bg-hover)', borderRight: '1px solid var(--border-color)', verticalAlign: 'top' }}>
+                      <div style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.9rem', fontWeight: '800', marginBottom: '15px' }}>Features</div>
+                      <button onClick={() => setSelectedProps([])} style={{ width: '100%', padding: '8px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)' }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent' }}>
+                        🧹 Clear All
+                      </button>
                     </th>
                     
                     {selectedProps.map(prop => (
@@ -207,28 +210,57 @@ const Compare = () => {
                   {/* Price Row */}
                   <tr style={{ backgroundColor: 'var(--bg-main)' }}>
                     <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>Price</td>
-                    {selectedProps.map(prop => (
-                      <td key={prop._id} style={{ padding: '20px', fontSize: '1.3rem', color: 'var(--accent-color)', fontWeight: '900', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
-                        Rs. {prop.price.toLocaleString()}
-                        {prop.listingType === 'rent' && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}> / mo</span>}
-                      </td>
-                    ))}
+                    {selectedProps.map(prop => {
+                      const minPrice = selectedProps.length > 1 ? Math.min(...selectedProps.map(p => p.price)) : null;
+                      const price = (prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price;
+                      const isWinner = price === minPrice;
+                      return (
+                        <td key={prop._id} style={{ padding: '20px', fontSize: '1.3rem', color: 'var(--accent-color)', fontWeight: '900', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', position: 'relative' }}>
+                          Rs. {((prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price).toLocaleString()}
+                          {prop.listingType === 'rent' && <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}> / mo</span>}
+                          {isWinner && <div style={{ marginTop: '8px' }}><span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-color)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid var(--accent-color)' }}>💰 Best Price</span></div>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  
+                  {/* Price per Sq.Ft Row */}
+                  <tr style={{ backgroundColor: 'var(--bg-card)' }}>
+                    <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>Value (per sqft)</td>
+                    {selectedProps.map(prop => {
+                      const price = (prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price;
+                      const value = (price && prop.area > 0) ? Math.round(price / prop.area) : null;
+                      return (
+                        <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontSize: '1.05rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                          {value ? `Rs. ${value.toLocaleString()}/sqft` : 'N/A'}
+                        </td>
+                      );
+                    })}
                   </tr>
                   
                   {/* Location Row */}
-                  <tr style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <tr style={{ backgroundColor: 'var(--bg-main)' }}>
                     <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>City Location</td>
                     {selectedProps.map(prop => <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontSize: '1.05rem', fontWeight: '600' }}>📍 {prop.location.city}</td>)}
                   </tr>
                   
                   {/* Area Row */}
-                  <tr style={{ backgroundColor: 'var(--bg-main)' }}>
+                  <tr style={{ backgroundColor: 'var(--bg-card)' }}>
                     <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>Area (sqft)</td>
-                    {selectedProps.map(prop => <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontSize: '1.05rem', fontWeight: '600' }}>📐 {prop.area.toLocaleString()}</td>)}
+                    {selectedProps.map(prop => {
+                      const maxArea = selectedProps.length > 1 ? Math.max(...selectedProps.map(p => p.area || 0)) : null;
+                      const isWinner = prop.area && prop.area === maxArea;
+                      return (
+                        <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontSize: '1.05rem', fontWeight: '600' }}>
+                          📐 {prop.area ? prop.area.toLocaleString() : 'N/A'}
+                          {isWinner && <div style={{ marginTop: '8px' }}><span style={{ backgroundColor: 'rgba(52, 152, 219, 0.1)', color: '#3498db', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #3498db' }}>📏 Largest</span></div>}
+                        </td>
+                      );
+                    })}
                   </tr>
                   
                   {/* Beds / Baths Row (Adaptive) */}
-                  <tr style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <tr style={{ backgroundColor: 'var(--bg-main)' }}>
                     <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>Beds / Baths</td>
                     {selectedProps.map(prop => (
                       <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontSize: '1.05rem', fontWeight: '600', color: prop.type === 'land' ? 'var(--text-muted)' : 'var(--text-main)' }}>
@@ -247,7 +279,17 @@ const Compare = () => {
                   {/* Condition Score */}
                   <tr style={{ backgroundColor: 'var(--bg-main)' }}>
                     <td style={{ padding: '20px', fontWeight: 'bold', backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', textAlign: 'left' }}>Condition Score</td>
-                    {selectedProps.map(prop => <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '1.1rem', color: prop.valuationMetrics?.conditionScore ? 'var(--primary-color)' : 'var(--text-muted)' }}>{prop.valuationMetrics?.conditionScore ? `${prop.valuationMetrics.conditionScore} / 10` : 'N/A'}</td>)}
+                    {selectedProps.map(prop => {
+                      const validConditions = selectedProps.filter(p => p.valuationMetrics?.conditionScore).map(p => p.valuationMetrics.conditionScore);
+                      const maxCondition = selectedProps.length > 1 && validConditions.length > 0 ? Math.max(...validConditions) : null;
+                      const isWinner = prop.valuationMetrics?.conditionScore && prop.valuationMetrics.conditionScore === maxCondition;
+                      return (
+                        <td key={prop._id} style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '1.1rem', color: prop.valuationMetrics?.conditionScore ? 'var(--primary-color)' : 'var(--text-muted)' }}>
+                          {prop.valuationMetrics?.conditionScore ? `${prop.valuationMetrics.conditionScore} / 10` : 'N/A'}
+                          {isWinner && <div style={{ marginTop: '8px' }}><span style={{ backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', border: '1px solid #8b5cf6' }}>⭐ Best Condition</span></div>}
+                        </td>
+                      );
+                    })}
                   </tr>
                   
                   {/* Year Built */}

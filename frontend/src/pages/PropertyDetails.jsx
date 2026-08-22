@@ -42,6 +42,14 @@ const PropertyDetails = () => {
 
   const [similarProperties, setSimilarProperties] = useState([]);
 
+  // MORTGAGE CALCULATOR STATES
+  const [downPaymentPct, setDownPaymentPct] = useState(20);
+  const [interestRate, setInterestRate] = useState(7.5);
+  const [loanTermYears, setLoanTermYears] = useState(30);
+
+  // SHARE STATE
+  const [isCopied, setIsCopied] = useState(false);
+
   // REPORT MODAL STATES
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -234,6 +242,25 @@ const PropertyDetails = () => {
     }
   };
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setIsCopied(true);
+    showAlert('Property link copied to clipboard!', 'success');
+    setTimeout(() => setIsCopied(false), 3000);
+  };
+
+  const calculateMortgage = () => {
+    if (!property || !property.price) return 0;
+    const principal = property.price - (property.price * (downPaymentPct / 100));
+    const monthlyRate = (interestRate / 100) / 12;
+    const numberOfPayments = loanTermYears * 12;
+    
+    if (monthlyRate === 0) return principal / numberOfPayments;
+    
+    const mortgage = (principal * monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+    return isNaN(mortgage) ? 0 : Math.round(mortgage);
+  };
+
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading premium details...</h2></div>;
   if (error) return <h2 style={{ color: 'var(--danger-color)', textAlign: 'center', marginTop: '100px' }}>{error}</h2>;
   if (!property) return <h2 style={{ color: 'var(--text-main)', textAlign: 'center', marginTop: '100px' }}>Property not found.</h2>;
@@ -262,11 +289,16 @@ const PropertyDetails = () => {
             <h1 style={{ margin: '0 0 10px 0', fontSize: 'clamp(2rem, 3vw, 2.5rem)', fontWeight: '800', lineHeight: '1.2' }}>{property.title}</h1>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {property.location.address}, {property.location.city}</p>
           </div>
-          {userInfo && !isOwner && !isAdmin && (
-            <button onClick={() => setShowReportModal(true)} style={{ padding: '8px 16px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              ⚠️ Report Listing
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button onClick={handleShare} style={{ padding: '8px 16px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s' }}>
+              {isCopied ? '✅ Copied!' : '📤 Share'}
             </button>
-          )}
+            {userInfo && !isOwner && !isAdmin && (
+              <button onClick={() => setShowReportModal(true)} style={{ padding: '8px 16px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                ⚠️ Report Listing
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -424,7 +456,7 @@ const PropertyDetails = () => {
         <div style={{ flex: '1 1 380px', position: 'sticky', top: '160px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', padding: '35px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
             <div style={{ marginBottom: '35px' }}>
-              <div style={{ fontSize: '2.4rem', color: 'var(--accent-color)', fontWeight: '900', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Rs. {property.price.toLocaleString()}{property.listingType === 'rent' && <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: 'normal' }}> / mo</span>}</div>
+              <div style={{ fontSize: '2.4rem', color: 'var(--accent-color)', fontWeight: '900', lineHeight: 1.2, letterSpacing: '-0.5px' }}>Rs. {(property.status === 'Sold' && property.soldPrice) ? property.soldPrice.toLocaleString() : property.price.toLocaleString()}{property.listingType === 'rent' && <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: 'normal' }}> / mo</span>}</div>
               {property.listingType !== 'rent' && (
                 <div style={{ marginTop: '20px' }}>
                   {!buyerAiValuation ? (
@@ -435,6 +467,43 @@ const PropertyDetails = () => {
                 </div>
               )}
             </div>
+
+            {/* MORTGAGE CALCULATOR */}
+            {property.listingType !== 'rent' && (
+              <div style={{ backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '30px' }}>
+                <h4 style={{ margin: '0 0 15px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>🧮 Estimated Mortgage</h4>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Monthly Payment</span>
+                  <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-main)' }}>Rs. {calculateMortgage().toLocaleString()}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.9rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Down Payment</span>
+                      <span style={{ fontWeight: 'bold' }}>{downPaymentPct}% (Rs. {((property.price * downPaymentPct) / 100).toLocaleString()})</span>
+                    </div>
+                    <input type="range" min="0" max="100" step="5" value={downPaymentPct} onChange={(e) => setDownPaymentPct(Number(e.target.value))} style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--primary-color)' }} />
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '15px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '5px' }}>Interest Rate (%)</label>
+                      <input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '5px' }}>Loan Term (Yrs)</label>
+                      <select value={loanTermYears} onChange={(e) => setLoanTermYears(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer' }}>
+                        <option value="15">15 Years</option>
+                        <option value="20">20 Years</option>
+                        <option value="30">30 Years</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ padding: '25px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', marginBottom: '30px' }}>
               <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem' }}>Listed by</h3>
@@ -500,7 +569,7 @@ const PropertyDetails = () => {
                   <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'rgba(255,255,255,0.95)', color: '#111', padding: '6px 14px', borderRadius: '16px', fontSize: '0.8rem', fontWeight: '900', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: 'var(--shadow-sm)' }}>{prop.type}</span>
                 </div>
                 <div style={{ padding: '25px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '900', marginBottom: '10px' }}>Rs. {prop.price.toLocaleString()} {prop.listingType === 'rent' ? '/ mo' : ''}</div>
+                  <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '900', marginBottom: '10px' }}>Rs. {(prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice.toLocaleString() : prop.price.toLocaleString()} {prop.listingType === 'rent' ? '/ mo' : ''}</div>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '1.15rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{prop.title}</h4>
                   <p style={{ margin: 'auto 0 0 0', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>📍 {prop.location.city} {prop.type !== 'land' && `• ${prop.bedrooms} Beds`}</p>
                 </div>

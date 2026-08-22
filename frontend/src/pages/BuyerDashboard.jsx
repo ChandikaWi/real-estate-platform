@@ -98,7 +98,7 @@ const BuyerDashboard = () => {
 
   // General Calculations & Target Budget
   const stats = useMemo(() => {
-    const spent = filteredOrders.reduce((sum, order) => sum + (order.status === 'Completed' ? order.amount : 0), 0);
+    const spent = filteredOrders.reduce((sum, order) => sum + (order.status === 'Completed' ? (order.finalSoldPrice || order.amount) : 0), 0);
     
     const typeCounts = { house: 0, apartment: 0, land: 0 };
     let totalPrice = 0;
@@ -113,7 +113,7 @@ const BuyerDashboard = () => {
 
     filteredOrders.forEach(o => {
       if (o.propertyId && o.propertyId.price) {
-        totalPrice += o.propertyId.price;
+        totalPrice += (o.status === 'Completed' && o.finalSoldPrice) ? o.finalSoldPrice : o.propertyId.price;
         pricedPropertyCount++;
       }
     });
@@ -165,7 +165,7 @@ const BuyerDashboard = () => {
       const d = new Date(o.updatedAt || o.createdAt);
       const monthYear = d.toLocaleString('default', { month: 'short', year: 'numeric' });
       if (months[monthYear] !== undefined) {
-        months[monthYear] += (o.amount || 0);
+        months[monthYear] += (o.finalSoldPrice || o.amount || 0);
       }
     });
 

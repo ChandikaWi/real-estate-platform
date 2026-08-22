@@ -62,23 +62,26 @@ const AIChatBot = () => {
     <>
       {/* FLOATING BUBBLE WITH AGENT ICON */}
       {!isOpen && (
-        <button 
-          onClick={() => setIsOpen(true)}
-          title="Chat with RealEstate Assistant"
-          style={{ position: 'fixed', bottom: '30px', right: '30px', width: '65px', height: '65px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
-          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)'}
-          onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
-        >
-          {/* Agent Icon */}
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="10" rx="2" />
-            <circle cx="12" cy="5" r="2" />
-            <path d="M12 7v4" />
-            <line x1="8" y1="15" x2="8" y2="15.01" strokeWidth="3" />
-            <line x1="16" y1="15" x2="16" y2="15.01" strokeWidth="3" />
-            <path d="M9 18c1.5 1 4.5 1 6 0" />
-          </svg>
-        </button>
+        <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 9999 }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: '50%', backgroundColor: 'var(--primary-color)', animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite', opacity: 0.7, zIndex: -1 }}></div>
+          <button 
+            onClick={() => setIsOpen(true)}
+            title="Chat with RealEstate Assistant"
+            style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+            onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1) translateY(-5px)'}
+            onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
+          >
+            {/* Agent Icon */}
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4" />
+              <line x1="8" y1="15" x2="8" y2="15.01" strokeWidth="3" />
+              <line x1="16" y1="15" x2="16" y2="15.01" strokeWidth="3" />
+              <path d="M9 18c1.5 1 4.5 1 6 0" />
+            </svg>
+          </button>
+        </div>
       )}
 
       {/* CHAT WINDOW */}
@@ -118,6 +121,7 @@ const AIChatBot = () => {
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', backgroundColor: 'var(--bg-main)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {messages.map((msg, index) => (
               <div key={index} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Message Bubble */}
                 <div style={{ 
                   backgroundColor: msg.sender === 'user' ? 'var(--primary-color)' : 'var(--bg-card)', 
                   color: msg.sender === 'user' ? '#fff' : 'var(--text-main)', 
@@ -129,11 +133,18 @@ const AIChatBot = () => {
                   {msg.text}
                 </div>
                 
+                {/* User Message Delivery Receipt */}
+                {msg.sender === 'user' && (
+                  <div style={{ alignSelf: 'flex-end', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '-4px', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓✓</span> Delivered
+                  </div>
+                )}
+
                 {/* Embedded Property Mini-Cards */}
                 {msg.properties && msg.properties.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '5px' }}>
-                    {msg.properties.map(prop => (
-                      <div key={prop._id} onClick={() => handlePropertyClick(prop._id)} style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease, border-color 0.2s ease' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'var(--primary-color)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}>
+                    {msg.properties.map((prop, i) => (
+                      <div key={prop._id} onClick={() => handlePropertyClick(prop._id)} style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s ease, border-color 0.2s ease', animation: `slideInUp 0.4s ease-out ${i * 0.15}s both` }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'var(--primary-color)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}>
                         <div style={{ height: '120px', backgroundColor: 'var(--bg-hover)', position: 'relative' }}>
                           {prop.images?.length > 0 ? (
                             <img src={prop.images[0]} alt="Prop" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -147,7 +158,7 @@ const AIChatBot = () => {
                         <div style={{ padding: '12px' }}>
                           <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prop.title}</h4>
                           <p style={{ margin: 0, color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.05rem' }}>
-                            Rs. {prop.price.toLocaleString()}
+                            Rs. {((prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price).toLocaleString()}
                             {prop.listingType === 'rent' && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/mo</span>}
                           </p>
                           <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>📍 {prop.location.city} {prop.type !== 'land' && `• ${prop.bedrooms} Beds`}</p>
@@ -190,7 +201,9 @@ const AIChatBot = () => {
               onChange={e => setInputText(e.target.value)} 
               placeholder="Ask anything..." 
               disabled={loading}
-              style={{ flex: 1, padding: '12px 18px', borderRadius: '24px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }} 
+              style={{ flex: 1, padding: '12px 18px', borderRadius: '24px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', opacity: loading ? 0.7 : 1, transition: 'border-color 0.3s, box-shadow 0.3s' }} 
+              onFocus={(e) => { e.target.style.borderColor = 'var(--primary-color)'; e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.2)'; }}
+              onBlur={(e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
             />
             <button 
               type="submit" 
@@ -203,11 +216,18 @@ const AIChatBot = () => {
         </div>
       )}
 
-      {/* Internal CSS for dots animation */}
+      {/* Internal CSS for animations */}
       <style>{`
         @keyframes pulse {
           0% { opacity: 0.3; transform: translateY(0); }
           100% { opacity: 1; transform: translateY(-2px); }
+        }
+        @keyframes ping {
+          75%, 100% { transform: scale(1.6); opacity: 0; }
+        }
+        @keyframes slideInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </>

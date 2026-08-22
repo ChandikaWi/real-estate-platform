@@ -13,6 +13,7 @@ const MyVisits = () => {
   // Filter and Search States
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [timeTab, setTimeTab] = useState('upcoming'); // 'upcoming' or 'past'
 
   useEffect(() => {
     const fetchVisits = async () => {
@@ -58,13 +59,31 @@ const MyVisits = () => {
     };
   };
 
-  // 🌟 State for filtering and searching
+  // State for filtering and searching
   const filteredVisits = visits.filter(visit => {
+    const isPast = new Date(visit.date) < new Date().setHours(0,0,0,0);
+    const matchTimeTab = timeTab === 'upcoming' ? !isPast : isPast;
+
     const matchSearch = (visit.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                         (visit.sellerId?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = filterStatus === 'All' ? true : visit.status === filterStatus;
-    return matchSearch && matchStatus;
+    
+    return matchTimeTab && matchSearch && matchStatus;
   });
+
+  // Calculate Next Visit for Banner
+  const nextVisit = visits.find(v => v.status === 'Accepted' && new Date(v.date) >= new Date().setHours(0,0,0,0));
+  const getDaysUntil = (dateStr) => {
+    const diffTime = new Date(dateStr) - new Date();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const generateGoogleCalendarLink = (visit) => {
+    const title = encodeURIComponent(`Viewing: ${visit.propertyId?.title || 'Property'}`);
+    const details = encodeURIComponent(`Time: ${visit.timeSlot}\nSeller: ${visit.sellerId?.name}\nPhone: ${visit.sellerId?.phoneNumber}\nLink: ${window.location.origin}/property/${visit.propertyId?._id}`);
+    const dateStr = new Date(visit.date).toISOString().split('T')[0].replace(/-/g, '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}`;
+  };
 
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading your schedule...</h2></div>;
 
@@ -99,27 +118,59 @@ const MyVisits = () => {
         </div>
       )}
 
+      {/* NEXT VISIT COUNTDOWN BANNER */}
+      {nextVisit && timeTab === 'upcoming' && (
+        <div style={{ background: 'linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%)', padding: '20px 30px', borderRadius: '16px', marginBottom: '30px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.3)' }}>
+          <div>
+            <h3 style={{ margin: '0 0 5px 0', fontSize: '1.4rem' }}>Your Next Visit is Approaching!</h3>
+            <p style={{ margin: 0, fontSize: '1.05rem', opacity: 0.9 }}>
+              Meeting for <strong>{nextVisit.propertyId?.title}</strong> is in <strong>{getDaysUntil(nextVisit.date)} {getDaysUntil(nextVisit.date) === 1 ? 'day' : 'days'}</strong>.
+            </p>
+          </div>
+          <div style={{ fontSize: '3rem' }}>⏰</div>
+        </div>
+      )}
+
       {/* SMART SEARCH & FILTER UI */}
       {visits.length > 0 && (
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ flex: '1 1 200px' }}>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
-              <option value="All">All Visits</option>
-              <option value="Pending">Pending</option>
-              <option value="Accepted">Accepted</option>
-              <option value="Rejected">Rejected</option>
-            </select>
+        <div style={{ marginBottom: '30px', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+          
+          {/* TIME TABS (UPCOMING vs PAST) */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
+            <button 
+              onClick={() => setTimeTab('upcoming')} 
+              style={{ flex: 1, padding: '15px 0', background: 'none', border: 'none', cursor: 'pointer', fontWeight: timeTab === 'upcoming' ? '800' : '600', color: timeTab === 'upcoming' ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: timeTab === 'upcoming' ? '3px solid var(--primary-color)' : '3px solid transparent', fontSize: '1.1rem', transition: 'all 0.2s' }}
+            >
+              🚀 Upcoming Visits
+            </button>
+            <button 
+              onClick={() => setTimeTab('past')} 
+              style={{ flex: 1, padding: '15px 0', background: 'none', border: 'none', cursor: 'pointer', fontWeight: timeTab === 'past' ? '800' : '600', color: timeTab === 'past' ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: timeTab === 'past' ? '3px solid var(--primary-color)' : '3px solid transparent', fontSize: '1.1rem', transition: 'all 0.2s' }}
+            >
+              ⏳ Past Visits
+            </button>
           </div>
-          <div style={{ flex: '2 1 300px' }}>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
-            <input 
-              type="text" 
-              placeholder="Search by property title or seller name..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
-            />
+
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter Status</label>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+                <option value="All">All Visits</option>
+                <option value="Pending">Pending</option>
+                <option value="Accepted">Accepted</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+            <div style={{ flex: '2 1 300px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Smart Search</label>
+              <input 
+                type="text" 
+                placeholder="Search by property title or seller name..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -185,10 +236,15 @@ const MyVisits = () => {
                     <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)' }}>{visit.sellerId?.name || 'Seller'}</p>
                     
                     {isAccepted ? (
-                      <a href={`tel:${visit.sellerId?.phoneNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-color)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.95rem' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        {visit.sellerId?.phoneNumber || 'Number not provided'}
-                      </a>
+                      <>
+                        <a href={`tel:${visit.sellerId?.phoneNumber}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-color)', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.95rem', marginBottom: '10px' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                          {visit.sellerId?.phoneNumber || 'Number not provided'}
+                        </a>
+                        <a href={generateGoogleCalendarLink(visit)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', backgroundColor: 'var(--primary-color)', color: '#fff', textDecoration: 'none', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: 'var(--shadow-sm)' }}>
+                          📅 Add to Calendar
+                        </a>
+                      </>
                     ) : (
                       <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Contact details unlock upon approval</p>
                     )}

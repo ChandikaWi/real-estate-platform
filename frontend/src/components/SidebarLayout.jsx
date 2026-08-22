@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 // SVG Icons Library
 const Icons = {
@@ -23,6 +23,7 @@ const Icons = {
 const SidebarLayout = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   if (!userInfo) return <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', minHeight: '85vh' }}>{children}</div>;
@@ -105,6 +106,20 @@ const SidebarLayout = ({ children }) => {
           </button>
         </div>
 
+        {/* Role Badge */}
+        <div style={{ padding: '15px', display: 'flex', justifyContent: isExpanded ? 'flex-start' : 'center', borderBottom: '1px solid var(--border-color)', transition: 'all 0.3s' }}>
+          {isExpanded ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: userInfo.role === 'admin' ? '#f59e0b' : userInfo.role === 'seller' ? '#3b82f6' : '#10b981', boxShadow: `0 0 8px ${userInfo.role === 'admin' ? '#f59e0b' : userInfo.role === 'seller' ? '#3b82f6' : '#10b981'}` }}></div>
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>
+                {userInfo.role === 'admin' ? 'Admin Portal' : userInfo.role === 'seller' ? 'Seller Hub' : 'Buyer Hub'}
+              </span>
+            </div>
+          ) : (
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: userInfo.role === 'admin' ? '#f59e0b' : userInfo.role === 'seller' ? '#3b82f6' : '#10b981', boxShadow: `0 0 8px ${userInfo.role === 'admin' ? '#f59e0b' : userInfo.role === 'seller' ? '#3b82f6' : '#10b981'}` }}></div>
+          )}
+        </div>
+
         {/* Navigation Links */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '20px 10px', flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
           {links.map(link => {
@@ -118,9 +133,10 @@ const SidebarLayout = ({ children }) => {
                 to={link.path}
                 title={!isExpanded ? link.label : ""}
                 style={{
+                  position: 'relative',
                   padding: '12px 15px',
                   color: isActive ? 'var(--primary-color)' : 'var(--text-muted)',
-                  backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
+                  background: isActive ? 'linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%)' : 'transparent',
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
@@ -130,21 +146,29 @@ const SidebarLayout = ({ children }) => {
                   whiteSpace: 'nowrap',
                   borderRadius: '12px',
                   transition: 'all 0.2s ease',
+                  overflow: 'hidden'
                 }}
                 onMouseOver={(e) => { 
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
                     e.currentTarget.style.color = 'var(--text-main)';
                   }
+                  e.currentTarget.querySelector('.nav-icon').style.transform = 'scale(1.15) translateY(-2px)';
                 }}
                 onMouseOut={(e) => { 
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor = 'transparent';
                     e.currentTarget.style.color = 'var(--text-muted)';
                   }
+                  e.currentTarget.querySelector('.nav-icon').style.transform = 'scale(1) translateY(0)';
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {/* Active Indicator Line */}
+                {isActive && (
+                  <div style={{ position: 'absolute', left: 0, top: '15%', height: '70%', width: '4px', backgroundColor: 'var(--primary-color)', borderRadius: '0 4px 4px 0', boxShadow: '2px 0 8px rgba(37, 99, 235, 0.4)' }}></div>
+                )}
+                
+                <span className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
                   {link.icon}
                 </span>
                 {isExpanded && <span style={{ fontSize: '0.95rem' }}>{link.label}</span>}
@@ -154,19 +178,39 @@ const SidebarLayout = ({ children }) => {
         </div>
 
         {/* MINI PROFILE ANCHOR (Bottom) */}
-        <div style={{ padding: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => navigate('/profile')} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-          {userInfo.profilePhoto ? (
-            <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-color)' }} />
-          ) : (
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', flexShrink: 0 }}>
-              {userInfo.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+        <div style={{ padding: '15px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
           
-          <div style={{ display: isExpanded ? 'block' : 'none', opacity: isExpanded ? 1 : 0, transition: 'opacity 0.3s' }}>
-            <p style={{ margin: '0 0 2px 0', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{userInfo.name}</p>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold' }}>{userInfo.role}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', flex: 1 }} onClick={() => navigate('/profile')}>
+            {userInfo.profilePhoto ? (
+              <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-color)' }} />
+            ) : (
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', flexShrink: 0 }}>
+                {userInfo.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            
+            <div style={{ display: isExpanded ? 'block' : 'none', opacity: isExpanded ? 1 : 0, transition: 'opacity 0.3s' }}>
+              <p style={{ margin: '0 0 2px 0', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{userInfo.name}</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold' }}>{userInfo.role}</p>
+            </div>
           </div>
+
+          {/* Quick Logout Button */}
+          {isExpanded && (
+            <button 
+              title="Logout"
+              onClick={() => {
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+              }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '8px', transition: 'all 0.2s' }}
+              onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; }}
+              onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+          )}
         </div>
 
       </div>

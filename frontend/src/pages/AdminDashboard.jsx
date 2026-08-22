@@ -120,6 +120,79 @@ const AdminDashboard = () => {
     return matchSearch && matchRole && matchStatus;
   });
 
+  const handleExportCSV = () => {
+    if (filteredUsers.length === 0) return showAlert('No users to export', 'error');
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Name,Email,Role,Status,Verified\n";
+    filteredUsers.forEach(u => {
+      csvContent += `"${u.name}","${u.email}",${u.role},${u.isBanned ? 'Banned' : 'Active'},${u.isVerified ? 'Yes' : 'No'}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "platform_users.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getAvatarColor = (name) => {
+    const colors = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22'];
+    return colors[(name.charCodeAt(0) || 0) % colors.length];
+  };
+
+  // Demographics stats
+  const totalUsers = users.length;
+  const totalSellers = users.filter(u => u.role === 'seller').length;
+  const totalBuyers = users.filter(u => u.role === 'buyer').length;
+  const bannedUsers = users.filter(u => u.isBanned).length;
+
+  const totalProps = properties.length;
+  const sysThreshold = settings?.aiValuationThreshold || 15;
+  const overpricedProps = properties.filter(p => p.aiPrice && p.price > p.aiPrice * (1 + sysThreshold / 100)).length;
+  const fairValueProps = properties.filter(p => p.aiPrice && p.price <= p.aiPrice * (1 + sysThreshold / 100) && p.price >= p.aiPrice * (1 - sysThreshold / 100)).length;
+  const pendingProps = properties.filter(p => p.status === 'Pending Review').length;
+
+  const handleExportPropertiesCSV = () => {
+    if (properties.length === 0) return showAlert('No properties to export', 'error');
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Title,Seller,Listed Price,AI Valuation,Market Audit,Status\n";
+    properties.forEach(p => {
+      const threshold = settings?.aiValuationThreshold || 15;
+      const isOverpriced = p.aiPrice && p.price > p.aiPrice * (1 + threshold / 100); 
+      const isUnderpriced = p.aiPrice && p.price < p.aiPrice * (1 - threshold / 100);
+      const audit = isOverpriced ? 'Overpriced' : isUnderpriced ? 'Underpriced' : (p.aiPrice ? 'Fair Value' : 'N/A');
+      csvContent += `"${p.title}","${p.sellerId?.name || 'Unknown'}",${p.price},${p.aiPrice || 'N/A'},${audit},${p.status}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "property_audit.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const totalRevenue = payments.filter(p => p.status === 'Completed').reduce((sum, p) => sum + p.amount, 0);
+  const totalBoostsSold = payments.filter(p => p.status === 'Completed').length;
+  const pendingPaymentsCount = payments.filter(p => p.status === 'Pending').length;
+
+  const handleExportPaymentsCSV = () => {
+    if (filteredPayments.length === 0) return showAlert('No payments to export', 'error');
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Date,Transaction ID,Seller,Property,Plan,Amount,Status\n";
+    filteredPayments.forEach(pay => {
+      csvContent += `"${new Date(pay.createdAt).toLocaleString()}","${pay._id}","${pay.sellerId?.name || 'Unknown'}","${pay.propertyId?.title || 'Unknown'}","${pay.planType}",${pay.amount},${pay.status}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "revenue_ledger.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredProperties = properties.filter(prop => {
     const matchSearch = prop.title.toLowerCase().includes(propSearch.toLowerCase()) || 
                         prop.location.city.toLowerCase().includes(propSearch.toLowerCase()) ||
@@ -127,8 +200,9 @@ const AdminDashboard = () => {
     const matchStatus = propStatusFilter === 'All' ? true : prop.status === propStatusFilter;
     
     const threshold = settings?.aiValuationThreshold || 15;
-    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * (1 + threshold / 100);
-    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * (1 - threshold / 100);
+    const price = (prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price;
+    const isOverpriced = prop.aiPrice && price > prop.aiPrice * (1 + threshold / 100);
+    const isUnderpriced = prop.aiPrice && price < prop.aiPrice * (1 - threshold / 100);
     const auditStatus = isOverpriced ? 'Overpriced' : isUnderpriced ? 'Underpriced' : 'Fair Value';
     
     const matchAudit = marketAuditFilter === 'All' ? true : auditStatus === marketAuditFilter;
@@ -179,12 +253,40 @@ const AdminDashboard = () => {
               <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Manage Users</h2>
               <p style={{ color: 'var(--text-muted)', margin: 0 }}>Click any user row to view details and moderation options.</p>
             </div>
-            <button 
-              onClick={() => setShowCreateAdmin(true)}
-              style={{ padding: '10px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              + Create Admin
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={handleExportCSV}
+                style={{ padding: '10px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                📥 Export CSV
+              </button>
+              <button 
+                onClick={() => setShowCreateAdmin(true)}
+                style={{ padding: '10px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                + Create Admin
+              </button>
+            </div>
+          </div>
+
+          {/* Demographics Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--primary-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Users</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{totalUsers}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--accent-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Active Sellers</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{totalSellers}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid #f39c12' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Registered Buyers</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{totalBuyers}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--danger-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Banned Accounts</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{bannedUsers}</h3>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -237,18 +339,42 @@ const AdminDashboard = () => {
                   filteredUsers.map(user => (
                     <tr key={user._id} onClick={() => setSelectedUser(user)} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '20px' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '4px' }}>{user.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{user.email}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: getAvatarColor(user.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', flexShrink: 0 }}>
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '4px' }}>{user.name}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{user.email}</div>
+                          </div>
+                        </div>
                       </td>
-                      <td style={{ padding: '20px', textTransform: 'capitalize', fontWeight: '600' }}>{user.role}</td>
+                      <td style={{ padding: '20px', textTransform: 'capitalize', fontWeight: '600' }}>
+                        {user.role} 
+                        {user.role === 'admin' && <span style={{ marginLeft: '8px', backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '900', verticalAlign: 'middle' }}>🛡️ SYSTEM</span>}
+                      </td>
                       <td style={{ padding: '20px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           {user.isBanned ? <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>BANNED</span> : <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>ACTIVE</span>}
                           {user.isVerified && <span style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>✓ VERIFIED</span>}
                         </div>
                       </td>
-                      <td style={{ padding: '20px' }}>
-                        <button onClick={(e) => handleDeleteUser(user._id, e)} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--danger-color)'; e.currentTarget.style.color = '#fff'; }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; }}>Delete</button>
+                      <td style={{ padding: '20px' }} onClick={e => e.stopPropagation()}>
+                        {user.role === 'admin' ? (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>Protected Account</span>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            {user.role === 'seller' && (
+                              <button onClick={() => handleUserStatusToggle(user._id, user.isVerified ? 'unverify' : 'verify')} style={{ backgroundColor: user.isVerified ? 'var(--bg-main)' : 'rgba(37, 99, 235, 0.1)', color: user.isVerified ? 'var(--text-muted)' : 'var(--primary-color)', border: user.isVerified ? '1px solid var(--border-color)' : 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                {user.isVerified ? 'Undo' : '✅ Verify'}
+                              </button>
+                            )}
+                            <button onClick={() => handleUserStatusToggle(user._id, user.isBanned ? 'unban' : 'ban')} style={{ backgroundColor: user.isBanned ? 'var(--bg-main)' : 'rgba(239, 68, 68, 0.1)', color: user.isBanned ? 'var(--accent-color)' : 'var(--danger-color)', border: user.isBanned ? '1px solid var(--border-color)' : 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              {user.isBanned ? '✅ Unban' : '🛡️ Ban'}
+                            </button>
+                            <button onClick={(e) => handleDeleteUser(user._id, e)} style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>🗑️</button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -261,9 +387,37 @@ const AdminDashboard = () => {
 
       {currentTab === 'properties' && (
         <section>
-          <div style={{ marginBottom: '20px' }}>
-            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Properties & AI Market Audit</h2>
-            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Compare Listed Prices against the XGBoost AI Valuation model.</p>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Properties & AI Market Audit</h2>
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>Compare Listed Prices against the XGBoost AI Valuation model.</p>
+            </div>
+            <button 
+              onClick={handleExportPropertiesCSV}
+              style={{ padding: '10px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              📥 Export Audit
+            </button>
+          </div>
+
+          {/* AI Audit Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--primary-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Audited</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{totalProps}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--accent-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Fair Value Properties</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{fairValueProps}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--danger-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Flagged Overpriced</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{overpricedProps}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid #f39c12' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Pending Review</p>
+              <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{pendingProps}</h3>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -318,14 +472,28 @@ const AdminDashboard = () => {
                 ) : (
                   filteredProperties.map(prop => {
                     const threshold = settings?.aiValuationThreshold || 15;
-                    const isOverpriced = prop.aiPrice && prop.price > prop.aiPrice * (1 + threshold / 100); 
-                    const isUnderpriced = prop.aiPrice && prop.price < prop.aiPrice * (1 - threshold / 100); 
+                    const price = (prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price;
+                    const isOverpriced = prop.aiPrice && price > prop.aiPrice * (1 + threshold / 100); 
+                    const isUnderpriced = prop.aiPrice && price < prop.aiPrice * (1 - threshold / 100); 
+                    const isPending = prop.status === 'Pending Review';
+                    let varianceText = '';
+                    if (prop.aiPrice) {
+                      const diff = ((price - prop.aiPrice) / prop.aiPrice) * 100;
+                      varianceText = diff > 0 ? `+${diff.toFixed(1)}% Over` : `${diff.toFixed(1)}% Under`;
+                    }
                     
                     return (
-                      <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                        <td style={{ padding: '20px', fontWeight: 'bold', fontSize: '1.05rem' }}>{prop.title}</td>
+                      <tr key={prop._id} onClick={() => setSelectedProperty(prop)} style={{ backgroundColor: isPending ? 'rgba(245, 158, 11, 0.05)' : 'transparent', borderBottom: '1px solid var(--border-color)', borderLeft: isPending ? '4px solid #f59e0b' : '4px solid transparent', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = isPending ? 'rgba(245, 158, 11, 0.05)' : 'transparent'}>
+                        <td style={{ padding: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <div style={{ width: '50px', height: '50px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)', flexShrink: 0, backgroundColor: 'var(--bg-main)' }}>
+                              {prop.images?.length > 0 ? <img src={prop.images[0]} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>N/A</div>}
+                            </div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1.05rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{prop.title}</div>
+                          </div>
+                        </td>
                         <td style={{ padding: '20px', color: 'var(--text-muted)' }}>{prop.sellerId?.name || 'Unknown'}</td>
-                        <td style={{ padding: '20px', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.1rem' }}>Rs.{prop.price.toLocaleString()}</td>
+                        <td style={{ padding: '20px', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.1rem' }}>Rs.{((prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price).toLocaleString()}</td>
                         
                         <td style={{ padding: '20px', fontWeight: '900', color: 'var(--text-main)', fontSize: '1.1rem' }}>
                           {prop.aiPrice ? `Rs. ${Math.round(prop.aiPrice).toLocaleString()}` : 'N/A'}
@@ -333,13 +501,18 @@ const AdminDashboard = () => {
                         
                         <td style={{ padding: '20px' }}>
                           {prop.aiPrice && (
-                            <span style={{ 
-                              padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase',
-                              backgroundColor: isOverpriced ? 'rgba(239, 68, 68, 0.1)' : isUnderpriced ? 'rgba(243, 156, 18, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                              color: isOverpriced ? 'var(--danger-color)' : isUnderpriced ? '#f39c12' : 'var(--accent-color)'
-                            }}>
-                              {isOverpriced ? '⚠️ Overpriced' : isUnderpriced ? '📉 Underpriced' : '✅ Fair Value'}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px' }}>
+                              <span style={{ 
+                                padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase',
+                                backgroundColor: isOverpriced ? 'rgba(239, 68, 68, 0.1)' : isUnderpriced ? 'rgba(243, 156, 18, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                color: isOverpriced ? 'var(--danger-color)' : isUnderpriced ? '#f39c12' : 'var(--accent-color)'
+                              }}>
+                                {isOverpriced ? '⚠️ Overpriced' : isUnderpriced ? '📉 Underpriced' : '✅ Fair Value'}
+                              </span>
+                              {(isOverpriced || isUnderpriced) && (
+                                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: isOverpriced ? 'var(--danger-color)' : '#f39c12' }}>{varianceText}</span>
+                              )}
+                            </div>
                           )}
                         </td>
 
@@ -393,9 +566,33 @@ const AdminDashboard = () => {
       {/* REVENUE & BOOSTS */}
       {currentTab === 'boosts' && (
         <section>
-          <div style={{ marginBottom: '20px' }}>
-            <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Revenue & Boosts Ledger</h2>
-            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Track platform monetization, property boosts, and seller payments.</p>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Revenue & Boosts Ledger</h2>
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>Track platform monetization, property boosts, and seller payments.</p>
+            </div>
+            <button 
+              onClick={handleExportPaymentsCSV}
+              style={{ padding: '10px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              📥 Export Ledger
+            </button>
+          </div>
+
+          {/* Revenue Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid #10b981' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Lifetime Revenue</p>
+              <h3 style={{ margin: 0, fontSize: '2rem', color: '#10b981', textShadow: '0 0 10px rgba(16,185,129,0.2)' }}>Rs. {totalRevenue.toLocaleString()}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--primary-color)' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Boosts Sold</p>
+              <h3 style={{ margin: 0, fontSize: '2rem' }}>{totalBoostsSold}</h3>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid #f59e0b' }}>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Pending Payments</p>
+              <h3 style={{ margin: 0, fontSize: '2rem' }}>{pendingPaymentsCount}</h3>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -437,36 +634,44 @@ const AdminDashboard = () => {
                     <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No payment records found.</td>
                   </tr>
                 ) : (
-                  filteredPayments.map(pay => (
-                    <tr key={pay._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                      <td style={{ padding: '20px', color: 'var(--text-main)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-                        {new Date(pay.createdAt).toLocaleString()}
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'monospace' }}>ID: {pay._id.slice(-8).toUpperCase()}</div>
-                      </td>
-                      <td style={{ padding: '20px' }}>
-                        <div style={{ fontWeight: 'bold' }}>{pay.sellerId?.name || 'Unknown'}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pay.sellerId?.email}</div>
-                      </td>
-                      <td style={{ padding: '20px' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>{pay.propertyId?.title || 'Unknown Property'}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          {pay.planType.split('_')[0]} Days Boost
-                        </div>
-                      </td>
-                      <td style={{ padding: '20px', color: 'var(--accent-color)', fontWeight: '900', fontSize: '1.05rem' }}>
-                        Rs. {pay.amount.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '20px' }}>
-                        <span style={{ 
-                          backgroundColor: pay.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : pay.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                          color: pay.status === 'Completed' ? 'var(--accent-color)' : pay.status === 'Pending' ? '#f59e0b' : 'var(--danger-color)', 
-                          padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase'
-                        }}>
-                          {pay.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  filteredPayments.map(pay => {
+                    const isToday = new Date(pay.createdAt) > new Date(Date.now() - 86400000);
+                    return (
+                      <tr key={pay._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s', backgroundColor: isToday ? 'rgba(16, 185, 129, 0.03)' : 'transparent' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = isToday ? 'rgba(16, 185, 129, 0.03)' : 'transparent'}>
+                        <td style={{ padding: '20px', color: 'var(--text-main)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {new Date(pay.createdAt).toLocaleString()}
+                            {isToday && <span style={{ backgroundColor: '#ef4444', color: '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>🔥 NEW</span>}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            💳 ID: {pay._id.slice(-8).toUpperCase()}
+                          </div>
+                        </td>
+                        <td style={{ padding: '20px' }}>
+                          <div style={{ fontWeight: 'bold' }}>{pay.sellerId?.name || 'Unknown'}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pay.sellerId?.email}</div>
+                        </td>
+                        <td style={{ padding: '20px' }}>
+                          <div style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>{pay.propertyId?.title || 'Unknown Property'}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            {pay.planType.split('_')[0]} Days Boost
+                          </div>
+                        </td>
+                        <td style={{ padding: '20px', color: pay.status === 'Completed' ? '#10b981' : 'var(--text-muted)', fontWeight: '900', fontSize: '1.1rem', textShadow: pay.status === 'Completed' ? '0 0 8px rgba(16,185,129,0.3)' : 'none' }}>
+                          Rs. {pay.amount.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '20px' }}>
+                          <span style={{ 
+                            backgroundColor: pay.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' : pay.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                            color: pay.status === 'Completed' ? 'var(--accent-color)' : pay.status === 'Pending' ? '#f59e0b' : 'var(--danger-color)', 
+                            padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase'
+                          }}>
+                            {pay.status}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>

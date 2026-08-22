@@ -4,6 +4,7 @@ const propertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   price: { type: Number, required: true },
+  soldPrice: { type: Number },
   previousPrice: { type: Number },
   isBoosted: { type: Boolean, default: false },
   boostExpiresAt: { type: Date, default: null },

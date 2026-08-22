@@ -125,7 +125,7 @@ const SellerAnalytics = () => {
     } else if (type === 'orders' && analytics?.recentOrders) {
       csvContent += "Order ID,Buyer Name,Property,Status,Value\n";
       analytics.recentOrders.forEach(o => {
-        csvContent += `"${o._id}","${o.buyerId?.name || 'Unknown'}","${o.propertyId?.title || 'Unknown'}","${o.status}",${o.amount || 0}\n`;
+        csvContent += `"${o._id}","${o.buyerId?.name || 'Unknown'}","${o.propertyId?.title || 'Unknown'}","${o.status}",${(o.status === 'Completed' && o.finalSoldPrice) ? o.finalSoldPrice : (o.amount || 0)}\n`;
       });
     }
 
@@ -595,7 +595,7 @@ const SellerAnalytics = () => {
                           {order.status}
                         </span>
                       </td>
-                      <td style={{ padding: '20px 15px', fontWeight: '900', color: '#8b5cf6', fontSize: '1.1rem' }}>Rs. {(order.amount || 0).toLocaleString()}</td>
+                      <td style={{ padding: '20px 15px', fontWeight: '900', color: '#8b5cf6', fontSize: '1.1rem' }}>Rs. {((order.status === 'Completed' && order.finalSoldPrice) ? order.finalSoldPrice : (order.amount || 0)).toLocaleString()}</td>
                     </tr>
                   )) : (
                     <tr><td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '1.1rem' }}>No orders found</td></tr>

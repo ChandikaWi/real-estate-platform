@@ -107,7 +107,7 @@ const AdminAnalytics = () => {
     } else if (type === 'orders' && data?.recentOrders) {
       csvContent += "Order ID,Buyer Name,Property,Status,Value\n";
       data.recentOrders.forEach(o => {
-        csvContent += `"${o._id}","${o.buyerId?.name || 'Unknown'}","${o.propertyId?.title || 'Unknown'}","${o.status}",${o.amount || 0}\n`;
+        csvContent += `"${o._id}","${o.buyerId?.name || 'Unknown'}","${o.propertyId?.title || 'Unknown'}","${o.status}",${(o.status === 'Completed' && o.finalSoldPrice) ? o.finalSoldPrice : (o.amount || 0)}\n`;
       });
     }
 
@@ -517,7 +517,7 @@ const AdminAnalytics = () => {
                           {order.status}
                         </span>
                       </td>
-                      <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>Rs. {(order.amount || 0).toLocaleString()}</td>
+                      <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>Rs. {((order.status === 'Completed' && order.finalSoldPrice) ? order.finalSoldPrice : (order.amount || 0)).toLocaleString()}</td>
                     </tr>
                   )) : (
                     <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No orders found</td></tr>

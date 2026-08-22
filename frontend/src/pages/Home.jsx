@@ -4,12 +4,184 @@ import api from '../api/axiosConfig';
 import { useUI } from '../context/UIContext';
 import Realstatevideo from "../assets/Realstatevideo.mp4";
 
+// SKELETON LOADER COMPONENT
+const SkeletonCard = () => (
+  <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '240px', backgroundColor: 'var(--bg-hover)', position: 'relative', overflow: 'hidden' }}>
+      <div className="skeleton-shimmer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', animation: 'shimmer 1.5s infinite' }} />
+    </div>
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1, gap: '15px' }}>
+      <div style={{ height: '24px', width: '40%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+      <div style={{ height: '20px', width: '80%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+      <div style={{ height: '16px', width: '60%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ height: '16px', width: '25%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+        <div style={{ height: '16px', width: '25%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+        <div style={{ height: '16px', width: '25%', backgroundColor: 'var(--bg-hover)', borderRadius: '4px' }} />
+      </div>
+    </div>
+  </div>
+);
+
+// PROPERTY CARD COMPONENT (With Carousel & Save)
+const PropertyCard = ({ property, userInfo, userFavorites, onToggleFavorite, onQuickView }) => {
+  const navigate = useNavigate();
+  const [imgIndex, setImgIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const isSaved = userFavorites.includes(property._id);
+
+  const nextImage = (e) => {
+    e.stopPropagation();
+    if (property.images && property.images.length > 1) {
+      setImgIndex((prev) => (prev + 1) % property.images.length);
+    }
+  };
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    if (property.images && property.images.length > 1) {
+      setImgIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+    }
+  };
+
+  return (
+    <div 
+      style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', border: property.isBoosted ? '2px solid #f59e0b' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }} 
+      onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; setIsHovered(true); }} 
+      onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; setIsHovered(false); }}
+    >
+      
+      {/* Image Container */}
+      <div style={{ position: 'relative', height: '240px', cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--bg-hover)' }} onClick={() => navigate(`/property/${property._id}`)}>
+        {property.images && property.images.length > 0 ? (
+          <img src={property.images[imgIndex]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
+        )}
+        
+        {/* CAROUSEL CONTROLS */}
+        {isHovered && property.images && property.images.length > 1 && (
+          <>
+            <button onClick={prevImage} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5 }}>&#8592;</button>
+            <button onClick={nextImage} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5 }}>&#8594;</button>
+          </>
+        )}
+
+        {/* QUICK VIEW BUTTON */}
+        {isHovered && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onQuickView(property.images, imgIndex); }}
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '20px', padding: '8px 16px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', backdropFilter: 'blur(4px)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            🔍 Quick View
+          </button>
+        )}
+
+        {/* SAVE (HEART) BUTTON - Buyers Only */}
+        {userInfo?.role === 'buyer' && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(property._id, isSaved); }}
+            title={isSaved ? "Remove from Saved" : "Save Property"}
+            style={{ position: 'absolute', top: '15px', right: property.isBoosted ? '110px' : '15px', backgroundColor: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 15, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', color: isSaved ? '#ef4444' : '#9ca3af', fontSize: '1.2rem', transition: 'all 0.2s' }}
+          >
+            {isSaved ? '❤️' : '🤍'}
+          </button>
+        )}
+        
+        {/* Glass Badges (Left) */}
+        <div style={{ position: 'absolute', top: '15px', left: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+          <span style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#111', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+            {property.type}
+          </span>
+          {property.sellerId?.isVerified && (
+            <span style={{ backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+              ✓ Verified
+            </span>
+          )}
+        </div>
+
+        {/* FEATURED BADGE (Right) */}
+        {property.isBoosted && (
+          <span style={{ 
+            position: 'absolute', 
+            top: '15px', 
+            right: '15px', 
+            background: 'linear-gradient(135deg, #f59e0b, #e67e22)', 
+            color: '#fff', 
+            padding: '6px 12px', 
+            borderRadius: '20px', 
+            fontSize: '0.75rem', 
+            fontWeight: '900', 
+            textTransform: 'uppercase', 
+            letterSpacing: '1px',
+            boxShadow: '0 4px 10px rgba(245, 158, 11, 0.4)',
+            zIndex: 10 
+          }}>
+            🔥 Featured
+          </span>
+        )}
+      </div>
+
+      {/* Card Content */}
+      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ marginBottom: 'auto' }}>
+          {/* Price Section */}
+          {property.previousPrice && property.previousPrice !== property.price ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '1.6rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</span>
+              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '1rem' }}>Rs. {property.previousPrice.toLocaleString()}</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '800', marginBottom: '8px' }}>Rs. {property.price.toLocaleString()}</div>
+          )}
+          
+          <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem', color: 'var(--text-main)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {property.title}
+          </h3>
+          <p style={{ margin: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            {property.location.address}, {property.location.city}
+          </p>
+        </div>
+
+        {/* Specs Footer */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: property.type === 'land' ? 'center' : 'space-between', 
+          paddingTop: '16px', 
+          marginTop: 'auto', 
+          borderTop: '1px solid var(--border-color)', 
+          color: 'var(--text-main)', 
+          fontWeight: '600', 
+          fontSize: '0.95rem' 
+        }}>
+          {property.type !== 'land' ? (
+            <>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛏️ {property.bedrooms || 0} Beds</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛁 {property.bathrooms || 0} Baths</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📐 {property.area?.toLocaleString()} sqft</span>
+            </>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
+              🏞️ Land Area: {property.area?.toLocaleString()} sqft
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// MAIN HOME COMPONENT
 const Home = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { showAlert } = useUI();
+  
+  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   // Search & Filter States
   const [listingType, setListingType] = useState('buy'); // 'buy' or 'rent'
@@ -22,9 +194,14 @@ const Home = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
+  // Advanced Filter Slide-Out State
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+  
+  // Buyer Features
+  const [userFavorites, setUserFavorites] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
-  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
   // Lifestyle Engine State
   const [lifestyleAnswers, setLifestyleAnswers] = useState({ vibe: '', priority: '', commute: '' });
@@ -33,6 +210,19 @@ const Home = () => {
   
   // Lightbox State
   const [lightbox, setLightbox] = useState({ isOpen: false, images: [], currentIndex: 0 });
+
+  // Add Shimmer animation to document head on mount
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
 
   const fetchProperties = async (currentPage = 1) => {
     setLoading(true);
@@ -58,18 +248,29 @@ const Home = () => {
     }
   };
 
-  useEffect(() => {
-    fetchProperties(page);
-  }, [page, sort, listingType]); // Added listingType to auto-fetch when switching Buy/Rent
+  const fetchBuyerFavorites = async () => {
+    if (userInfo && userInfo.role === 'buyer') {
+      try {
+        const { data } = await api.get(`/favorites/user/${userInfo._id}`);
+        // Store just the property IDs for easy lookup
+        setUserFavorites(data.map(fav => fav.propertyId._id));
+      } catch (err) {
+        console.error("Failed to load favorites");
+      }
+    }
+  };
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('userInfo'));
-    
-    if (storedUser && storedUser.role === 'buyer') {
+    fetchProperties(page);
+    fetchBuyerFavorites();
+  }, [page, sort, listingType, type, fetchTrigger]);
+
+  useEffect(() => {
+    if (userInfo && userInfo.role === 'buyer') {
       const fetchRecommendations = async () => {
         setLoadingRecs(true);
         try {
-          const config = { headers: { Authorization: `Bearer ${storedUser.token}` } };
+          const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
           const { data } = await api.get('/properties/recommendations', config);
           setRecommendations(data);
         } catch (err) {
@@ -81,6 +282,26 @@ const Home = () => {
       fetchRecommendations();
     }
   }, []); 
+
+  const handleToggleFavorite = async (propertyId, isSaved) => {
+    try {
+      if (isSaved) {
+        const { data } = await api.get(`/favorites/user/${userInfo._id}`);
+        const fav = data.find(f => f.propertyId._id === propertyId);
+        if (fav) {
+          await api.delete(`/favorites/${fav._id}`);
+          setUserFavorites(prev => prev.filter(id => id !== propertyId));
+          showAlert("Removed from favorites", "info");
+        }
+      } else {
+        await api.post('/favorites', { propertyId });
+        setUserFavorites(prev => [...prev, propertyId]);
+        showAlert("Added to favorites!", "success");
+      }
+    } catch (err) {
+      showAlert("Action failed. Try again.", "error");
+    }
+  };
 
   const handleLifestyleSubmit = async () => {
     if (!lifestyleAnswers.vibe || !lifestyleAnswers.priority || !lifestyleAnswers.commute) {
@@ -104,28 +325,29 @@ const Home = () => {
   };
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if(e) e.preventDefault();
     if (page !== 1) setPage(1);
-    else fetchProperties(1);
+    else setFetchTrigger(prev => prev + 1);
+    setIsFilterPanelOpen(false); // Close panel on search
   };
 
   const clearFilters = () => {
     setKeyword(''); setType(''); setMinPrice(''); setMaxPrice(''); setBedrooms(''); setSort('newest');
     if (page !== 1) setPage(1);
-    else setTimeout(() => fetchProperties(1), 0);
+    else setFetchTrigger(prev => prev + 1);
   };
 
   const openLightbox = (images, index) => {
     if (images && images.length > 0) setLightbox({ isOpen: true, images, currentIndex: index });
   };
   const closeLightbox = () => setLightbox({ isOpen: false, images: [], currentIndex: 0 });
-  const nextImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length })); };
-  const prevImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length })); };
+  const nextLightboxImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length })); };
+  const prevLightboxImage = (e) => { e.stopPropagation(); setLightbox(prev => ({ ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length })); };
 
   if (error) return <div style={{ textAlign: 'center', padding: '50px', color: 'var(--danger-color)' }}><h2>{error}</h2></div>;
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-main)', transition: 'background-color 0.3s ease' }}>
+    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-main)', transition: 'background-color 0.3s ease', position: 'relative' }}>
       
       {/* HERO SECTION */}
       <div style={{ position: 'relative', width: '100%', height: '80vh', minHeight: '650px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -171,8 +393,9 @@ const Home = () => {
                 <option value="apartment">Apartments</option>
                 <option value="land">Land</option>
               </select>
-              <input type="number" placeholder="Beds" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ width: '80px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem' }} />
-              <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ flex: '1', minWidth: '120px', padding: '16px', borderRadius: '12px', border: 'none', outline: 'none', fontSize: '1rem' }} />
+              <button type="button" onClick={() => setIsFilterPanelOpen(true)} style={{ padding: '16px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: 'transform 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ⚙️ Filters
+              </button>
               <button type="submit" style={{ flex: '1', minWidth: '120px', padding: '16px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', transition: 'transform 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                 Search
               </button>
@@ -180,6 +403,52 @@ const Home = () => {
           </div>
         </div>
       </div>
+
+      {/* ADVANCED FILTER SLIDE-OUT PANEL */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        right: isFilterPanelOpen ? 0 : '-400px',
+        width: '400px',
+        height: '100vh',
+        backgroundColor: 'var(--bg-card)',
+        boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+        zIndex: 9999,
+        transition: 'right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        padding: '30px',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-main)' }}>Advanced Filters</h2>
+          <button onClick={() => setIsFilterPanelOpen(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', flex: 1 }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--text-main)' }}>Minimum Price (Rs.)</label>
+            <input type="number" placeholder="e.g. 5000000" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--text-main)' }}>Maximum Price (Rs.)</label>
+            <input type="number" placeholder="e.g. 15000000" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--text-main)' }}>Minimum Bedrooms</label>
+            <input type="number" placeholder="e.g. 3" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} style={{ width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', boxSizing: 'border-box' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '15px', marginTop: 'auto', paddingTop: '20px' }}>
+          <button onClick={clearFilters} style={{ flex: 1, padding: '15px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-main)', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Clear All</button>
+          <button onClick={handleSearch} style={{ flex: 2, padding: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Apply Filters</button>
+        </div>
+      </div>
+      {/* Slide-out Backdrop */}
+      {isFilterPanelOpen && (
+        <div onClick={() => setIsFilterPanelOpen(false)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, backdropFilter: 'blur(2px)' }} />
+      )}
 
       {/* VALUE PROPOSITION BANNER */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', maxWidth: '1400px', margin: '-40px auto 60px auto', padding: '0 20px', position: 'relative', zIndex: 3 }}>
@@ -215,7 +484,9 @@ const Home = () => {
 
         {/* PROPERTY GRID */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '100px 0' }}><h2 style={{ color: 'var(--text-muted)' }}>Loading premium listings...</h2></div>
+          <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+            {[...Array(6)].map((_, i) => <SkeletonCard key={`skel-${i}`} />)}
+          </div>
         ) : properties.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '100px 0', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
             <h3 style={{ color: 'var(--text-main)', marginBottom: '10px' }}>No exact matches found</h3>
@@ -226,98 +497,14 @@ const Home = () => {
           <>
             <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
               {properties.map((property) => (
-                <div key={property._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', border: property.isBoosted ? '2px solid #f59e0b' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}>
-                  
-                  {/* Image Container with Badges */}
-                  <div style={{ position: 'relative', height: '240px', cursor: 'pointer', overflow: 'hidden', backgroundColor: 'var(--bg-hover)' }} onClick={() => navigate(`/property/${property._id}`)}>
-                    {property.images && property.images.length > 0 ? (
-                      <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Image</div>
-                    )}
-                    
-                    {/* Glass Badges (Left) */}
-                    <div style={{ position: 'absolute', top: '15px', left: '15px', display: 'flex', gap: '8px' }}>
-                      <span style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: '#111', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', backdropFilter: 'blur(4px)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-                        {property.type}
-                      </span>
-                      {property.sellerId?.isVerified && (
-                        <span style={{ backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-                          ✓ Verified
-                        </span>
-                      )}
-                    </div>
-
-                    {/* FEATURED BADGE (Right) */}
-                    {property.isBoosted && (
-                      <span style={{ 
-                        position: 'absolute', 
-                        top: '15px', 
-                        right: '15px', 
-                        background: 'linear-gradient(135deg, #f59e0b, #e67e22)', 
-                        color: '#fff', 
-                        padding: '6px 12px', 
-                        borderRadius: '20px', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '900', 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '1px',
-                        boxShadow: '0 4px 10px rgba(245, 158, 11, 0.4)',
-                        zIndex: 10 
-                      }}>
-                        🔥 Featured
-                      </span>
-                    )}
-
-                  </div>
-
-                  {/* Card Content */}
-                  <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <div style={{ marginBottom: 'auto' }}>
-                      {/* Price Section */}
-                      {property.previousPrice && property.previousPrice !== property.price ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '1.6rem', color: 'var(--accent-color)', fontWeight: '800' }}>Rs. {property.price.toLocaleString()}</span>
-                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '1rem' }}>Rs. {property.previousPrice.toLocaleString()}</span>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '800', marginBottom: '8px' }}>Rs. {property.price.toLocaleString()}</div>
-                      )}
-                      
-                      <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem', color: 'var(--text-main)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {property.title}
-                      </h3>
-                      <p style={{ margin: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        {property.location.address}, {property.location.city}
-                      </p>
-                    </div>
-
-                    {/* Specs Footer - Dynamically Adapts for Land vs. Built Properties */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: property.type === 'land' ? 'center' : 'space-between', 
-                      paddingTop: '16px', 
-                      marginTop: 'auto', 
-                      borderTop: '1px solid var(--border-color)', 
-                      color: 'var(--text-main)', 
-                      fontWeight: '600', 
-                      fontSize: '0.95rem' 
-                    }}>
-                      {property.type !== 'land' ? (
-                        <>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛏️ {property.bedrooms || 0} Beds</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛁 {property.bathrooms || 0} Baths</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📐 {property.area?.toLocaleString()} sqft</span>
-                        </>
-                      ) : (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
-                          🏞️ Land Area: {property.area?.toLocaleString()} sqft
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <PropertyCard 
+                  key={property._id} 
+                  property={property} 
+                  userInfo={userInfo}
+                  userFavorites={userFavorites}
+                  onToggleFavorite={handleToggleFavorite}
+                  onQuickView={openLightbox}
+                />
               ))}
             </div>
 
@@ -358,7 +545,7 @@ const Home = () => {
           </div>
         )}
 
-        {/* If user is a BUYER (Original Recommendations & Quiz) */}
+        {/* If user is a BUYER */}
         {userInfo?.role === 'buyer' && (
           <>
             {/* Recommendations */}
@@ -372,7 +559,11 @@ const Home = () => {
               
               {loadingRecs ? (
                 <div style={{ display: 'flex', gap: '20px', overflowX: 'hidden' }}>
-                  {[1, 2, 3, 4].map(n => <div key={n} style={{ minWidth: '300px', height: '250px', backgroundColor: 'var(--bg-hover)', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />)}
+                  {[1, 2, 3, 4].map(n => (
+                    <div key={n} style={{ minWidth: '320px', flex: '0 0 auto' }}>
+                      <SkeletonCard />
+                    </div>
+                  ))}
                 </div>
               ) : recommendations.length === 0 ? (
                 <div style={{ padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
@@ -381,18 +572,14 @@ const Home = () => {
               ) : (
                 <div style={{ display: 'flex', gap: '25px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                   {recommendations.map(prop => (
-                    <div key={`rec-${prop._id}`} onClick={() => { navigate(`/property/${prop._id}`); window.scrollTo(0, 0); }} style={{ minWidth: '320px', flex: '0 0 auto', backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer', scrollSnapAlign: 'start', boxShadow: 'var(--shadow-md)', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.03)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
-                      <div style={{ position: 'relative', height: '200px' }}>
-                        {prop.images?.length > 0 ? <img src={prop.images[0]} alt="Recommend" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)' }} />}
-                        <div style={{ position: 'absolute', top: '15px', right: '15px', backgroundColor: 'rgba(0,0,0,0.8)', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '800', backdropFilter: 'blur(4px)' }}>
-                          {Math.round((Math.random() * 15) + 80)}% Match
-                        </div>
-                      </div>
-                      <div style={{ padding: '20px' }}>
-                        <div style={{ color: 'var(--text-main)', fontWeight: '800', fontSize: '1.4rem', marginBottom: '5px' }}>Rs. {prop.price.toLocaleString()}</div>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }}>{prop.title}</h4>
-                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {prop.location.city} • <span style={{ textTransform: 'capitalize' }}>{prop.type}</span></p>
-                      </div>
+                    <div key={`rec-${prop._id}`} style={{ minWidth: '320px', flex: '0 0 auto', scrollSnapAlign: 'start' }}>
+                      <PropertyCard 
+                        property={prop} 
+                        userInfo={userInfo}
+                        userFavorites={userFavorites}
+                        onToggleFavorite={handleToggleFavorite}
+                        onQuickView={openLightbox}
+                      />
                     </div>
                   ))}
                 </div>
@@ -455,16 +642,18 @@ const Home = () => {
                   ) : (
                     <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
                       {lifestyleMatches.map((property) => (
-                        <div key={`life-${property._id}`} onClick={() => { navigate(`/property/${property._id}`); window.scrollTo(0, 0); }} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.3s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                          <div style={{ position: 'relative', height: '220px' }}>
-                            {property.images && property.images.length > 0 ? <img src={property.images[0]} alt={property.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>}
-                            <span style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '800', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>⭐ 100% Lifestyle Match</span>
-                          </div>
-                          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                            <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '800', marginBottom: '8px' }}>Rs. {property.price.toLocaleString()}</div>
-                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontWeight: '500' }}>{property.title}</h3>
-                            <p style={{ margin: 'auto 0 0 0', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '5px' }}>📍 {property.location.city} • {property.bedrooms} Beds</p>
-                          </div>
+                        <div key={`life-${property._id}`} style={{ position: 'relative' }}>
+                           {/* Using the abstracted PropertyCard for consistency across UI */}
+                           <PropertyCard 
+                             property={property} 
+                             userInfo={userInfo}
+                             userFavorites={userFavorites}
+                             onToggleFavorite={handleToggleFavorite}
+                             onQuickView={openLightbox}
+                           />
+                           <span style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary-color)', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '800', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', zIndex: 20 }}>
+                             ⭐ 100% Match
+                           </span>
                         </div>
                       ))}
                     </div>
@@ -478,15 +667,15 @@ const Home = () => {
 
       {/* IMAGE LIGHTBOX MODAL */}
       {lightbox.isOpen && lightbox.images.length > 0 && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div onClick={closeLightbox} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <button onClick={closeLightbox} style={{ position: 'absolute', top: '20px', right: '30px', background: 'none', border: 'none', color: '#fff', fontSize: '3rem', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', width: '100%', justifyContent: 'center', padding: '0 20px', boxSizing: 'border-box' }}>
             {lightbox.images.length > 1 && (
-              <button onClick={prevImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8592;</button>
+              <button onClick={prevLightboxImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8592;</button>
             )}
-            <img src={lightbox.images[lightbox.currentIndex]} alt="Enlarged Property" style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
+            <img onClick={(e) => e.stopPropagation()} src={lightbox.images[lightbox.currentIndex]} alt="Enlarged Property" style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
             {lightbox.images.length > 1 && (
-              <button onClick={nextImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8594;</button>
+              <button onClick={nextLightboxImage} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', width: '50px', height: '50px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--primary-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}>&#8594;</button>
             )}
           </div>
           <p style={{ color: '#fff', marginTop: '20px', fontSize: '1.2rem', fontWeight: 'bold' }}>Photo {lightbox.currentIndex + 1} of {lightbox.images.length}</p>

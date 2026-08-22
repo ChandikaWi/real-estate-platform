@@ -83,6 +83,22 @@ const Disputes = () => {
       <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '5px' }}>Dispute & Resolution Center</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Resolve conflicts and maintain platform integrity.</p>
       
+      {/* Resolution Health Dashboard */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid #f59e0b' }}>
+          <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Pending Reports</p>
+          <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{reports.filter(r => r.status === 'Pending').length}</h3>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--primary-color)' }}>
+          <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Active Orders</p>
+          <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{orders.length}</h3>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--danger-color)' }}>
+          <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Reviews</p>
+          <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{reviews.length}</h3>
+        </div>
+      </div>
+      
       {/* TABS & SEARCH */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '5px' }}>
@@ -144,26 +160,37 @@ const Disputes = () => {
                       (r.reason || '').toLowerCase().includes(searchLower)
                     );
                   });
-                  return filteredReports.map(r => (
-                    <tr key={r._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  return filteredReports.map(r => {
+                    const isPending = r.status === 'Pending';
+                    return (
+                    <tr key={r._id} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: isPending ? 'rgba(245, 158, 11, 0.05)' : 'transparent', borderLeft: isPending ? '4px solid #f59e0b' : '4px solid transparent', transition: 'background 0.2s' }}>
                       <td style={{ padding: '15px', color: 'var(--text-main)' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
                       <td style={{ padding: '15px', color: 'var(--text-main)' }}>{r.reporterId?.name || 'Unknown'}</td>
                       <td style={{ padding: '15px', color: 'var(--text-main)' }}>
                         <div><strong style={{ textTransform: 'uppercase', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{r.targetType}</strong></div>
                         <div>{r.targetId?.title || r.targetId?.name || r.targetId || 'Deleted Entity'}</div>
                       </td>
-                      <td style={{ padding: '15px', color: 'var(--text-main)', maxWidth: '250px' }}>{r.reason}</td>
-                      <td style={{ padding: '15px', color: r.status === 'Pending' ? 'var(--accent-color)' : 'var(--text-muted)', fontWeight: 'bold' }}>{r.status}</td>
+                      <td style={{ padding: '15px', color: 'var(--text-main)', maxWidth: '250px' }}>
+                        <div style={{ backgroundColor: 'var(--bg-main)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--border-color)', fontStyle: 'italic', fontSize: '0.9rem' }}>
+                          "{r.reason}"
+                        </div>
+                      </td>
+                      <td style={{ padding: '15px', color: isPending ? '#f59e0b' : 'var(--text-muted)', fontWeight: 'bold' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {isPending && <span>⚠️</span>}
+                          {r.status}
+                        </div>
+                      </td>
                       <td style={{ padding: '15px' }}>
                         {r.status === 'Pending' && (
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => updateReportStatus(r._id, 'Resolved')} style={{ padding: '6px 12px', backgroundColor: '#10b981', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(16, 185, 129, 0.3)' }}>Resolve</button>
+                            <button onClick={() => updateReportStatus(r._id, 'Resolved')} style={{ padding: '6px 12px', backgroundColor: '#10b981', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(16, 185, 129, 0.3)' }}>✅ Resolve</button>
                             <button onClick={() => updateReportStatus(r._id, 'Dismissed')} style={{ padding: '6px 12px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>Dismiss</button>
                           </div>
                         )}
                       </td>
                     </tr>
-                  ));
+                  )});
                 })()}
                 {reports.filter(r => (r.reporterId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (r.targetId?.title || r.targetId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (r.reason || '').toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No flagged reports found.</td></tr>}
               </tbody>
@@ -198,11 +225,11 @@ const Disputes = () => {
                         <div style={{ fontSize: '0.9rem' }}>B: {o.buyerId?.name || 'Unknown'}</div>
                         <div style={{ fontSize: '0.9rem' }}>S: {o.sellerId?.name || 'Unknown'}</div>
                       </td>
-                      <td style={{ padding: '15px', color: 'var(--text-main)', fontWeight: 'bold' }}>Rs. {o.amount?.toLocaleString()}</td>
+                      <td style={{ padding: '15px', color: 'var(--text-main)', fontWeight: 'bold' }}>Rs. {((o.status === 'Completed' && o.finalSoldPrice) ? o.finalSoldPrice : (o.amount || 0)).toLocaleString()}</td>
                       <td style={{ padding: '15px', color: o.status === 'Cancelled' ? 'var(--danger-color)' : o.status === 'Completed' ? 'var(--success-color)' : 'var(--accent-color)', fontWeight: 'bold' }}>{o.status}</td>
                       <td style={{ padding: '15px' }}>
                         {['Pending', 'Approved'].includes(o.status) && (
-                          <button onClick={() => requestForceCancel(o._id)} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }}>Force Cancel</button>
+                          <button onClick={() => requestForceCancel(o._id)} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#dc2626'} onMouseOut={e => e.currentTarget.style.backgroundColor = '#ef4444'}>🛑 Force Cancel</button>
                         )}
                         {o.status === 'Completed' && <span style={{ color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500', backgroundColor: 'var(--bg-hover)', padding: '4px 8px', borderRadius: '4px' }}>Non-cancellable</span>}
                       </td>
@@ -234,19 +261,28 @@ const Disputes = () => {
                       (r.comment || '').toLowerCase().includes(searchLower)
                     );
                   });
-                  return filteredReviews.map(r => (
+                  return filteredReviews.map(r => {
+                    let starColor = '#10b981'; // Green for 4-5
+                    if (r.rating <= 2) starColor = '#ef4444'; // Red for 1-2
+                    else if (r.rating === 3) starColor = '#f59e0b'; // Yellow for 3
+                    
+                    return (
                     <tr key={r._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '15px', color: 'var(--text-main)' }}>
                         <div style={{ fontSize: '0.9rem' }}>By: {r.buyerId?.name || 'Unknown'}</div>
                         <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>For: {r.sellerId?.name || 'Unknown'}</div>
                       </td>
-                      <td style={{ padding: '15px', color: 'var(--text-main)', fontSize: '1.2rem', color: '#f1c40f' }}>{'★'.repeat(r.rating)}</td>
-                      <td style={{ padding: '15px', color: 'var(--text-main)', maxWidth: '300px' }}>{r.comment}</td>
+                      <td style={{ padding: '15px', fontSize: '1.2rem', color: starColor }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</td>
+                      <td style={{ padding: '15px', color: 'var(--text-main)', maxWidth: '300px' }}>
+                        <div style={{ backgroundColor: 'var(--bg-main)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--border-color)', fontStyle: 'italic', fontSize: '0.9rem' }}>
+                          "{r.comment}"
+                        </div>
+                      </td>
                       <td style={{ padding: '15px' }}>
-                        <button onClick={() => requestWipeReview(r._id)} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }}>Wipe Review</button>
+                        <button onClick={() => requestWipeReview(r._id)} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#dc2626'} onMouseOut={e => e.currentTarget.style.backgroundColor = '#ef4444'}>🗑️ Wipe Review</button>
                       </td>
                     </tr>
-                  ));
+                  )});
                 })()}
                 {reviews.filter(r => (r.buyerId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (r.sellerId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (r.comment || '').toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No reviews found.</td></tr>}
               </tbody>

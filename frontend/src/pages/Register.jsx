@@ -4,14 +4,38 @@ import api from '../api/axiosConfig';
 
 const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'buyer' });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false); 
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: '', color: 'transparent', width: '0%' };
+    let score = 0;
+    if (pwd.length > 5) score += 1;
+    if (pwd.length > 8) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    
+    if (score <= 2) return { score, label: 'Weak', color: 'var(--danger-color)', width: '33%' };
+    if (score <= 4) return { score, label: 'Good', color: '#f59e0b', width: '66%' };
+    return { score, label: 'Strong', color: 'var(--accent-color)', width: '100%' };
+  };
+  const pwdStrength = getPasswordStrength(formData.password);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (formData.password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    
     setLoading(true);
     try {
       const { data } = await api.post('/auth/register', formData);
@@ -116,6 +140,7 @@ const Register = () => {
                   onChange={(e) => setFormData({...formData, name: e.target.value})} 
                   placeholder="John Doe"
                   required 
+                  autoFocus
                   style={{ width: '100%', padding: '12px 14px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s ease' }} 
                   onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
                   onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
@@ -145,6 +170,10 @@ const Register = () => {
                     type={showPassword ? "text" : "password"} 
                     value={formData.password} 
                     onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                    onKeyUp={(e) => {
+                      if (e.getModifierState('CapsLock')) setCapsLockOn(true);
+                      else setCapsLockOn(false);
+                    }}
                     placeholder="Create a strong password"
                     required 
                     minLength="6"
@@ -161,6 +190,62 @@ const Register = () => {
                     {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
+                
+                {/* Caps Lock Warning */}
+                {capsLockOn && (
+                  <div style={{ marginTop: '6px', color: '#f59e0b', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    ⚠️ Caps Lock is ON
+                  </div>
+                )}
+                
+                {/* PASSWORD STRENGTH METER */}
+                {formData.password && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '4px', color: pwdStrength.color }}>
+                      <span>Password Strength</span>
+                      <span>{pwdStrength.label}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-hover)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ width: pwdStrength.width, height: '100%', backgroundColor: pwdStrength.color, transition: 'all 0.3s ease' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password Input */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem' }}>Confirm Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    placeholder="Confirm your password"
+                    required 
+                    minLength="6"
+                    style={{ 
+                      width: '100%', padding: '12px 14px', boxSizing: 'border-box', borderRadius: '8px', 
+                      border: `1px solid ${confirmPassword ? (confirmPassword === formData.password ? 'var(--accent-color)' : 'var(--danger-color)') : 'var(--border-color)'}`, 
+                      backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s ease' 
+                    }} 
+                    onFocus={(e) => { if(!confirmPassword) e.target.style.borderColor = 'var(--primary-color)'}}
+                    onBlur={(e) => { if(!confirmPassword) e.target.style.borderColor = 'var(--border-color)'}}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
+                    title={showConfirmPassword ? "Hide Password" : "Show Password"}
+                  >
+                    {showConfirmPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {/* Match indicator */}
+                {confirmPassword && (
+                  <div style={{ marginTop: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: confirmPassword === formData.password ? 'var(--accent-color)' : 'var(--danger-color)' }}>
+                    {confirmPassword === formData.password ? '✅ Passwords match' : '❌ Passwords do not match'}
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

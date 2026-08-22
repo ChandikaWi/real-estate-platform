@@ -10,8 +10,8 @@ import MockStripeCheckout from './pages/MockStripeCheckout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword'; 
-import ResetPassword from './pages/ResetPassword';   
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import PropertyDetails from './pages/PropertyDetails';
 import AdminDashboard from './pages/AdminDashboard';
@@ -26,7 +26,10 @@ import BuyerDashboard from './pages/BuyerDashboard';
 import SystemLogs from './pages/SystemLogs';
 import Disputes from './pages/Disputes';
 import PlatformSettings from './pages/PlatformSettings';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsConditions from './pages/TermsConditions';
 import SidebarLayout from './components/SidebarLayout';
+import Footer from './components/Footer';
 import AIChatBot from './components/AIChatBot';
 import api from './api/axiosConfig';
 import socket from './api/socket';
@@ -36,7 +39,7 @@ const Navigation = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const { showAlert } = useUI();
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-  
+
   // Smart Alerts State
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -48,12 +51,12 @@ const Navigation = () => {
     if (userInfo?._id) {
       // Fetch historical notifications
       const fetchNotifs = async () => {
-        try { 
-          const { data } = await api.get('/notifications'); 
-          setNotifications(data); 
+        try {
+          const { data } = await api.get('/notifications');
+          setNotifications(data);
         } catch (err) { console.error('Failed to load alerts'); }
       };
-      fetchNotifs(); 
+      fetchNotifs();
 
       // REAL-TIME - Connect and join personal notification room
       socket.connect();
@@ -82,7 +85,7 @@ const Navigation = () => {
       try {
         await api.put(`/notifications/${notif._id}/read`);
         setNotifications(notifications.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
-      } catch (err) {}
+      } catch (err) { }
     }
     navigate(notif.link);
   };
@@ -93,7 +96,7 @@ const Navigation = () => {
       case 'visit_update': return '📅';
       case 'message': return '💬';
       case 'order': return '💰';
-      case 'order_update': return '🤝'; 
+      case 'order_update': return '🤝';
       case 'review': return '⭐';
       case 'alert': return '🚨';
       case 'system': return '⚙️';
@@ -105,7 +108,7 @@ const Navigation = () => {
     try {
       await api.put('/notifications/read-all');
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleExplicitMarkRead = async (e, id) => {
@@ -138,7 +141,7 @@ const Navigation = () => {
 
   return (
     <>
-      <nav style={{ 
+      <nav style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px',
         position: 'sticky', top: 0, zIndex: 1000, backgroundColor: 'var(--bg-nav)',
         backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)'
@@ -147,10 +150,10 @@ const Navigation = () => {
           <div style={{ width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>R</div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.5px' }}>RealEstate</h2>
         </Link>
-        
+
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-main)', fontWeight: '500' }}>Home</Link>
-          
+
           <button onClick={toggleTheme} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-main)', width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }} title="Toggle Theme">
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
@@ -173,7 +176,7 @@ const Navigation = () => {
                 {userInfo.profilePhoto ? <img src={userInfo.profilePhoto} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-color)' }} /> : <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{userInfo.name.charAt(0).toUpperCase()}</div>}
                 <span style={{ display: 'none', '@media (minWidth: 768px)': { display: 'inline' } }}>{userInfo.name.split(' ')[0]}</span>
               </Link>
-              
+
               <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/dashboard' : '/admin'} style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', boxShadow: 'var(--shadow-sm)' }}>Dashboard</Link>
               <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', fontWeight: '600' }}>Logout</button>
             </>
@@ -203,11 +206,11 @@ const Navigation = () => {
                 <button onClick={() => setShowNotifs(false)} style={{ background: 'var(--bg-hover)', border: 'none', color: 'var(--text-muted)', width: '36px', height: '36px', borderRadius: '50%', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', padding: '0 20px' }}>
               {['All', 'Alerts', 'Orders', 'System'].map(tab => (
-                <button 
-                  key={tab} 
+                <button
+                  key={tab}
                   onClick={() => setActiveTab(tab)}
                   style={{
                     flex: 1, background: 'none', border: 'none', padding: '15px 0', cursor: 'pointer',
@@ -221,7 +224,7 @@ const Navigation = () => {
                 </button>
               ))}
             </div>
-            
+
             <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-body)', padding: '15px' }}>
               {filteredNotifications.length === 0 ? (
                 <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -231,14 +234,14 @@ const Navigation = () => {
                 </div>
               ) : (
                 filteredNotifications.map(notif => (
-                  <div 
-                    key={notif._id} 
-                    onClick={() => handleNotificationClick(notif)} 
-                    style={{ 
-                      padding: '18px', marginBottom: '10px', borderRadius: '12px', cursor: 'pointer', 
-                      backgroundColor: notif.isRead ? 'var(--bg-card)' : 'var(--primary-light)', 
+                  <div
+                    key={notif._id}
+                    onClick={() => handleNotificationClick(notif)}
+                    style={{
+                      padding: '18px', marginBottom: '10px', borderRadius: '12px', cursor: 'pointer',
+                      backgroundColor: notif.isRead ? 'var(--bg-card)' : 'var(--primary-light)',
                       border: notif.isRead ? '1px solid var(--border-color)' : '1px solid var(--primary-color)',
-                      boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', display: 'flex', gap: '15px', alignItems: 'flex-start' 
+                      boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', display: 'flex', gap: '15px', alignItems: 'flex-start'
                     }}
                     onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                     onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
@@ -250,20 +253,20 @@ const Navigation = () => {
                       <p style={{ margin: '0 0 8px 0', color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.5', fontWeight: notif.isRead ? 'normal' : '600' }}>{notif.message}</p>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <div style={{ display: 'flex', gap: '10px' }}>
                           {!notif.isRead && (
-                            <button 
-                              onClick={(e) => handleExplicitMarkRead(e, notif._id)} 
+                            <button
+                              onClick={(e) => handleExplicitMarkRead(e, notif._id)}
                               title="Mark as Read"
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', fontSize: '1.2rem', padding: 0 }}
                             >
                               ☑
                             </button>
                           )}
-                          <button 
-                            onClick={(e) => handleDeleteNotification(e, notif._id)} 
+                          <button
+                            onClick={(e) => handleDeleteNotification(e, notif._id)}
                             title="Delete Notification"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem', padding: 0 }}
                           >
@@ -304,7 +307,7 @@ function App() {
       }
     };
     checkMaintenance();
-    
+
     // Check periodically every 5 minutes
     const interval = setInterval(checkMaintenance, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -315,44 +318,48 @@ function App() {
       <UIProvider>
         <Router>
           <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-          <Navigation />
-          
-          {maintenanceMode && (
-            <div style={{ backgroundColor: 'var(--danger-color)', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: 'bold', zIndex: 9999 }}>
-              🚧 Platform Maintenance Mode is Active. Some features may be temporarily restricted. 🚧
-            </div>
-          )}
-          
-          {/* Chatbot Widget */}
-          <AIChatBot /> 
-          
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password/:token" element={<ResetPassword />} />
-              <Route path="/property/:id" element={<PropertyDetails />} />
-              <Route path="/profile" element={<SidebarLayout><Profile /></SidebarLayout>} />
-              <Route path="/buyer/dashboard" element={<SidebarLayout><BuyerDashboard /></SidebarLayout>} />
-              <Route path="/favorites" element={<SidebarLayout><Favorites /></SidebarLayout>} />
-              <Route path="/purchases" element={<SidebarLayout><MyPurchases /></SidebarLayout>} />
-              <Route path="/compare" element={<SidebarLayout><Compare /></SidebarLayout>} />
-              <Route path="/admin/analytics" element={<SidebarLayout><AdminAnalytics /></SidebarLayout>} />
-              <Route path="/admin/logs" element={<SidebarLayout><SystemLogs /></SidebarLayout>} />
-              <Route path="/admin/disputes" element={<SidebarLayout><Disputes /></SidebarLayout>} />
-              <Route path="/admin/settings" element={<SidebarLayout><PlatformSettings /></SidebarLayout>} />
-              <Route path="/admin/:tab?" element={<SidebarLayout><AdminDashboard /></SidebarLayout>} />
-              <Route path="/analytics" element={<SidebarLayout><SellerAnalytics /></SidebarLayout>} />
-              <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
-              <Route path="/dashboard/:tab?" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
-              <Route path="/visits" element={<SidebarLayout><MyVisits /></SidebarLayout>} />
-              <Route path="/checkout/:paymentId" element={<MockStripeCheckout />} />
-            </Routes>
-          </main>
-        </div>
-      </Router>
+            <Navigation />
+
+            {maintenanceMode && (
+              <div style={{ backgroundColor: 'var(--danger-color)', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: 'bold', zIndex: 9999 }}>
+                🚧 Platform Maintenance Mode is Active. Some features may be temporarily restricted. 🚧
+              </div>
+            )}
+
+            {/* Chatbot Widget */}
+            <AIChatBot />
+
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
+                <Route path="/property/:id" element={<PropertyDetails />} />
+                <Route path="/profile" element={<SidebarLayout><Profile /></SidebarLayout>} />
+                <Route path="/buyer/dashboard" element={<SidebarLayout><BuyerDashboard /></SidebarLayout>} />
+                <Route path="/favorites" element={<SidebarLayout><Favorites /></SidebarLayout>} />
+                <Route path="/purchases" element={<SidebarLayout><MyPurchases /></SidebarLayout>} />
+                <Route path="/compare" element={<SidebarLayout><Compare /></SidebarLayout>} />
+                <Route path="/admin/analytics" element={<SidebarLayout><AdminAnalytics /></SidebarLayout>} />
+                <Route path="/admin/logs" element={<SidebarLayout><SystemLogs /></SidebarLayout>} />
+                <Route path="/admin/disputes" element={<SidebarLayout><Disputes /></SidebarLayout>} />
+                <Route path="/admin/settings" element={<SidebarLayout><PlatformSettings /></SidebarLayout>} />
+                <Route path="/admin/:tab?" element={<SidebarLayout><AdminDashboard /></SidebarLayout>} />
+                <Route path="/analytics" element={<SidebarLayout><SellerAnalytics /></SidebarLayout>} />
+                <Route path="/edit-property/:id" element={<SidebarLayout><EditProperty /></SidebarLayout>} />
+                <Route path="/dashboard/:tab?" element={<SidebarLayout><Dashboard /></SidebarLayout>} />
+                <Route path="/visits" element={<SidebarLayout><MyVisits /></SidebarLayout>} />
+                <Route path="/checkout/:paymentId" element={<MockStripeCheckout />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsConditions />} />
+              </Routes>
+            </main>
+
+            <Footer />
+          </div>
+        </Router>
       </UIProvider>
     </ThemeProvider>
   );

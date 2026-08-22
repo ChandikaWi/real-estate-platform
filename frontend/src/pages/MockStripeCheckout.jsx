@@ -109,7 +109,14 @@ const MockStripeCheckout = () => {
 
       {/* RIGHT COLUMN - Payment Details */}
       <div style={{ flex: '1 1 400px', padding: '60px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'var(--bg-main)' }}>
-        <form onSubmit={handlePay} style={{ maxWidth: '450px', width: '100%', backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
+        <form onSubmit={handlePay} style={{ maxWidth: '450px', width: '100%', backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)', position: 'relative' }}>
+          
+          {saveCard && cardNumber && (
+            <div style={{ position: 'absolute', top: '-15px', right: '20px', backgroundColor: '#10b981', color: '#fff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)', animation: 'pulse 2s infinite' }}>
+              ⚡ Express Checkout Enabled
+            </div>
+          )}
+
           <h2 style={{ margin: '0 0 25px 0', color: 'var(--text-main)' }}>Payment Details</h2>
           
           <div style={{ marginBottom: '20px' }}>

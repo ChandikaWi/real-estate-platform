@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
 
@@ -8,7 +8,20 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false); 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // UX Features
+  const [rememberMe, setRememberMe] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,6 +30,12 @@ const Login = () => {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('userInfo', JSON.stringify(data));
+      
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
       
       // Route all users to the Home page regardless of their role
       navigate('/');
@@ -99,6 +118,7 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)} 
                   placeholder="Enter your email"
                   required 
+                  autoFocus
                   style={{ width: '100%', padding: '14px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s ease' }} 
                   onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
                   onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
@@ -116,6 +136,13 @@ const Login = () => {
                     type={showPassword ? "text" : "password"} 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)} 
+                    onKeyUp={(e) => {
+                      if (e.getModifierState('CapsLock')) {
+                        setCapsLockOn(true);
+                      } else {
+                        setCapsLockOn(false);
+                      }
+                    }}
                     placeholder="••••••••"
                     required 
                     style={{ width: '100%', padding: '14px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s ease' }} 
@@ -132,6 +159,27 @@ const Login = () => {
                     {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
+                
+                {/* Caps Lock Warning */}
+                {capsLockOn && (
+                  <div style={{ marginTop: '8px', color: '#f59e0b', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    ⚠️ Caps Lock is ON
+                  </div>
+                )}
+              </div>
+
+              {/* Remember Me Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary-color)' }}
+                />
+                <label htmlFor="rememberMe" style={{ color: 'var(--text-main)', fontSize: '0.95rem', cursor: 'pointer', userSelect: 'none' }}>
+                  Remember my email
+                </label>
               </div>
 
               {/* Submit Button */}

@@ -54,6 +54,42 @@ const SystemLogs = () => {
     return 'var(--primary-color)';
   };
 
+  const filteredLogs = logs.filter(log => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    const actionMatch = log.action.toLowerCase().includes(searchLower);
+    const detailsMatch = JSON.stringify(log.details || {}).toLowerCase().includes(searchLower);
+    const performerMatch = log.performedBy && (
+      (log.performedBy.name && log.performedBy.name.toLowerCase().includes(searchLower)) ||
+      (log.performedBy.email && log.performedBy.email.toLowerCase().includes(searchLower)) ||
+      (log.performedBy._id && log.performedBy._id.toString().toLowerCase().includes(searchLower))
+    );
+    return actionMatch || detailsMatch || performerMatch;
+  });
+
+  const criticalEventsCount = filteredLogs.filter(l => getActionColor(l.action) === 'var(--danger-color)').length;
+
+  const handleExportLogsCSV = () => {
+    if (filteredLogs.length === 0) return;
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Date,Time,Type,Action,Performed By ID,Performed By Name,Target ID,Details\n";
+    filteredLogs.forEach(log => {
+      const date = new Date(log.createdAt).toLocaleDateString();
+      const time = new Date(log.createdAt).toLocaleTimeString();
+      const performerName = log.performedBy?.name || log.performedBy?.email || 'System';
+      const performerId = log.performedBy?._id || 'N/A';
+      const details = log.details ? JSON.stringify(log.details).replace(/"/g, '""') : '';
+      csvContent += `"${date}","${time}","${log.type}","${log.action}","${performerId}","${performerName}","${log.targetId || 'N/A'}","${details}"\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `watchtower_logs_${activeTab}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
@@ -61,12 +97,32 @@ const SystemLogs = () => {
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 5px 0' }}>Watchtower</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Master Audit Trail & System Logs</p>
         </div>
-        <button 
-          onClick={() => fetchLogs(activeTab)}
-          style={{ padding: '10px 20px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-        >
-          Refresh Logs
-        </button>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <button 
+            onClick={handleExportLogsCSV}
+            style={{ padding: '10px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            📥 Export CSV
+          </button>
+          <button 
+            onClick={() => fetchLogs(activeTab)}
+            style={{ padding: '10px 20px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            Refresh Logs
+          </button>
+        </div>
+      </div>
+
+      {/* Audit Dashboard Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--primary-color)' }}>
+          <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Logs Displayed</p>
+          <h3 style={{ margin: 0, fontSize: '1.8rem' }}>{filteredLogs.length}</h3>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', borderLeft: '4px solid var(--danger-color)' }}>
+          <p style={{ margin: '0 0 5px 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Critical Events</p>
+          <h3 style={{ margin: 0, fontSize: '1.8rem', color: criticalEventsCount > 0 ? 'var(--danger-color)' : 'inherit' }}>{criticalEventsCount}</h3>
+        </div>
       </div>
 
       {/* SEARCH BAR */}
@@ -130,34 +186,21 @@ const SystemLogs = () => {
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  const filteredLogs = logs.filter(log => {
-                    if (!searchTerm) return true;
-                    const searchLower = searchTerm.toLowerCase();
-                    const actionMatch = log.action.toLowerCase().includes(searchLower);
-                    const detailsMatch = JSON.stringify(log.details || {}).toLowerCase().includes(searchLower);
-                    const performerMatch = log.performedBy && (
-                      (log.performedBy.name && log.performedBy.name.toLowerCase().includes(searchLower)) ||
-                      (log.performedBy.email && log.performedBy.email.toLowerCase().includes(searchLower)) ||
-                      (log.performedBy._id && log.performedBy._id.toString().toLowerCase().includes(searchLower))
-                    );
-                    return actionMatch || detailsMatch || performerMatch;
-                  });
-
-                  if (filteredLogs.length === 0) {
+                {filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No logs found matching your criteria.</td>
+                  </tr>
+                ) : (
+                  filteredLogs.map((log) => {
+                    const rowColor = getActionColor(log.action);
+                    const isDanger = rowColor === 'var(--danger-color)';
+                    
                     return (
-                      <tr>
-                        <td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No logs found matching your criteria.</td>
-                      </tr>
-                    );
-                  }
-
-                  return filteredLogs.map((log) => (
-                    <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <tr key={log._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s', backgroundColor: isDanger ? 'rgba(239, 68, 68, 0.04)' : 'transparent', borderLeft: isDanger ? '4px solid var(--danger-color)' : '4px solid transparent' }} onMouseOver={e => e.currentTarget.style.backgroundColor = isDanger ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = isDanger ? 'rgba(239, 68, 68, 0.04)' : 'transparent'}>
                       <td style={{ padding: '15px', color: 'var(--text-main)', fontSize: '1.2rem' }} title={log.type}>
                         {getLogIcon(log.type)}
                       </td>
-                      <td style={{ padding: '15px', fontWeight: 'bold', color: getActionColor(log.action), textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
+                      <td style={{ padding: '15px', fontWeight: 'bold', color: rowColor, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
                         {log.action.replace('_', ' ')}
                       </td>
                       <td style={{ padding: '15px' }}>
@@ -165,7 +208,6 @@ const SystemLogs = () => {
                           <div>
                             <div style={{ color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem' }}>{log.performedBy.name || log.performedBy.email || 'Admin'}</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>{log.performedBy.role || 'Admin'}</div>
-                            {/* Tracking account ID */}
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '2px', fontFamily: 'monospace' }}>ID: {log.performedBy._id}</div>
                           </div>
                         ) : (
@@ -173,29 +215,26 @@ const SystemLogs = () => {
                         )}
                       </td>
                       <td style={{ padding: '15px' }}>
-                        <div style={{ backgroundColor: 'var(--bg-main)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <div style={{ backgroundColor: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #334155', fontSize: '0.85rem', fontFamily: 'monospace', color: '#e2e8f0', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)' }}>
                           {log.details && Object.keys(log.details).length > 0 ? (
                             Object.entries(log.details).map(([key, value]) => (
                               <div key={key} style={{ marginBottom: '4px' }}>
-                                <strong style={{ color: 'var(--text-main)', textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}: </strong>
-                                <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                </span>
+                                <span style={{ color: '#38bdf8' }}>"{key}"</span>: <span style={{ color: '#a7f3d0' }}>{typeof value === 'object' ? JSON.stringify(value) : `"${String(value)}"`}</span>
                               </div>
                             ))
                           ) : (
-                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No additional details</span>
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>// No payload data</span>
                           )}
                         </div>
-                        {log.targetId && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontFamily: 'monospace' }}>Target ID: {log.targetId}</div>}
+                        {log.targetId && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', fontFamily: 'monospace', fontWeight: 'bold' }}>TARGET_ID: {log.targetId}</div>}
                       </td>
                       <td style={{ padding: '15px', color: 'var(--text-main)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         <div>{new Date(log.createdAt).toLocaleDateString()}</div>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{new Date(log.createdAt).toLocaleTimeString()}</div>
                       </td>
                     </tr>
-                  ));
-                })()}
+                  )})
+                )}
               </tbody>
             </table>
           </div>

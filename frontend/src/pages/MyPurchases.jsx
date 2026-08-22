@@ -10,9 +10,13 @@ const MyPurchases = () => {
   const [cancelDialog, setCancelDialog] = useState({ isOpen: false, orderId: null });
   const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
 
-  // Filter and Search States
+  // Filter, Search and Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [sortBy, setSortBy] = useState('date-desc');
+
+  // Receipt Modal State
+  const [receiptDialog, setReceiptDialog] = useState({ isOpen: false, order: null });
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -50,17 +54,44 @@ const MyPurchases = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) <= 3;
   };
 
-  // State for filtering and searching
-  const filteredOrders = orders.filter(order => {
-    const matchSearch = (order.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        (order._id || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = filterStatus === 'All' ? true : order.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const exportToCSV = () => {
+    const headers = ['Order ID', 'Property Title', 'Status', 'Amount (Rs)', 'Requested Date'];
+    const rows = orders.map(order => [
+      order._id, 
+      `"${(order.propertyId?.title || 'Unknown').replace(/"/g, '""')}"`, 
+      order.status, 
+      order.amount, 
+      new Date(order.createdAt).toLocaleDateString()
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'My_Real_Estate_Portfolio.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // State for filtering and sorting
+  const filteredOrders = orders
+    .filter(order => {
+      const matchSearch = (order.propertyId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (order._id || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchStatus = filterStatus === 'All' ? true : order.status === filterStatus;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date-desc') return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'date-asc') return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'amount-desc') return b.amount - a.amount;
+      if (sortBy === 'amount-asc') return a.amount - b.amount;
+      return 0;
+    });
 
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading your portfolio...</h2></div>;
 
-  const completedAmount = orders.filter(o => o.status === 'Completed').reduce((sum, o) => sum + o.amount, 0);
+  const completedAmount = orders.filter(o => o.status === 'Completed').reduce((sum, o) => sum + (o.finalSoldPrice || o.amount), 0);
   const pendingCount = orders.filter(o => o.status === 'Pending' || o.status === 'Approved').length;
   const completedCount = orders.filter(o => o.status === 'Completed').length;
 
@@ -83,6 +114,11 @@ const MyPurchases = () => {
           <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Investment Portfolio</h1>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Track your purchase requests and completed transactions.</p>
         </div>
+        {orders.length > 0 && (
+          <button onClick={exportToCSV} style={{ padding: '12px 24px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+            📥 Export to CSV
+          </button>
+        )}
       </div>
 
       {orders.length > 0 && (
@@ -131,6 +167,15 @@ const MyPurchases = () => {
               style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', outline: 'none' }}
             />
           </div>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', fontSize: '0.95rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sort By</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', cursor: 'pointer' }}>
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+              <option value="amount-desc">Amount (Highest First)</option>
+              <option value="amount-asc">Amount (Lowest First)</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -170,13 +215,6 @@ const MyPurchases = () => {
                   
                   <div style={{ flex: '1 1 250px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                      <span style={{ 
-                        backgroundColor: isPending ? 'rgba(243, 156, 18, 0.1)' : isCompleted ? 'rgba(16, 185, 129, 0.1)' : isApproved ? 'rgba(52, 152, 219, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                        color: isPending ? '#f39c12' : isCompleted ? 'var(--accent-color)' : isApproved ? '#3498db' : 'var(--danger-color)', 
-                        padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' 
-                      }}>
-                        {order.status}
-                      </span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 'bold' }}>#{order._id.substring(order._id.length - 8).toUpperCase()}</span>
                     </div>
 
@@ -187,11 +225,38 @@ const MyPurchases = () => {
                     </Link>
                     
                     <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Requested on {new Date(order.createdAt).toLocaleDateString()}</p>
+                    
+                    {/* VISUAL PROGRESS TRACKER */}
+                    <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isCancelled ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--danger-color)', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                          <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--danger-color)' }}></span>
+                          Cancelled
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.2)' }}></div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 'bold' }}>Req</span>
+                          </div>
+                          <div style={{ flex: 1, height: '3px', backgroundColor: isApproved || isCompleted ? 'var(--primary-color)' : 'var(--border-color)', margin: '0 -5px 15px -5px' }}></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: isApproved || isCompleted ? 'var(--primary-color)' : 'var(--border-color)', boxShadow: isApproved || isCompleted ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : 'none' }}></div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 'bold' }}>Appr</span>
+                          </div>
+                          <div style={{ flex: 1, height: '3px', backgroundColor: isCompleted ? 'var(--accent-color)' : 'var(--border-color)', margin: '0 -5px 15px -5px' }}></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: isCompleted ? 'var(--accent-color)' : 'var(--border-color)', boxShadow: isCompleted ? '0 0 0 3px rgba(16, 185, 129, 0.2)' : 'none' }}></div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 'bold' }}>Done</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div style={{ flex: '1 1 150px' }}>
-                    <p style={{ margin: '0 0 5px 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Agreed Amount</p>
-                    <p style={{ margin: 0, fontWeight: '900', fontSize: '1.4rem', color: 'var(--accent-color)' }}>Rs. {order.amount.toLocaleString()}</p>
+                    <p style={{ margin: '0 0 5px 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>{isCompleted ? 'Final Sold Price' : 'Agreed Amount'}</p>
+                    <p style={{ margin: 0, fontWeight: '900', fontSize: '1.4rem', color: 'var(--accent-color)' }}>Rs. {(isCompleted ? (order.finalSoldPrice || order.amount) : order.amount).toLocaleString()}</p>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -200,9 +265,14 @@ const MyPurchases = () => {
                     </button>
                     
                     {isCompleted && (
-                      <button onClick={() => navigate(`/property/${order.propertyId?._id}`, { state: { openReview: true } })} style={{ padding: '10px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}>
-                        ⭐ Rate Seller
-                      </button>
+                      <>
+                        <button onClick={() => setReceiptDialog({ isOpen: true, order })} style={{ padding: '10px 20px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border-color)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}>
+                          🧾 Receipt
+                        </button>
+                        <button onClick={() => navigate(`/property/${order.propertyId?._id}`, { state: { openReview: true } })} style={{ padding: '10px 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}>
+                          ⭐ Rate Seller
+                        </button>
+                      </>
                     )}
 
                     {isPending && isWithinThreeDays(order.createdAt) && (
@@ -232,6 +302,73 @@ const MyPurchases = () => {
             <div style={{ display: 'flex', gap: '15px' }}>
               <button onClick={() => setCancelDialog({ isOpen: false, orderId: null })} style={{ flex: 1, padding: '14px', backgroundColor: 'transparent', color: 'var(--text-main)', border: '2px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>Keep It</button>
               <button onClick={confirmCancelOrder} style={{ flex: 1, padding: '14px', backgroundColor: 'var(--danger-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem', boxShadow: '0 10px 20px rgba(239, 68, 68, 0.3)' }}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RECEIPT MODAL */}
+      {receiptDialog.isOpen && receiptDialog.order && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(5px)' }}>
+          <div id="receipt-print-area" style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', color: '#111', fontFamily: '"Courier New", Courier, monospace' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #ddd', paddingBottom: '20px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ margin: '0 0 5px 0', fontSize: '2rem', letterSpacing: '-1px' }}>RECEIPT</h2>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>Real Estate Marketplace</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>Order #{receiptDialog.order._id.substring(receiptDialog.order._id.length - 8).toUpperCase()}</p>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>Date: {new Date(receiptDialog.order.createdAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '30px' }}>
+              <p style={{ fontWeight: 'bold', textTransform: 'uppercase', color: '#666', borderBottom: '1px solid #ddd', paddingBottom: '5px' }}>Property Details</p>
+              <h3 style={{ margin: '10px 0 5px 0' }}>{receiptDialog.order.propertyId?.title}</h3>
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>Location: {receiptDialog.order.propertyId?.location?.city || 'N/A'}</p>
+            </div>
+
+            <div style={{ marginBottom: '40px', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span>Agreed Purchase Amount:</span>
+                <span>Rs. {receiptDialog.order.amount.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #ddd', paddingTop: '10px', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                <span>FINAL SOLD PRICE:</span>
+                <span>Rs. {(receiptDialog.order.finalSoldPrice || receiptDialog.order.amount).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="no-print" style={{ display: 'flex', gap: '15px' }}>
+              <button 
+                onClick={() => {
+                  const printContent = document.getElementById('receipt-print-area').innerHTML;
+                  const printWindow = window.open('', '', 'width=800,height=600');
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Receipt - Order #${receiptDialog.order._id.substring(receiptDialog.order._id.length - 8).toUpperCase()}</title>
+                        <style>
+                          body { font-family: "Courier New", Courier, monospace; padding: 20px; color: #111; }
+                          .no-print { display: none !important; }
+                          h2, h3, p { margin-top: 0; }
+                        </style>
+                      </head>
+                      <body>${printContent}</body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                  printWindow.focus();
+                  setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                  }, 250);
+                }} 
+                style={{ flex: 1, padding: '12px', backgroundColor: '#111', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                🖨️ Print Receipt
+              </button>
+              <button onClick={() => setReceiptDialog({ isOpen: false, order: null })} style={{ flex: 1, padding: '12px', backgroundColor: '#eee', color: '#111', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Close</button>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ const orderSchema = new mongoose.Schema({
   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   amount: { type: Number, required: true },
+  finalSoldPrice: { type: Number },
   status: {
     type: String,
     enum: ['Pending', 'Approved', 'Completed', 'Cancelled'],

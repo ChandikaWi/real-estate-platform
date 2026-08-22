@@ -9,8 +9,12 @@ const Favorites = () => {
   
   const [checkoutItem, setCheckoutItem] = useState(null);
   const [processing, setProcessing] = useState(false);
-  
   const [validationMsg, setValidationMsg] = useState({ text: '', type: '' });
+
+  // Filtering & Sorting State
+  const [filterType, setFilterType] = useState('All');
+  const [filterListing, setFilterListing] = useState('All');
+  const [sortBy, setSortBy] = useState('newest');
 
   const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
@@ -34,6 +38,20 @@ const Favorites = () => {
       setValidationMsg({ text: 'Failed to remove from favorites.', type: 'error' });
       setTimeout(() => setValidationMsg({ text: '', type: '' }), 3000);
     }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to clear your entire collection? This cannot be undone.')) return;
+    setProcessing(true);
+    try {
+      await Promise.all(favorites.map(fav => api.delete(`/favorites/${fav._id}`)));
+      setFavorites([]);
+      setValidationMsg({ text: 'Collection cleared successfully.', type: 'success' });
+    } catch (err) {
+      setValidationMsg({ text: 'Failed to clear collection. Some items may remain.', type: 'error' });
+    }
+    setProcessing(false);
+    setTimeout(() => setValidationMsg({ text: '', type: '' }), 3000);
   };
 
   const handleCheckoutSubmit = async (e) => {
@@ -61,6 +79,27 @@ const Favorites = () => {
 
   if (loading) return <div style={{ maxWidth: '1200px', margin: '100px auto', textAlign: 'center' }}><h2 style={{ color: 'var(--text-main)' }}>Loading your collection...</h2></div>;
 
+  const filteredFavorites = favorites
+    .filter(fav => {
+      if (!fav.propertyId) return false;
+      if (filterType !== 'All' && fav.propertyId.type !== filterType) return false;
+      if (filterListing !== 'All' && fav.propertyId.listingType !== filterListing) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price-asc') return a.propertyId.price - b.propertyId.price;
+      if (sortBy === 'price-desc') return b.propertyId.price - a.propertyId.price;
+      return new Date(b.createdAt) - new Date(a.createdAt); // newest
+    });
+
+  const getPricePerSqFt = (prop) => {
+    if (prop.area && prop.area > 0 && prop.price) {
+      const price = (prop.status === 'Sold' && prop.soldPrice) ? prop.soldPrice : prop.price;
+      return Math.round(price / prop.area).toLocaleString();
+    }
+    return null;
+  };
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
@@ -81,9 +120,16 @@ const Favorites = () => {
           <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>Your Personal Collection</h1>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Properties you've saved for later. Keep track of your favorites here.</p>
         </div>
-        <div style={{ backgroundColor: 'var(--bg-card)', padding: '15px 25px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--danger-color)' }}>{favorites.length}</span>
-          <span style={{ marginLeft: '10px', color: 'var(--text-muted)', fontWeight: 'bold' }}>Saved</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          {favorites.length > 0 && (
+            <button onClick={handleClearAll} disabled={processing} style={{ padding: '10px 20px', backgroundColor: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '12px', cursor: processing ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = 'var(--danger-color)'; e.currentTarget.style.borderColor = 'var(--danger-color)' }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)' }}>
+              {processing ? 'Clearing...' : 'Clear All'}
+            </button>
+          )}
+          <div style={{ backgroundColor: 'var(--bg-card)', padding: '15px 25px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--danger-color)' }}>{favorites.length}</span>
+            <span style={{ marginLeft: '10px', color: 'var(--text-muted)', fontWeight: 'bold' }}>Saved</span>
+          </div>
         </div>
       </div>
       
@@ -104,9 +150,43 @@ const Favorites = () => {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-          {favorites.map((fav) => fav.propertyId && (
-            <div key={fav._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', display: 'flex', flexDirection: 'column' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
+        <>
+          {/* Quick Filters Bar */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginBottom: '30px', padding: '15px', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>Show:</span>
+              <select value={filterListing} onChange={(e) => setFilterListing(e.target.value)} style={{ padding: '10px 15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontWeight: '500' }}>
+                <option value="All">Buy & Rent</option>
+                <option value="buy">For Sale Only</option>
+                <option value="rent">For Rent Only</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>Type:</span>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '10px 15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontWeight: '500' }}>
+                <option value="All">All Types</option>
+                <option value="house">Houses</option>
+                <option value="apartment">Apartments</option>
+                <option value="land">Land</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>Sort:</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '10px 15px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontWeight: '500' }}>
+                <option value="newest">Recently Added</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+              </select>
+            </div>
+          </div>
+
+          {filteredFavorites.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>No favorites match your current filters.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '30px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+              {filteredFavorites.map((fav) => fav.propertyId && (
+                <div key={fav._id} style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', display: 'flex', flexDirection: 'column' }} onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }} onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
               
               {/* Image Section */}
               <div style={{ height: '220px', backgroundColor: 'var(--bg-hover)', position: 'relative', overflow: 'hidden' }}>
@@ -133,9 +213,13 @@ const Favorites = () => {
 
               {/* Content Section */}
               <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '900', marginBottom: '8px' }}>
-                  Rs. {fav.propertyId.price.toLocaleString()}
-                  {fav.propertyId.listingType === 'rent' && <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}> / mo</span>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: '900', marginBottom: '8px' }}>Rs. {(fav.propertyId.status === 'Sold' && fav.propertyId.soldPrice) ? fav.propertyId.soldPrice.toLocaleString() : fav.propertyId.price.toLocaleString()}{fav.propertyId.listingType === 'rent' && <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}> / mo</span>}</div>
+                  {getPricePerSqFt(fav.propertyId) && (
+                    <div style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--primary-color)', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid var(--border-color)' }}>
+                      Rs. {getPricePerSqFt(fav.propertyId)}/sqft
+                    </div>
+                  )}
                 </div>
                 <h3 style={{ margin: '0 0 10px 0', fontSize: '1.15rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontWeight: '500' }}>
                   {fav.propertyId.title}
@@ -178,7 +262,9 @@ const Favorites = () => {
               </div>
             </div>
           ))}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* CHECKOUT MODAL */}

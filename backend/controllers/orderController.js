@@ -99,7 +99,7 @@ export const getSellerOrders = async (req, res) => {
 // @route   PUT /api/orders/:id/status
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { action } = req.body; 
+    const { action, finalSoldPrice } = req.body; 
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     
@@ -136,8 +136,13 @@ export const updateOrderStatus = async (req, res) => {
     // COMPLETE ACTION
     else if (action === 'complete') {
       if (order.sellerId.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Unauthorized' });
+      
+      if (!finalSoldPrice) return res.status(400).json({ message: 'Actual Sold Price is required to complete the transaction.' });
+      
       order.status = 'Completed';
-      await Property.findByIdAndUpdate(order.propertyId, { status: 'Sold' });
+      order.finalSoldPrice = Number(finalSoldPrice);
+      
+      await Property.findByIdAndUpdate(order.propertyId, { status: 'Sold', soldPrice: Number(finalSoldPrice) });
       if (io) io.emit('property_status_updated', { propertyId: order.propertyId, status: 'Sold' });
       
       buyerMessage = `🎉 Transaction Completed! You are the new owner.`;
@@ -151,6 +156,7 @@ export const updateOrderStatus = async (req, res) => {
           <div style="padding: 30px; color: #374151; line-height: 1.6;">
             <p>Hi <strong>${req.user.name}</strong>,</p>
             <p>You have successfully marked the transaction for this property as <strong>Completed</strong>.</p>
+            <p style="font-size: 1.2rem; margin: 15px 0;"><strong>Final Sold Price:</strong> Rs. ${Number(finalSoldPrice).toLocaleString()}</p>
             <p>Excellent work! This sale has been added to your lifetime analytics.</p>
           </div>
         </div>

@@ -303,7 +303,7 @@ export const getSellerAnalytics = async (req, res) => {
     const totalViews = properties.reduce((sum, prop) => sum + (prop.views || 0), 0);
     const totalInquiries = messages.length;
     const completedOrders = orders.filter(o => o.status === 'Completed');
-    const totalSalesRevenue = completedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+    const totalSalesRevenue = completedOrders.reduce((sum, o) => sum + (o.finalSoldPrice || o.amount || 0), 0);
 
     // Calculate Average DOM (Days on Market)
     let totalDOM = 0;
@@ -326,7 +326,7 @@ export const getSellerAnalytics = async (req, res) => {
       
       const revenue = propOrders
         .filter(o => o.status === 'Completed')
-        .reduce((sum, o) => sum + (o.amount || 0), 0);
+        .reduce((sum, o) => sum + (o.finalSoldPrice || o.amount || 0), 0);
 
       return {
         _id: prop._id,
@@ -352,7 +352,7 @@ export const getSellerAnalytics = async (req, res) => {
       const d = new Date(o.updatedAt || o.createdAt);
       const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
       if (revenueTrendMap[key] !== undefined) {
-        revenueTrendMap[key] += (o.amount || 0);
+        revenueTrendMap[key] += (o.finalSoldPrice || o.amount || 0);
       }
     });
     const revenueTrend = Object.keys(revenueTrendMap).map(key => ({ name: key, revenue: revenueTrendMap[key] }));

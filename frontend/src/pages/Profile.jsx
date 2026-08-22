@@ -87,6 +87,40 @@ const Profile = () => {
 
   const displayImage = imageFile ? URL.createObjectURL(imageFile) : profilePhoto;
 
+  // Completeness
+  const calculateCompleteness = () => {
+    let score = 0;
+    const isSeller = userInfo?.role === 'seller';
+    const totalFields = isSeller ? 4 : 3;
+    
+    if (formData.name) score += 1;
+    if (formData.email) score += 1;
+    if (profilePhoto || imageFile) score += 1;
+    if (isSeller && formData.phoneNumber) score += 1;
+    
+    return Math.round((score / totalFields) * 100);
+  };
+  const completeness = calculateCompleteness();
+
+  // Password Strength
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: '', color: 'transparent', width: '0%' };
+    let score = 0;
+    if (pwd.length > 5) score += 1;
+    if (pwd.length > 8) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    
+    if (score <= 2) return { score, label: 'Weak', color: 'var(--danger-color)', width: '33%' };
+    if (score <= 4) return { score, label: 'Good', color: '#f59e0b', width: '66%' };
+    return { score, label: 'Strong', color: 'var(--accent-color)', width: '100%' };
+  };
+  const pwdStrength = getPasswordStrength(formData.password);
+
+  // Badges
+  const memberYear = userInfo?.createdAt ? new Date(userInfo.createdAt).getFullYear() : new Date().getFullYear();
+  
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
@@ -129,10 +163,18 @@ const Profile = () => {
           </div>
           
           <div style={{ textAlign: 'center' }}>
-            <h1 style={{ margin: '0 0 8px 0', fontSize: '2.2rem', lineHeight: '1', fontWeight: '900' }}>{formData.name || 'Your Name'}</h1>
-            <span style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary-color)', padding: '6px 16px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              {userInfo?.role} Account
-            </span>
+            <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', lineHeight: '1', fontWeight: '900' }}>{formData.name || 'Your Name'}</h1>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary-color)', padding: '6px 16px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {userInfo?.role} Account
+              </span>
+              <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-color)', padding: '6px 16px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '900', letterSpacing: '0.5px' }}>
+                ✅ Email Verified
+              </span>
+              <span style={{ backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', padding: '6px 16px', borderRadius: '16px', fontSize: '0.85rem', fontWeight: '900', letterSpacing: '0.5px' }}>
+                📅 Member Since {memberYear}
+              </span>
+            </div>
           </div>
 
         </div>
@@ -143,6 +185,24 @@ const Profile = () => {
           {message.text}
         </div>
       )}
+
+      {/* COMPLETENESS TRACKER */}
+      <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Profile Completeness</span>
+            <span style={{ fontWeight: '900', color: completeness === 100 ? 'var(--accent-color)' : 'var(--primary-color)' }}>{completeness}%</span>
+          </div>
+          <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness === 100 ? 'var(--accent-color)' : 'var(--primary-color)', transition: 'width 0.5s ease' }} />
+          </div>
+        </div>
+        {completeness < 100 && (
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '200px', lineHeight: '1.4' }}>
+            {!(profilePhoto || imageFile) ? "Upload a profile photo to reach 100%!" : userInfo?.role === 'seller' && !formData.phoneNumber ? "Add your phone number to reach 100%!" : "Fill out remaining fields!"}
+          </div>
+        )}
+      </div>
 
       {/* FORM SECTION */}
       <form onSubmit={handleUpdate} style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
@@ -190,12 +250,25 @@ const Profile = () => {
             <button 
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
+              style={{ position: 'absolute', right: '15px', top: '14px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
               title={showPassword ? "Hide Password" : "Show Password"}
             >
               {showPassword ? '🙈' : '👁️'}
             </button>
           </div>
+          
+          {/* PASSWORD STRENGTH METER */}
+          {formData.password && (
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '5px', color: pwdStrength.color }}>
+                <span>Password Strength</span>
+                <span>{pwdStrength.label}</span>
+              </div>
+              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-hover)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ width: pwdStrength.width, height: '100%', backgroundColor: pwdStrength.color, transition: 'all 0.3s ease' }} />
+              </div>
+            </div>
+          )}
         </div>
 
         <button type="submit" disabled={loading} style={{ width: '100%', padding: '16px', backgroundColor: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '12px', cursor: loading ? 'wait' : 'pointer', fontWeight: '900', fontSize: '1.1rem', boxShadow: '0 8px 20px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s ease' }} onMouseOver={e => !loading && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={e => !loading && (e.currentTarget.style.transform = 'translateY(0)')}>
