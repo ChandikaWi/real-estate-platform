@@ -77,7 +77,7 @@ const Login = () => {
           minHeight: '400px'
         }}>
           <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', margin: '0 0 20px 0', lineHeight: 1.1, fontWeight: '800' }}>
-            Welcome to the Future of Real Estate.
+            Welcome to the Future of LakEstates.
           </h1>
           <p style={{ fontSize: '1.1rem', opacity: 0.9, lineHeight: 1.6, maxWidth: '400px' }}>
             Sign in to access AI-powered valuations, personalized lifestyle matches, and premium listings across Sri Lanka.

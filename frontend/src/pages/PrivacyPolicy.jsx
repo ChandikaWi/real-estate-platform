@@ -138,7 +138,7 @@ const PrivacyPolicy = () => {
             <p style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.05rem', marginBottom: '20px' }}>We use the information we collect to operate, maintain, and provide the features of our platform:</p>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {[
-                "Provide, maintain, and improve our real estate platform.",
+                "Provide, maintain, and improve our LakEstates platform.",
                 "Power our AI Valuation and Lifestyle Matching engines to give you personalized recommendations.",
                 "Facilitate secure communication between verified buyers and sellers.",
                 "Send you technical notices, updates, security alerts, and administrative messages."

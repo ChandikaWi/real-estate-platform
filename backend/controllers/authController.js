@@ -199,7 +199,7 @@ export const forgotPassword = async (req, res) => {
     `;
 
     await transporter.sendMail({
-      from: '"Premium Real Estate" <noreply@realestate.com>',
+      from: '"LakEstates" <noreply@realestate.com>',
       to: user.email,
       subject: 'Password Reset Request',
       html: message,

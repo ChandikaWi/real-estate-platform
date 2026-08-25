@@ -80,8 +80,28 @@ const Disputes = () => {
 
   return (
     <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '5px' }}>Dispute & Resolution Center</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Resolve conflicts and maintain platform integrity.</p>
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
+        border: '1px solid rgba(243, 156, 18, 0.2)', 
+        borderRadius: '24px', 
+        padding: '40px', 
+        marginBottom: '30px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        <div>
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>System Administration</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage marketplace users, moderate listings, and track platform revenue.</p>
+        </div>
+      </div>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ margin: '0 0 5px 0', fontSize: '1.6rem' }}>Dispute & Resolution Center</h2>
+        <p style={{ color: 'var(--text-muted)', margin: 0 }}>Resolve conflicts and maintain platform integrity.</p>
+      </div>
       
       {/* Resolution Health Dashboard */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '25px' }}>

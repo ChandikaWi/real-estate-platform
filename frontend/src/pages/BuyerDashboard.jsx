@@ -346,7 +346,7 @@ const BuyerDashboard = () => {
             Welcome back, {userInfo?.name?.split(' ')[0]} 👋
           </h1>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>
-            Your personal real estate command center.
+            Your personal LakEstates command center.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>

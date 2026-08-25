@@ -50,7 +50,7 @@ export const handleChatQuery = async (req, res) => {
     // Fallback if no parameters were understood
     if (Object.keys(query).length === 0) {
       return res.json({ 
-        reply: "I'm a real estate AI assistant! Try asking me something specific like: 'Find me a 2-bedroom apartment under 50k near Colombo' or 'Show me houses with parking.'", 
+        reply: "I'm your LakEstates assistant! Try asking me something specific like: 'Find me a 2-bedroom apartment under 50k near Colombo' or 'Show me houses with parking.'", 
         properties: [] 
       });
     }

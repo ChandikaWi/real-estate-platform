@@ -40,20 +40,20 @@ const SidebarLayout = ({ children }) => {
     ];
   } else if (userInfo.role === 'seller') {
     links = [
+      { path: '/analytics', label: 'Performance Analytics', icon: Icons.chart },
       { path: '/dashboard/add', label: 'Add New Listing', icon: Icons.plus },
       { path: '/dashboard/listings', label: 'Active Portfolio', icon: Icons.list },
       { path: '/dashboard/inquiries', label: 'Direct Messages', icon: Icons.message },
       { path: '/dashboard/visits', label: 'Viewing Requests', icon: Icons.calendar },
       { path: '/dashboard/sales', label: 'Deal Pipeline', icon: Icons.dollar },
-      { path: '/analytics', label: 'Performance Analytics', icon: Icons.chart },
       { path: '/profile', label: 'Account Settings', icon: Icons.user },
     ];
   } else if (userInfo.role === 'admin') {
     links = [
+      { path: '/admin/analytics', label: 'Global Analytics', icon: Icons.globe },
       { path: '/admin/users', label: 'Manage Users', icon: Icons.users },
       { path: '/admin/properties', label: 'Manage Properties', icon: Icons.building },
       { path: '/admin/boosts', label: 'Revenue & Boosts', icon: Icons.dollar },
-      { path: '/admin/analytics', label: 'Global Analytics', icon: Icons.globe },
       { path: '/admin/disputes', label: 'Dispute Center', icon: Icons.scale },
       { path: '/admin/logs', label: 'Master Audit Trail', icon: Icons.list },
       { path: '/admin/settings', label: 'Platform Settings', icon: Icons.settings },

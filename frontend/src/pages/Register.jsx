@@ -78,7 +78,7 @@ const Register = () => {
           minHeight: '400px'
         }}>
           <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', margin: '0 0 20px 0', lineHeight: 1.1, fontWeight: '800' }}>
-            Join the Elite Real Estate Network.
+            Join the Elite LakEstates Network.
           </h1>
           <p style={{ fontSize: '1.1rem', opacity: 0.9, lineHeight: 1.6, maxWidth: '400px' }}>
             Whether you are finding your dream home with AI or selling to a premium audience, your journey starts right here.
@@ -98,7 +98,7 @@ const Register = () => {
             
             <div style={{ marginBottom: '25px' }}>
               <h2 style={{ fontSize: '2rem', margin: '0 0 5px 0', color: 'var(--text-main)' }}>Create Account</h2>
-              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>Join us and experience real estate like never before.</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>Join us and experience LakEstates like never before.</p>
             </div>
             
             {/* Error UI */}

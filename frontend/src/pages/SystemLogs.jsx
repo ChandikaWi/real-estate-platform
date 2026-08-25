@@ -92,9 +92,27 @@ const SystemLogs = () => {
 
   return (
     <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
+        border: '1px solid rgba(243, 156, 18, 0.2)', 
+        borderRadius: '24px', 
+        padding: '40px', 
+        marginBottom: '30px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        <div>
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '2.2rem', fontWeight: '800' }}>System Administration</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage marketplace users, moderate listings, and track platform revenue.</p>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 5px 0' }}>Watchtower</h1>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 5px 0' }}>Watchtower</h2>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Master Audit Trail & System Logs</p>
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>

@@ -147,8 +147,11 @@ const Navigation = () => {
         backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)'
       }}>
         <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>R</div>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.5px' }}>RealEstate</h2>
+          <div style={{ width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1.2rem' }}>L</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.5px', lineHeight: '1.2' }}>LakEstates</h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>Sri Lanka's Property Marketplace</span>
+          </div>
         </Link>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -177,7 +180,7 @@ const Navigation = () => {
                 <span style={{ display: 'none', '@media (minWidth: 768px)': { display: 'inline' } }}>{userInfo.name.split(' ')[0]}</span>
               </Link>
 
-              <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/dashboard' : '/admin'} style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', boxShadow: 'var(--shadow-sm)' }}>Dashboard</Link>
+              <Link to={userInfo.role === 'buyer' ? '/buyer/dashboard' : userInfo.role === 'seller' ? '/analytics' : '/admin/analytics'} style={{ padding: '8px 20px', backgroundColor: 'var(--primary-color)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', boxShadow: 'var(--shadow-sm)' }}>Dashboard</Link>
               <button onClick={handleLogout} style={{ cursor: 'pointer', padding: '8px 20px', backgroundColor: 'transparent', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', borderRadius: '6px', fontWeight: '600' }}>Logout</button>
             </>
           ) : (

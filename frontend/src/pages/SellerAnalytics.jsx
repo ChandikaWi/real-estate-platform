@@ -273,7 +273,7 @@ const SellerAnalytics = () => {
         
         {/* PDF Formal Header */}
         <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '20px', marginBottom: '40px' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8rem', fontWeight: '900' }}>Real Estate Marketplace</h2>
+          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8rem', fontWeight: '900' }}>LakEstates</h2>
           <h3 style={{ margin: '8px 0', color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 'normal' }}>Seller Conversion & Performance Report</h3>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px' }}>
             <span><strong>Generated Date:</strong> {new Date().toLocaleString()}</span>

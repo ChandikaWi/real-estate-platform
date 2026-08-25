@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 
 // Helper function to send emails safely
 const sendEmail = (to, subject, html) => {
-  transporter.sendMail({ from: '"Real Estate Platform" <noreply@demo.com>', to, subject, html }).catch(console.error);
+  transporter.sendMail({ from: '"LakEstates" <noreply@demo.com>', to, subject, html }).catch(console.error);
 };
 
 // @desc    Submit a Purchase Request (Marketplace Flow)

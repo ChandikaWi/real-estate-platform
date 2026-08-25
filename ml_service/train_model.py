@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -9,14 +10,21 @@ import joblib
 # Load Dataset
 df = pd.read_csv('srilanka_properties.csv')
 
-# Separate Features and Target
-X = df[['city', 'type', 'bedrooms', 'bathrooms', 'area']]
-y = df['price']
+# Data Cleaning (Outlier Removal)
+df = df[(df['price'] > 0) & (df['area'] > 0) & (df['bedrooms'] > 0)]
+
+# Feature Engineering
+df['area_per_bedroom'] = df['area'] / df['bedrooms']
+df['bath_to_bed_ratio'] = df['bathrooms'] / df['bedrooms']
+
+# Separate Features and Target (Log Transformation)
+X = df[['city', 'type', 'bedrooms', 'bathrooms', 'area', 'area_per_bedroom', 'bath_to_bed_ratio']]
+y = np.log1p(df['price'])
 
 # Preprocessing Pipeline for Categorical and Numerical Data
 preprocessor = ColumnTransformer(
     transformers=[
-        ('num', StandardScaler(), ['bedrooms', 'bathrooms', 'area']),
+        ('num', StandardScaler(), ['bedrooms', 'bathrooms', 'area', 'area_per_bedroom', 'bath_to_bed_ratio']),
         ('cat', OneHotEncoder(handle_unknown='ignore'), ['city', 'type'])
     ]
 )
@@ -40,8 +48,8 @@ pipeline.fit(X_train, y_train)
 
 # Evaluate Model Performance
 score = pipeline.score(X_test, y_test)
-print(f"✅ Model R-squared Accuracy: {score * 100:.2f}%")
+print(f"Model R-squared Accuracy (Log Space): {score * 100:.2f}%")
 
 # Save Pipeline to .pkl File
-joblib.dump(pipeline, 'xgboost_model.pkl')
-print("✅ Saved pipeline as xgboost_model.pkl")
+joblib.dump(pipeline, 'xgboost_model_v2.pkl')
+print("Saved pipeline as xgboost_model_v2.pkl")

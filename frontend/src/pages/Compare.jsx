@@ -48,8 +48,8 @@ const Compare = () => {
       
       {/* HEADER */}
       <div style={{ 
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
-        border: '1px solid rgba(139, 92, 246, 0.2)', 
+        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
+        border: '1px solid rgba(37, 99, 235, 0.2)', 
         borderRadius: '24px', 
         padding: '40px', 
         marginBottom: '30px',

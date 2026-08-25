@@ -175,8 +175,8 @@ const AdminAnalytics = () => {
       
       {/* ADMIN BANNER */}
       <div style={{ 
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)', 
-        border: '1px solid rgba(139, 92, 246, 0.2)', 
+        background: 'linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
+        border: '1px solid rgba(243, 156, 18, 0.2)', 
         borderRadius: '24px', 
         padding: '40px', 
         marginBottom: '30px',
@@ -244,7 +244,7 @@ const AdminAnalytics = () => {
         
         {/* PDF Formal Header */}
         <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '20px', marginBottom: '40px' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8rem', fontWeight: '900' }}>Real Estate Marketplace</h2>
+          <h2 style={{ margin: 0, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8rem', fontWeight: '900' }}>LakEstates</h2>
           <h3 style={{ margin: '8px 0', color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 'normal' }}>Global Executive Summary Report</h3>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px' }}>
             <span><strong>Generated Date:</strong> {new Date().toLocaleString()}</span>

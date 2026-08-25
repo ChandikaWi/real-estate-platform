@@ -6,6 +6,13 @@ import { useUI } from '../context/UIContext';
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { tab } = useParams();
+  
+  useEffect(() => {
+    if (!tab) {
+      navigate('/admin/analytics', { replace: true });
+    }
+  }, [tab, navigate]);
+
   const currentTab = tab || 'users';
   const { showAlert, showConfirm } = useUI();
 

@@ -238,7 +238,7 @@ const EditProperty = () => {
                 🎯 AI Value: Rs. {aiEstimatedPrice.toLocaleString()}
               </div>
             )}
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>*Powered by 10k+ local real estate data points.</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>*Powered by 10k+ local LakEstates data points.</span>
           </div>
         )}
         <textarea placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ padding: '14px', gridColumn: '1 / -1', minHeight: '120px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', resize: 'vertical' }} />

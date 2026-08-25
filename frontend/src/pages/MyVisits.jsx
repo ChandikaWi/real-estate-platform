@@ -91,8 +91,8 @@ const MyVisits = () => {
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px 20px 60px 20px', color: 'var(--text-main)' }}>
       
       <div style={{ 
-        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', 
-        border: '1px solid rgba(245, 158, 11, 0.2)', 
+        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)', 
+        border: '1px solid rgba(37, 99, 235, 0.2)', 
         borderRadius: '24px', 
         padding: '40px', 
         marginBottom: '30px',
